@@ -27,6 +27,7 @@ import BgServiceComponent from './BgServiceComponent';
 import Home from './Home';
 import Map from './Map';
 import Settings from './Settings';
+import Leaflet from './Leaflet.vue';
 
 function base64Encode(value) {
     if (global.isIOS) {
@@ -54,7 +55,8 @@ export enum ComponentIds {
     Activity = 'activity',
     Settings = 'settings',
     Tracks = 'tracks',
-    Map = 'map'
+    Map = 'map',
+    Leaflet = 'leaflet'
 }
 
 export const navigateUrlProperty = 'navigateUrl';
@@ -88,6 +90,9 @@ export default class App extends BgServiceComponent {
         },
         [ComponentIds.Map]: {
             component: Map
+        },
+        [ComponentIds.Leaflet]: {
+            component: Leaflet
         }
     };
     public activatedUrl = '';
@@ -137,6 +142,12 @@ export default class App extends BgServiceComponent {
                 url: ComponentIds.Tracks,
                 activated: false
             },
+            // {
+            //     title: this.$t('create_track'),
+            //     icon: 'mdi-map-marker-distance',
+            //     url: ComponentIds.Leaflet,
+            //     activated: false
+            // },
             {
                 title: this.$t('settings'),
                 icon: 'mdi-settings',

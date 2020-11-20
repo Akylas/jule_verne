@@ -1,22 +1,19 @@
-import { knownFolders } from '@nativescript/core/file-system';
-import { Screen } from '@nativescript/core/platform';
-import { View } from '@nativescript/core';
-import { Frame } from '@nativescript/core';
-import { Label } from '@nativescript/core';
-import { Page } from '@nativescript/core';
-import { ad } from '@nativescript/core/utils/utils';
-import { bind } from 'helpful-decorators';
-import { ShareFile } from '@nativescript-community/ui-share-file';
 import { ActivityIndicator } from '@nativescript-community/ui-material-activityindicator';
 import { AlertDialog } from '@nativescript-community/ui-material-dialogs';
 import { Progress } from '@nativescript-community/ui-material-progress';
+import { ShareFile } from '@nativescript-community/ui-share-file';
+import { Frame, Label, Page, View } from '@nativescript/core';
+import { knownFolders } from '@nativescript/core/file-system';
+import { Screen } from '@nativescript/core/platform';
+import { ad } from '@nativescript/core/utils/utils';
+import { bind } from 'helpful-decorators';
 import Vue, { NativeScriptVue, NavigationEntryVue } from 'nativescript-vue';
 import { VueConstructor } from 'vue';
 import { Prop } from 'vue-property-decorator';
 import { accentColor, actionBarHeight, darkColor, primaryColor } from '../variables';
 
 function timeout(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export interface BaseVueComponentRefs {
@@ -42,7 +39,7 @@ export default class BaseVueComponent extends Vue {
     needsRoundedWatchesHandle = false;
     debug = false;
     get page() {
-        return this.getRef<Page>('page') ;
+        return this.getRef<Page>('page');
     }
 
     get devMode() {
@@ -50,7 +47,7 @@ export default class BaseVueComponent extends Vue {
     }
     getRef<T extends View = View>(key: string) {
         if (this.$refs[key]) {
-            return (this.$refs[key] as NativeScriptVue<T>).nativeView ;
+            return (this.$refs[key] as NativeScriptVue<T>).nativeView;
         }
     }
     noop() {}
@@ -124,10 +121,7 @@ export default class BaseVueComponent extends Vue {
         if (this.isRounded === null) {
             if (BaseVueComponent.isRounded === undefined) {
                 if (global.isAndroid && android.os.Build.VERSION.SDK_INT >= 23) {
-                    BaseVueComponent.isRounded = (ad.getApplicationContext() as android.content.Context)
-                        .getResources()
-                        .getConfiguration()
-                        .isScreenRound();
+                    BaseVueComponent.isRounded = (ad.getApplicationContext() as android.content.Context).getResources().getConfiguration().isScreenRound();
                     // https://developer.android.com/reference/android/content/res/Configuration.html#isScreenRound()
                 } else {
                     BaseVueComponent.isRounded = false;
@@ -138,6 +132,7 @@ export default class BaseVueComponent extends Vue {
         return this.isRounded;
     }
     mounted() {
+        console.log('mounted');
         if (this.nativeView && this['navigateUrl']) {
             this.nativeView['navigateUrl'] = this['navigateUrl'];
         }
@@ -177,7 +172,7 @@ export default class BaseVueComponent extends Vue {
             return;
         }
         this.hideLoading();
-        this.$crashReportService.showError(err);;
+        this.$crashReportService.showError(err);
     }
 
     log(...args) {
