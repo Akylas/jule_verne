@@ -1,3 +1,4 @@
+import { CartoMap } from '@nativescript-community/ui-carto/ui';
 import * as application from '@nativescript/core/application';
 import { EventData } from '@nativescript/core/data/observable';
 import { ObservableArray } from '@nativescript/core/data/observable-array';
@@ -79,7 +80,7 @@ export default class Home extends BgServiceComponent {
     }
 
     async onServiceStarted(geoHandler: GeoHandler) {
-        this.tracks.push(geoHandler.currentTrack);
+        // this.tracks.push(geoHandler.currentTrack);
     }
     // updateMapWithSession() {
     //     const map = this._cartoMap;
@@ -94,7 +95,11 @@ export default class Home extends BgServiceComponent {
     //         this.updateMapWithSession();
     //     }
     // }
-    async onMapReady(e) {}
+    async onMapReady(e) {
+        if (this.tracks.length > 0) {
+            (e.object as CartoMap<LatLonKeys>).moveToFitBounds(this.tracks.getItem(0).bounds, undefined, true, true, false, 0);
+        }
+    }
 
     protected onSessionStateEvent(e: SessionEventData) {
         console.log('onSessionStateEvent', e.data);

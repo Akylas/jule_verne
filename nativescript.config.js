@@ -1,7 +1,6 @@
-
 module.exports = {
-  id: 'com.akylas.juleverne',
-  appResourcesPath: 'App_Resources',
+    id: 'com.akylas.juleverne',
+    appResourcesPath: 'App_Resources',
     android: {
         maxLogcatObjectSize: 2048,
         markingMode: 'none',
@@ -11,4 +10,4 @@ module.exports = {
     },
     appPath: 'app',
     webpackConfigPath: './app.webpack.config.js'
-} ;
+};
