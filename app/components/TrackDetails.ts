@@ -3,15 +3,19 @@ import { LineChart } from '@nativescript-community/ui-chart/charts/LineChart';
 import { XAxisPosition } from '@nativescript-community/ui-chart/components/XAxis';
 import { LineData } from '@nativescript-community/ui-chart/data/LineData';
 import { LineDataSet } from '@nativescript-community/ui-chart/data/LineDataSet';
+import { ObservableArray } from '@nativescript/core/data/observable-array';
 import { layout } from '@nativescript/core/utils/utils';
+import { Feature } from 'geojson';
 import { Component, Prop } from 'vue-property-decorator';
 import BgServiceComponent from '~/components/BgServiceComponent';
 import { GeoHandler, GeoLocation, Session } from '~/handlers/GeoHandler';
 import { UNITS, convertDuration, convertValueToUnit, toImperialUnit } from '~/helpers/formatter';
 import { computeDistance, getBoundsZoomLevel, getCenter } from '~/helpers/geo';
-import Track from '~/models/Track';
+import Track, { GeometryProperties, TrackGeometry } from '~/models/Track';
+import { borderColor, mdiFontFamily, textColor } from '~/variables';
 // import {notify as appNotify, HistorySessionUpdatedEvent} from './App';
 import MapComponent from './MapComponent';
+import tinycolor from 'tinycolor2';
 
 function timeout(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -23,11 +27,15 @@ function timeout(ms) {
     }
 })
 export default class TrackDetails extends BgServiceComponent {
+    borderColor = borderColor;
+    mdiFontFamily = mdiFontFamily;
+    textColor = textColor;
     @Prop()
     track: Track;
     navigateUrl = 'sessionDetails';
     public simplified = false;
     map: CartoMap<LatLonKeys>;
+    dataItems: ObservableArray<Feature<TrackGeometry, GeometryProperties>> = null;
 
     editableName: string = null;
     editableDesc: string = null;
@@ -40,6 +48,7 @@ export default class TrackDetails extends BgServiceComponent {
 
     mounted() {
         super.mounted();
+        this.dataItems = new ObservableArray(this.track.geometry.features);
         this.isEditing = this.editable && this.startInEdit;
         this.editableName = this.track.name || '';
         this.editableDesc = this.track.desc || '';
@@ -52,27 +61,7 @@ export default class TrackDetails extends BgServiceComponent {
             chart.invalidate();
         });
     }
-    chartUnit(key: string) {
-        let unit: UNITS;
-        switch (key) {
-            case 'distance':
-                unit = UNITS.Distance;
-                break;
-            case 'speed':
-                unit = UNITS.Speed;
-                break;
-            case 'altitude':
-                unit = UNITS.Distance;
-                break;
-            case 'hr':
-                unit = UNITS.Cardio;
-                break;
-        }
-        return unit;
-    }
-    get chartTitle() {
-        return (key: string) => `${this.$tu(key)} (${toImperialUnit(this.chartUnit(key), this.imperialUnit).toUpperCase()})`;
-    }
+   
     onLoaded() {}
     onNavigatedTo() {}
 
@@ -80,13 +69,28 @@ export default class TrackDetails extends BgServiceComponent {
         super.destroyed();
     }
 
-    get chartKeys() {
-        const result = ['speed', 'altitude', 'distance'];
-        return result;
-    }
 
     get currentSession() {
         return this.track;
+    }
+
+
+    get fillColor() {
+        return (item: Feature<TrackGeometry, GeometryProperties>) => item.properties.color && new tinycolor(item.properties.color).setAlpha(0.5).toRgbString();
+    }
+    get icon() {
+        return (item: Feature<TrackGeometry, GeometryProperties>) => {
+            switch (item.properties.shape) {
+                case 'Circle':
+                    return 'mdi-circle-outline';
+                case 'Line':
+                    return 'mdi-chart-line-variant';
+                case 'Marker':
+                    return 'mdi-map-marker';
+                case 'CircleMarker':
+                    return 'mdi-record-circle-outline';
+            }
+        };
     }
 
     mapInitialized = false;

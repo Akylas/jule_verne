@@ -1,9 +1,10 @@
 import { EntitySubscriberInterface, EventSubscriber, InsertEvent, UpdateEvent } from '@nativescript-community/typeorm';
+import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { CollectionView } from '@nativescript-community/ui-collectionview';
 import { openFilePicker } from '@nativescript-community/ui-document-picker';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { ShareFile } from '@nativescript-community/ui-share-file';
-import { getString, remove, setString } from '@nativescript/core/application-settings';
+import { getString } from '@nativescript/core/application-settings';
 import { ObservableArray } from '@nativescript/core/data/observable-array';
 import { knownFolders, path } from '@nativescript/core/file-system';
 import { profile } from '@nativescript/core/profiling';
@@ -12,9 +13,11 @@ import BgServiceComponent from '~/components/BgServiceComponent';
 import OptionSelect from '~/components/OptionSelect';
 import TrackDetails from '~/components/TrackDetails';
 import { GeoHandler } from '~/handlers/GeoHandler';
-import Track from '~/models/Track';
+import Leaflet from '~/components/Leaflet.vue';
+import Track, { TrackFeatureCollection } from '~/models/Track';
 import { confirm } from '~/utils/dialogs';
-import { ComponentIds, notify as appNotify } from './App';
+import { bboxify } from '~/utils/geo';
+import { ComponentIds } from './App';
 
 interface Item {
     track: Track;
@@ -93,7 +96,7 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
     }
     onTrackChecked(item: Item, $event) {
         const trackId = item.track.id;
-        console.log('onTrackChecked ', trackId, this.currentTrackId , $event.value);
+        console.log('onTrackChecked ', trackId, this.currentTrackId, $event.value);
         if ($event.value) {
             if (trackId !== this.currentTrackId) {
                 if (this.currentTrackId) {
@@ -214,7 +217,7 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
         this.log('refresh');
         try {
             const results = await Track.find();
-            const selectedTrack = this.currentTrackId = getString('selectedTrackId');
+            const selectedTrack = (this.currentTrackId = getString('selectedTrackId'));
             this.dataItems = new ObservableArray(
                 results.map((s) => ({
                     track: s,
@@ -262,54 +265,52 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
         this.listView.refresh();
     }
 
-    importTrace() {
-        return Promise.resolve()
-            .then(() => {
-                if (global.isIOS) {
-                    const docs = knownFolders.documents();
-                    return docs
-                        .getEntities()
-                        .then((result) => result.map((e) => e.path).filter((s) => s.endsWith('.gpx') || s.endsWith('.json')))
-                        .then((r) => {
-                            if (r && r.length > 0) {
-                                return this.$showModal(OptionSelect, {
-                                    props: {
-                                        title: this.$t('pick_file'),
-                                        options: r.map((e) => ({ title: e.split('/').slice(-1)[0], data: e }))
-                                    },
-                                    fullscreen: false
-                                }).then((result: { title: string; data: string }) => result && { files: [result.data] });
-                            } else {
-                                showSnack({ message: this.$t('no_file_found') });
-                                return undefined;
-                            }
-                        });
-                } else {
-                    return openFilePicker({
-                        extensions: global.isIOS ? ['com.akylas.juleverne.json', 'com.gpsakylas.julevernetest.gpx'] : ['*/*'],
-                        multipleSelection: false,
-                        pickerMode: 0
+    async importTrace() {
+        try {
+            let result;
+            if (global.isIOS) {
+                const docs = knownFolders.documents();
+                result = await docs
+                    .getEntities()
+                    .then((result) => result.map((e) => e.path).filter((s) => s.endsWith('.gpx') || s.endsWith('.json')))
+                    .then((r) => {
+                        if (r && r.length > 0) {
+                            return this.$showModal(OptionSelect, {
+                                props: {
+                                    title: this.$t('pick_file'),
+                                    options: r.map((e) => ({ title: e.split('/').slice(-1)[0], data: e }))
+                                },
+                                fullscreen: false
+                            }).then((result: { title: string; data: string }) => result && { files: [result.data] });
+                        } else {
+                            showSnack({ message: this.$t('no_file_found') });
+                            return undefined;
+                        }
                     });
-                }
-            })
-            .then((result) => {
-                if (result && result.files.length > 0) {
-                    this.showLoading(this.$t('importing'));
-                    return Promise.all(
-                        result.files.map((f) => {
-                            if (f.endsWith('.json')) {
-                                return this.geoHandler.importJSONFile(f);
-                            } else if (f.endsWith('.gpx')) {
-                                return this.geoHandler.importGPXFile(f);
-                            }
-                        })
-                    ).then(() => {
-                        this.hideLoading();
-                        this.refresh();
-                    });
-                }
-            })
-            .catch(this.showError);
+            } else {
+                result = await openFilePicker({
+                    extensions: global.isIOS ? ['com.akylas.juleverne.json', 'com.gpsakylas.julevernetest.gpx'] : ['*/*'],
+                    multipleSelection: false,
+                    pickerMode: 0
+                });
+            }
+            if (result && result.files.length > 0) {
+                this.showLoading(this.$t('importing'));
+                await Promise.all(
+                    result.files.map((f) => {
+                        if (f.endsWith('.json')) {
+                            return this.geoHandler.importJSONFile(f);
+                        } else if (f.endsWith('.gpx')) {
+                            return this.geoHandler.importGPXFile(f);
+                        }
+                    })
+                );
+                this.hideLoading();
+                this.refresh();
+            }
+        } catch (err) {
+            this.showError(err);
+        }
     }
 
     async shareDB() {
@@ -322,5 +323,19 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
             options: true, // optional iOS
             animated: true // optional iOS
         });
+    }
+
+    async createTrack() {
+        const result = await this.$showModal(Leaflet);
+        if (result) {
+            const data = JSON.parse(result) as TrackFeatureCollection;
+            const track = new Track(Date.now());
+            Object.assign(track, data);
+            const geojson = bboxify(track.geometry);
+            track.geometry = geojson as any;
+            track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.bbox[3], lon: geojson.bbox[2] }, { lat: geojson.bbox[1], lon: geojson.bbox[0] });
+            await track.save();
+            this.$getAppComponent().navigateTo(TrackDetails, { props: { track } });
+        }
     }
 }
