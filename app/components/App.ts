@@ -170,8 +170,8 @@ export default class App extends BgServiceComponent {
         }
     }
     async importDevSessions() {
-        console.log('importDevSessions');
         if (DEV_LOG) {
+            console.log('importDevSessions');
             try {
                 this.showLoading({ text: this.$t('importing_data'), progress: 0 });
                 const importData = knownFolders.currentApp().getFile('assets/test_data.json').readTextSync();

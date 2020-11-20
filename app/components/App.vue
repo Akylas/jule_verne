@@ -1,5 +1,5 @@
 <template>
-    <Page ref="page" actionBarHidden @loaded="onLoaded" ios:barStyle="light" :navigationBarColor="darkColor" :statusBarColor="darkColor">
+    <Page ref="page" actionBarHidden @loaded="onLoaded">
         <Drawer ref="drawer" leftDrawerMode="slide">
             <GridLayout ~leftDrawer rows="auto, *, auto" height="100%" backgroundColor="white" width="80%">
                 <GridLayout padding="10" height="80" rows="auto, *" columns="auto, *">
