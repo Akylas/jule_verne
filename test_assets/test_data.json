@@ -1,0 +1,234 @@
+[
+    {
+        "name": "my test trace",
+        "geometry": {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "shape": "Line",
+                        "name": "premier parcours",
+                        "category": "default",
+                        "color": "red"
+                    },
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": [
+                            [
+                                5.736401,
+                                45.184565
+                            ],
+                            [
+                                5.738073,
+                                45.185298
+                            ],
+                            [
+                                5.736937,
+                                45.185094
+                            ],
+                            [
+                                5.736797,
+                                45.185208
+                            ],
+                            [
+                                5.737098,
+                                45.185329
+                            ],
+                            [
+                                5.736787,
+                                45.185714
+                            ],
+                            [
+                                5.736004,
+                                45.185389
+                            ],
+                            [
+                                5.7358,
+                                45.185661
+                            ],
+                            [
+                                5.734921,
+                                45.185321
+                            ],
+                            [
+                                5.735221,
+                                45.185102
+                            ],
+                            [
+                                5.734374,
+                                45.184747
+                            ],
+                            [
+                                5.735135,
+                                45.184006
+                            ]
+                        ]
+                    },
+                    "id": "db7d8a82-c783-4cab-97a8-842a15a6f58e"
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "shape": "Marker",
+                        "name": "Marker de test 1",
+                        "color": "yellow",
+                        "category": "default"
+                    },
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [
+                            5.735575,
+                            45.184898
+                        ]
+                    },
+                    "id": "eaa7b314-68d5-40ee-a5a5-58869e9decbf"
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "shape": "Line",
+                        "name": "deuxieme trace",
+                        "color": "blue",
+                        "category": "default"
+                    },
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": [
+                            [
+                                5.735789,
+                                45.184784
+                            ],
+                            [
+                                5.735821,
+                                45.184361
+                            ],
+                            [
+                                5.736025,
+                                45.184308
+                            ],
+                            [
+                                5.736218,
+                                45.184248
+                            ],
+                            [
+                                5.736175,
+                                45.184142
+                            ],
+                            [
+                                5.736304,
+                                45.183908
+                            ],
+                            [
+                                5.736411,
+                                45.183847
+                            ],
+                            [
+                                5.73728,
+                                45.183726
+                            ],
+                            [
+                                5.737355,
+                                45.183598
+                            ],
+                            [
+                                5.73847,
+                                45.184021
+                            ],
+                            [
+                                5.738513,
+                                45.184089
+                            ],
+                            [
+                                5.738374,
+                                45.184346
+                            ],
+                            [
+                                5.738534,
+                                45.18455
+                            ],
+                            [
+                                5.738577,
+                                45.184784
+                            ],
+                            [
+                                5.738277,
+                                45.1852
+                            ],
+                            [
+                                5.739296,
+                                45.185593
+                            ],
+                            [
+                                5.739317,
+                                45.185797
+                            ],
+                            [
+                                5.739435,
+                                45.185903
+                            ],
+                            [
+                                5.740293,
+                                45.186341
+                            ]
+                        ]
+                    },
+                    "id": "d8395166-f260-47a2-bc01-9dd46f62e020"
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "shape": "CircleMarker",
+                        "name": "circle marker",
+                        "color": "green",
+                        "category": "default"
+                    },
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [
+                            5.737173,
+                            45.186198
+                        ]
+                    },
+                    "id": "a01dd375-a3b8-42b4-b16f-172ecd5b0251"
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "shape": "Circle",
+                        "radius": 44.821396964671465,
+                        "color": "brown",
+                        "name": "Circle test",
+                        "category": "default"
+                    },
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [
+                            5.738116,
+                            45.186062
+                        ]
+                    },
+                    "id": "cd4849cd-eda6-4cd0-ac3d-acd30e4a177c"
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "shape": "Circle",
+                        "radius": 73.41685547005439,
+                        "color": "purple",
+                        "name": "Circle test 2",
+                        "category": "default"
+                    },
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [
+                            5.734481,
+                            45.184036
+                        ]
+                    },
+                    "id": "8a9fa4de-e635-4e8c-9f6a-00f3e508b36b"
+                }
+            ]
+        }
+    }
+]

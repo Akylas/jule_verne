@@ -1,0 +1,16 @@
+{
+    "terminal.integrated.env.osx": {
+        "IOS_APP_ID": "1441912613",
+        "KEYSTORE_PASSWORD": "gpstest",
+        "KEYSTORE_ALIAS_PASSWORD": "gpstest",
+        "KEYSTORE_ALIAS": "gpstest",
+        "KEYSTORE_PATH": "certs/upload.keystore",
+        "SENTRY_DSN": "https://bcc3d9fab9f74032b8fa525b90700bec@bugs.akylas.fr/8",
+        "SENTRY_PREFIX": "app:///",
+        "SOURCEMAP_REL_DIR": "../../sourcemaps",
+    },
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "i18n-ally.keystyle": "nested",
+    "i18n-ally.sourceLanguage": "en",
+    "java.configuration.updateBuildConfiguration": "disabled",
+}

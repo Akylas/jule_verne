@@ -1,0 +1,326 @@
+import { EntitySubscriberInterface, EventSubscriber, InsertEvent, UpdateEvent } from '@nativescript-community/typeorm';
+import { CollectionView } from '@nativescript-community/ui-collectionview';
+import { openFilePicker } from '@nativescript-community/ui-document-picker';
+import { showSnack } from '@nativescript-community/ui-material-snackbar';
+import { ShareFile } from '@nativescript-community/ui-share-file';
+import { getString, remove, setString } from '@nativescript/core/application-settings';
+import { ObservableArray } from '@nativescript/core/data/observable-array';
+import { knownFolders, path } from '@nativescript/core/file-system';
+import { profile } from '@nativescript/core/profiling';
+import { Component } from 'vue-property-decorator';
+import BgServiceComponent from '~/components/BgServiceComponent';
+import OptionSelect from '~/components/OptionSelect';
+import TrackDetails from '~/components/TrackDetails';
+import { GeoHandler } from '~/handlers/GeoHandler';
+import Track from '~/models/Track';
+import { confirm } from '~/utils/dialogs';
+import { ComponentIds, notify as appNotify } from './App';
+
+interface Item {
+    track: Track;
+    selected: boolean;
+    checked: boolean;
+}
+
+@EventSubscriber()
+@Component({
+    components: {
+        TrackDetails
+    }
+})
+export default class Tracks extends BgServiceComponent implements EntitySubscriberInterface<Track> {
+    navigateUrl = ComponentIds.Tracks;
+
+    dataItems: ObservableArray<Item> = null;
+
+    get listView() {
+        return this.$refs.collectionView && (this.$refs.collectionView.nativeView as CollectionView);
+    }
+
+    onNavigatingTo() {
+        if (this.needsRefreshOnNav) {
+            this.needsRefreshOnNav = false;
+            this.listView.refresh();
+        }
+    }
+
+    afterInsert(event: InsertEvent<Track>) {
+        this.dataItems = this.dataItems || new ObservableArray();
+        this.dataItems.push({
+            session: event.entity,
+            selected: false
+        });
+    }
+    needsRefreshOnNav = false;
+    afterUpdate(event: UpdateEvent<Track>) {
+        // on iOS item udpate seems to fail for now if the listview is not visible.
+        // this is a workaround!
+        if (global.isIOS && !this.$getAppComponent().isActiveUrl(this.navigateUrl)) {
+            this.needsRefreshOnNav = true;
+            return;
+        }
+        const savedSession = event.entity;
+        this.dataItems.some((d, index) => {
+            if (d.track.id === savedSession.id) {
+                d.track = savedSession;
+                // d.selected = true;
+                this.dataItems.setItem(index, d);
+                return true;
+            }
+        });
+    }
+
+    mounted() {
+        this.dbHandler.connection.subscribers.push(this as any);
+        super.mounted();
+    }
+    destroyed() {
+        const index = this.dbHandler.connection.subscribers.indexOf(this as any);
+        this.dbHandler.connection.subscribers.splice(index, 1);
+        super.destroyed();
+    }
+    get title() {
+        if (this.inSelection) {
+            return this.$t('selected_items', this.selectedSessions.length);
+        }
+        return this.$t('tracks');
+    }
+    get isTrackSelected() {
+        return (item: Item) => !!item.selected;
+    }
+    get isCurrentTrack() {
+        return (item: Item) => !!item.checked;
+    }
+    onTrackChecked(item: Item, $event) {
+        const trackId = item.track.id;
+        console.log('onTrackChecked ', trackId, this.currentTrackId , $event.value);
+        if ($event.value) {
+            if (trackId !== this.currentTrackId) {
+                if (this.currentTrackId) {
+                    this.dataItems.some((t, index) => {
+                        if (t.track.id === this.currentTrackId) {
+                            this.setChecked(t, false);
+                            return true;
+                        }
+                        return false;
+                    });
+                }
+                this.setChecked(item, true);
+                this.geoHandler.currentTrack = item.track;
+                this.currentTrackId = trackId;
+            }
+        } else {
+            if (this.currentTrackId === trackId) {
+                this.setChecked(item, false);
+                this.geoHandler.currentTrack = null;
+                this.currentTrackId = null;
+            }
+        }
+    }
+    currentTrackId: string;
+    get inSelection() {
+        return this.selectedSessions.length > 0;
+    }
+
+    selectSession(item: Item) {
+        if (!this.isTrackSelected(item)) {
+            this.dataItems.some((d, index) => {
+                if (d === item) {
+                    d.selected = true;
+                    this.dataItems.setItem(index, d);
+                    return true;
+                }
+            });
+        }
+    }
+    setChecked(item: Item, checked: boolean) {
+        console.log('setChecked', item.track.id, checked);
+        this.dataItems.some((d, index) => {
+            if (d === item) {
+                d.checked = checked;
+                this.dataItems.setItem(index, d);
+                return true;
+            }
+        });
+    }
+    unselectSession(item: Item) {
+        if (this.isTrackSelected(item)) {
+            this.dataItems.some((d, index) => {
+                if (d === item) {
+                    d.selected = false;
+                    this.dataItems.setItem(index, d);
+                    return true;
+                }
+            });
+        }
+    }
+    unselectAllSessions() {
+        this.dataItems &&
+            this.dataItems.forEach((d, index) => {
+                d.selected = false;
+                this.dataItems.setItem(index, d);
+            });
+    }
+
+    get selectedSessions() {
+        return this.dataItems?.filter((s) => !!s.selected).map((i) => i.track.id) || [];
+    }
+
+    deleteSelectedSessions() {
+        this.log('deleteSelectedSessions');
+        return confirm({
+            title: this.$tc('delete'),
+            message: this.$tc('confirm_delete_sessions', this.selectedSessions.length),
+            okButtonText: this.$tc('delete'),
+            cancelButtonText: this.$tc('cancel')
+        })
+            .then((result) => {
+                this.log('delete, confirmed', result);
+                if (result) {
+                    const indexes = [];
+                    this.dataItems.forEach((d, index) => {
+                        if (d.selected) {
+                            indexes.push(index);
+                        }
+                    });
+                    return Track.delete(this.selectedSessions).then(() => {
+                        indexes.reverse().forEach((index) => {
+                            this.dataItems.splice(index, 1);
+                        });
+                    });
+                    // this.unselectAllSessions();
+                    // this.refresh();
+                    // });
+                }
+            })
+            .catch(this.showError);
+    }
+    get itemTitle() {
+        return (item: Item) => {
+            const session = item.track;
+            return session.name;
+        };
+    }
+
+    get itemSubtitle() {
+        return (item: Item) => {
+            const session = item.track;
+            return '';
+        };
+    }
+
+    @profile
+    async refresh() {
+        this.log('refresh');
+        try {
+            const results = await Track.find();
+            const selectedTrack = this.currentTrackId = getString('selectedTrackId');
+            this.dataItems = new ObservableArray(
+                results.map((s) => ({
+                    track: s,
+                    checked: selectedTrack === s.id,
+                    selected: false
+                }))
+            );
+        } catch (err) {
+            this.showError(err);
+        }
+    }
+
+    ignoreTap = false;
+    onItemLongPress(item: Item, event?) {
+        if (event && event.ios && event.ios.state !== 1) {
+            return;
+        }
+        if (event && event.ios) {
+            this.ignoreTap = true;
+        }
+        // console.log('onItemLongPress', item, Object.keys(event));
+        if (this.isTrackSelected(item)) {
+            this.unselectSession(item);
+        } else {
+            this.selectSession(item);
+        }
+    }
+    onItemTap(item: Item, event) {
+        if (this.ignoreTap) {
+            this.ignoreTap = false;
+            return;
+        }
+        // console.log('onItemTap', event && event.ios && event.ios.state, this.selectedSessions.length);
+        if (this.selectedSessions.length > 0) {
+            this.onItemLongPress(item);
+        } else {
+            this.$getAppComponent().navigateTo(TrackDetails, { props: { track: item.track } });
+        }
+    }
+
+    onServiceLoaded(geoHandler: GeoHandler) {
+        this.refresh();
+    }
+    onImperialUnitChanged(value: boolean) {
+        this.listView.refresh();
+    }
+
+    importTrace() {
+        return Promise.resolve()
+            .then(() => {
+                if (global.isIOS) {
+                    const docs = knownFolders.documents();
+                    return docs
+                        .getEntities()
+                        .then((result) => result.map((e) => e.path).filter((s) => s.endsWith('.gpx') || s.endsWith('.json')))
+                        .then((r) => {
+                            if (r && r.length > 0) {
+                                return this.$showModal(OptionSelect, {
+                                    props: {
+                                        title: this.$t('pick_file'),
+                                        options: r.map((e) => ({ title: e.split('/').slice(-1)[0], data: e }))
+                                    },
+                                    fullscreen: false
+                                }).then((result: { title: string; data: string }) => result && { files: [result.data] });
+                            } else {
+                                showSnack({ message: this.$t('no_file_found') });
+                                return undefined;
+                            }
+                        });
+                } else {
+                    return openFilePicker({
+                        extensions: global.isIOS ? ['com.akylas.juleverne.json', 'com.gpsakylas.julevernetest.gpx'] : ['*/*'],
+                        multipleSelection: false,
+                        pickerMode: 0
+                    });
+                }
+            })
+            .then((result) => {
+                if (result && result.files.length > 0) {
+                    this.showLoading(this.$t('importing'));
+                    return Promise.all(
+                        result.files.map((f) => {
+                            if (f.endsWith('.json')) {
+                                return this.geoHandler.importJSONFile(f);
+                            } else if (f.endsWith('.gpx')) {
+                                return this.geoHandler.importGPXFile(f);
+                            }
+                        })
+                    ).then(() => {
+                        this.hideLoading();
+                        this.refresh();
+                    });
+                }
+            })
+            .catch(this.showError);
+    }
+
+    async shareDB() {
+        const filePath = path.join(knownFolders.documents().getFolder('db').path, 'db.sqlite');
+        console.log('shareDB', filePath);
+        const shareFile = new ShareFile();
+        await shareFile.open({
+            path: filePath,
+            title: 'DB',
+            options: true, // optional iOS
+            animated: true // optional iOS
+        });
+    }
+}
