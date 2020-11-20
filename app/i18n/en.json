@@ -1,0 +1,15 @@
+﻿{
+  "ios": {
+    "info": {
+      "plist": {
+        "NSLocationWhenInUseUsageDescription": "\"Jule Verne\" uses GPS to display it ",
+        "NSMotionUsageDescription": "Jule Verne uses the Barometer to compute more accurate elevation"
+      }
+    }
+  },
+  "app": {
+    "name": "Jule Verne"
+  },
+  "entering_feature": "you are entering %s",
+  "leaving_feature": "you are leaving %s"
+}

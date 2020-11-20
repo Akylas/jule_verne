@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="leaving_feature">"you are leaving %1$s"</string>
+  <string name="entering_feature">"you are entering %1$s"</string>
+  <string name="app_name">"Jule Verne"</string>
+  <string name="title_activity_kimera">"Jule Verne"</string>
+</resources>

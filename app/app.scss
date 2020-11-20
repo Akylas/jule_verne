@@ -1,0 +1,124 @@
+@import "./variables";
+// @import "./animations";
+
+Page {
+  background-color: $background-color;
+}
+
+.mdi {
+  font-family: $mdi-fontFamily;
+}
+
+.actionBar {
+  z-index: 0;
+  border-radius: 0;
+  ripple-color: transparent;
+  background-color: $primary-color;
+  height: $actionbar-height;
+}
+
+.actionBarButton {
+  @extend .mdi;
+  width: $actionbar-height;
+  height: $actionbar-height;
+  color: black;
+  margin: 0;
+  padding: 0;
+  font-size: 32;
+  border-radius: $actionbar-height/2;
+}
+
+.actionBarTitle {
+  vertical-alignment: center;
+  font-size: 18;
+  font-weight: 500;
+  color: white;
+}
+
+.actionBarSubtitle {
+  font-size: 13;
+  color: rgba(255, 255, 255, 0.533);
+}
+
+.icon-btn {
+  @extend .mdi;
+  color: $text-color;
+  width: $actionbar-button-height;
+  height: $actionbar-button-height;
+  font-size: 24;
+  margin: 0;
+  padding: 0;
+}
+.menu {
+  background-color: #ffffff;
+  border-radius: 4;
+  margin-left: 10;
+  margin-right: 10;
+}
+
+.menuIcon {
+  @extend .mdi;
+  text-align: center;
+  font-size: 24;
+  color: $accent-color;
+}
+
+.menuText {
+  color: black;
+  font-size: 16;
+}
+
+.menu[active="true"] {
+  background-color: #ececec;
+}
+.menuText[active="true"] {
+}
+
+.menuInfos {
+  padding-left: 25;
+  padding-right: 25;
+}
+.menuInfos label {
+  font-size: 14;
+  horizontal-alignment: left;
+}
+
+.menuButtons {
+  padding-left: 12;
+  padding-right: 12;
+  margin-bottom: 10;
+}
+
+.menu-btn {
+  @extend .icon-btn;
+  border-radius: 22;
+  ripple-color: #b8b7b7;
+  color: $accent-color;
+}
+.menuButtons mdbutton {
+  @extend .menu-btn;
+}
+
+
+
+.floating-btn {
+  @extend .mdi;
+  color: $accent-color;
+  background-color: $primary-color;
+  ripple-color: $dark-color;
+  font-size: 30;
+  padding: 0;
+  margin: 0;
+  width: 64;
+  height: 64;
+  border-radius: 32;
+}
+.small-floating-btn {
+  @extend .mdi;
+  color: $primary-color;
+  font-size: 15;
+  padding: 0;
+  width: 30;
+  height: 30;
+  border-radius: 15;
+}

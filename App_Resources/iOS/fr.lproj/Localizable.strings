@@ -1,0 +1,5 @@
+"leaving_feature" = "vous quittez %1$@";
+"entering_feature" = "vous entrez dans %1$@";
+"app.name" = "Jule Verne";
+"ios.info.plist.NSMotionUsageDescription" = "Jule Verne uses the Barometer to compute more accurate elevation";
+"ios.info.plist.NSLocationWhenInUseUsageDescription" = "\"Jule Verne\" uses GPS to display it ";
