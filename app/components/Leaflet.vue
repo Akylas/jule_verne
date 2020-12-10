@@ -1,7 +1,7 @@
 <template>
     <Page ref="page" :navigateUrl="navigateUrl">
         <GridLayout rows="auto,*">
-            <CActionBar showMenuIcon :title="$tc('create_track')" />
+            <CActionBar modal showMenuIcon :title="$tc('create_track')" />
             <WebViewExt ref="webview" row="1" src="~/assets/leaflet/index.html" @geojson="onGeoJSON" />
         </GridLayout>
     </Page>

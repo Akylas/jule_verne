@@ -16,7 +16,6 @@ export interface HomeRefs extends BaseVueComponentRefs {
     }
 })
 export default class Map extends BgServiceComponent {
-
     navigateUrl = ComponentIds.Map;
     loading = false;
     mounted() {
@@ -27,15 +26,7 @@ export default class Map extends BgServiceComponent {
         super.destroyed();
     }
 
-
     onUpdateSessionEvent(e: SessionEventData) {
         // this.log('onUpdateSessionEvent');
-    }
-
-    setup(geoHandler: GeoHandler) {
-
-        if (!geoHandler) {
-            return;
-        }
     }
 }

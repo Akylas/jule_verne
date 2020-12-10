@@ -1,6 +1,6 @@
 import { BaseEntity, Column, Entity, PrimaryColumn } from '@nativescript-community/typeorm';
-import { MapBounds } from '@nativescript-community/ui-carto/core';
-import { FeatureCollection, GeometryObject } from 'geojson';
+import { MapBounds, MapPos } from '@nativescript-community/ui-carto/core';
+import { FeatureCollection, GeometryObject, Position } from 'geojson';
 
 // const writer = new GeoJSONGeometryWriter();
 // const reader = new GeoJSONGeometryReader();
@@ -17,12 +17,15 @@ import { FeatureCollection, GeometryObject } from 'geojson';
 //     }
 // }
 export interface GeometryProperties {
-    shape: string;
+    index: string;
+    type?: string;
+    shape?: string;
     color?: string;
     name?: string;
     radius?: number;
 }
 export type TrackGeometry = GeometryObject & {
+    center: Position;
     extent: [number, number, number, number];
 };
 export interface TrackFeatureCollection extends FeatureCollection<TrackGeometry, GeometryProperties> {

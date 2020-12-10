@@ -3,6 +3,7 @@ import { GeoHandler, SessionChronoEventData, SessionEventData, SessionState, Ses
 import { BgServiceBinder } from '~/services/android/BgServiceBinder';
 import { ACTION_PAUSE, ACTION_RESUME, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, NotificationHelper } from './NotifcationHelper';
 import { $tc } from '~/helpers/locale';
+import { BluetoothHandler, GlassesDisconnectedEvent } from '~/handlers/BluetoothHandler';
 
 const NOTIFICATION_ID = 3426824;
 
@@ -11,6 +12,7 @@ const NOTIFICATION_ID = 3426824;
 export class BgService extends android.app.Service {
     currentNotifText: string;
     geoHandler: GeoHandler;
+    bluetoothHandler: BluetoothHandler;
     bounded: boolean;
     inBackground: any;
     mNotificationBuilder: androidx.core.app.NotificationCompat.Builder;
@@ -41,6 +43,7 @@ export class BgService extends android.app.Service {
         NotificationHelper.createNotificationChannel(this);
     }
     onDestroy() {
+        this.bluetoothHandler.off(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
         if (this.geoHandler) {
             this.geoHandler.off(SessionStateEvent, this.onSessionStateEvent, this);
             this.geoHandler = null;
@@ -67,9 +70,11 @@ export class BgService extends android.app.Service {
 
     onBounded() {
         this.geoHandler = new GeoHandler();
-        if (this.inBackground) {
+        this.bluetoothHandler = new BluetoothHandler();
+        if (!!this.bluetoothHandler.glasses && this.inBackground) {
             this.showForeground();
         }
+        this.bluetoothHandler.on(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
         this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
         applicationOn(resumeEvent, this.onAppEvent, this);
         applicationOn(suspendEvent, this.onAppEvent, this);
@@ -139,7 +144,7 @@ export class BgService extends android.app.Service {
         if (event.eventName === suspendEvent) {
             if (!this.inBackground) {
                 this.inBackground = true;
-                if (this.recording) {
+                if (!!this.bluetoothHandler.glasses || this.recording) {
                     this.showForeground();
                 }
             }
@@ -151,5 +156,8 @@ export class BgService extends android.app.Service {
                 }
             }
         }
+    }
+    onGlassesDisconnected() {
+        this.removeForeground();
     }
 }

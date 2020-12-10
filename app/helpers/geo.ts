@@ -113,14 +113,14 @@ export function getBounds(sourceLocs: GenericMapPos<LatLonKeys>[] | [number, num
     };
     const isMapPosArray = typeof sourceLocs[0] === 'object';
     if (isMapPosArray) {
-        (sourceLocs as GenericMapPos<LatLonKeys>[]).forEach(l => {
+        (sourceLocs as GenericMapPos<LatLonKeys>[]).forEach((l) => {
             northeast.lat = Math.max(l.lat, northeast.lat);
             southwest.lat = Math.min(l.lat, southwest.lat);
             northeast.lon = Math.max(l.lon, northeast.lon);
             southwest.lon = Math.min(l.lon, southwest.lon);
         });
     } else {
-        sourceLocs.forEach(l => {
+        sourceLocs.forEach((l) => {
             northeast.lat = Math.max(l[0], northeast.lat);
             southwest.lat = Math.min(l[0], southwest.lat);
             northeast.lon = Math.max(l[1], northeast.lon);
@@ -130,4 +130,17 @@ export function getBounds(sourceLocs: GenericMapPos<LatLonKeys>[] | [number, num
 
     // console.log('getBounds', northeast, southwest)
     return new MapBounds<LatLonKeys>(northeast, southwest);
+}
+
+export function bearing(start: GenericMapPos<LatLonKeys>, dest: GenericMapPos<LatLonKeys>) {
+    const startLat = toRad(start.lat);
+    const startLng = toRad(start.lon);
+    const destLat = toRad(dest.lat);
+    const destLng = toRad(dest.lon);
+
+    const y = Math.sin(destLng - startLng) * Math.cos(destLat);
+    const x = Math.cos(startLat) * Math.sin(destLat) - Math.sin(startLat) * Math.cos(destLat) * Math.cos(destLng - startLng);
+    let brng = Math.atan2(y, x);
+    brng = brng * TO_DEG;
+    return (brng + 360) % 360;
 }

@@ -13,4 +13,8 @@
     "i18n-ally.keystyle": "nested",
     "i18n-ally.sourceLanguage": "en",
     "java.configuration.updateBuildConfiguration": "disabled",
+    "i18n-ally.localesPaths": [
+        "app/i18n",
+        "platforms/android/app/src/main/java/com/tns/gen/java/lang"
+    ],
 }

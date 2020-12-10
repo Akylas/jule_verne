@@ -15,6 +15,8 @@ import { Line, LineEndType, LineJointType } from '@nativescript-community/ui-car
 import { Marker } from '@nativescript-community/ui-carto/vectorelements/marker';
 import { Point } from '@nativescript-community/ui-carto/vectorelements/point';
 import { Polygon } from '@nativescript-community/ui-carto/vectorelements/polygon';
+import { Group } from '@nativescript-community/ui-carto/vectorelements/group';
+import { Text } from '@nativescript-community/ui-carto/vectorelements/text';
 import { MBVectorTileDecoder } from '@nativescript-community/ui-carto/vectortiles';
 import { Application } from '@nativescript/core';
 import { getNumber, getString } from '@nativescript/core/application-settings';
@@ -28,7 +30,8 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { GeoHandler, GeoLocation, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
 import Track from '~/models/Track';
 import { getDataFolder } from '~/utils/utils';
-import BgServiceComponent from './BgServiceComponent';
+import { computeAngleBetween } from '~/utils/geo';
+import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 import { GeoJSONGeometryReader } from '@nativescript-community/ui-carto/geometry/reader';
 import { BBox } from 'geojson';
 
@@ -46,7 +49,7 @@ export default class MapComponent extends BgServiceComponent {
     userBackMarker: Point<LatLonKeys>;
     userMarker: Point<LatLonKeys>;
     accuracyMarker: Polygon<LatLonKeys>;
-    sessionLine: Line<LatLonKeys>;
+    aimingLine: Line<LatLonKeys>;
     @Prop({ default: true, type: Boolean }) locationEnabled: boolean;
     isUserFollow: boolean;
     @Prop({ default: null }) tracks: Track[] | ObservableArray<Track>;
@@ -378,6 +381,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
             this._cartoMap.setZoom(Math.max(this._cartoMap.zoom, 16), position, LOCATION_ANIMATION_DURATION);
             this._cartoMap.setFocusPos(position, LOCATION_ANIMATION_DURATION);
         }
+
         this.lastUserLocation = geoPos;
     }
     onLocation(data: UserLocationdEventData) {
@@ -388,15 +392,37 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         if (data.error) {
             return;
         }
-        this.updateUserLocation(data.location);
+        const loc = data.location;
+        this.updateUserLocation(loc);
+        const feature = data.aimingFeature;
+        if (feature) {
+            const center = feature.geometry.center;
+            if (!this.aimingLine) {
+                const centerPos = { lat: center[1], lon: center[0] };
+                this.aimingLine = new Line<LatLonKeys>({
+                    positions: [loc, centerPos],
+                    styleBuilder: {
+                        color: 'black',
+                        width: 2
+                    }
+                });
+                this.localVectorDataSource.add(this.aimingLine);
+            } else if (this.aimingLine) {
+                this.aimingLine.positions = [loc, { lat: center[1], lon: center[0] }];
+                this.aimingLine.visible = true;
+            }
+        } else {
+            if (this.aimingLine) {
+                this.aimingLine.visible = false;
+            }
+        }
     }
-    onServiceLoaded(geoHandler: GeoHandler) {}
-    setup(geoHandler: GeoHandler) {
-        if (!geoHandler) {
+    setup(handlers: BgServiceMethodParams) {
+        if (!handlers.geoHandler) {
             return;
         }
         this.geoHandlerOn(UserRawLocationEvent, this.onLocation, this);
-        const loc = geoHandler.lastLocation;
+        const loc = handlers.geoHandler.lastLocation;
         if (loc) {
             this.onLocation({ data: loc } as any);
         }
@@ -498,6 +524,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         // this.localVectorDataSource.add(bboxpolygon);
         for (let index = 0; index < count; index++) {
             const feature = featureCollection.features[index];
+            // console.log('test', JSON.stringify(feature.geometry));
             const geometry = reader.readGeometry(JSON.stringify(feature.geometry));
             const properties = feature.properties;
 
@@ -512,8 +539,8 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
             //     }
             // });
             // this.localVectorDataSource.add(bboxpolygon);
-            switch (properties.shape) {
-                case 'Line': {
+            switch ((properties.shape || properties.type).toLowerCase()) {
+                case 'line': {
                     const line = new Line<LatLonKeys>({
                         geometry: geometry as LineGeometry<LatLonKeys>,
                         styleBuilder: {
@@ -528,7 +555,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                     objects.push(line);
                     break;
                 }
-                case 'Circle': {
+                case 'circle': {
                     let color = properties.color || this.accentColor;
                     if (!(color instanceof Color)) {
                         color = new Color(color);
@@ -547,7 +574,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                     objects.push(circle);
                     break;
                 }
-                case 'Marker': {
+                case 'marker': {
                     let color = properties.color || this.accentColor;
                     if (!(color instanceof Color)) {
                         color = new Color(color);
@@ -555,32 +582,49 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                     const marker = new Marker<LatLonKeys>({
                         geometry,
                         styleBuilder: {
-                            color: new Color(color.a / 2, color.r, color.g, color.b),
-                            styleBuilder: {
-                                color
-                            }
+                            color: new Color(color.a / 2, color.r, color.g, color.b)
                         }
                     });
                     this.localVectorDataSource.add(marker);
                     objects.push(marker);
                     break;
                 }
-                case 'Polygon': {
+                case 'polygon': {
                     let color = properties.color || this.accentColor;
+                    if (properties.index === 'outer_ring') {
+                        color = this.geoHandler.isInTrackBounds ? 'black' : 'red';
+                    }
                     if (!(color instanceof Color)) {
                         color = new Color(color);
                     }
-                    const polygon = new Polygon<LatLonKeys>({
-                        geometry,
-                        styleBuilder: {
-                            color: new Color(color.a / 2, color.r, color.g, color.b),
+                    const group = new Group();
+                    group.elements = [
+                        new Polygon<LatLonKeys>({
+                            geometry,
                             styleBuilder: {
+                                color: new Color(0, color.r, color.g, color.b),
+                                lineStyleBuilder: {
+                                    color,
+                                    width: 2
+                                }
+                            }
+                        }),
+                        new Text({
+                            position: { lat: feature.geometry.center[1], lon: feature.geometry.center[0] },
+                            text: properties.index,
+                            visible: properties.index !== 'outer_ring',
+                            styleBuilder: {
+                                fontSize: 15,
+                                anchorPointX: 0.5,
+                                anchorPointY: 0.5,
+                                hideIfOverlapped: false,
+                                // scaleWithDPI: true,
                                 color
                             }
-                        }
-                    });
-                    this.localVectorDataSource.add(polygon);
-                    objects.push(polygon);
+                        })
+                    ];
+                    this.localVectorDataSource.add(group);
+                    objects.push(group);
                     break;
                 }
             }

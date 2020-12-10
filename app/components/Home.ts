@@ -6,7 +6,7 @@ import { Frame } from '@nativescript/core/ui/frame';
 import { GestureEventData } from '@nativescript/core/ui/gestures';
 import { bind } from 'helpful-decorators';
 import { Component } from 'vue-property-decorator';
-import BgServiceComponent from '~/components/BgServiceComponent';
+import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { GeoHandler, GeoLocation, PositionStateEvent, SessionEventData, SessionState, SessionStateEvent, TrackSelecteEvent, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
 import Track from '~/models/Track';
 import { confirm } from '~/utils/dialogs';
@@ -34,10 +34,15 @@ export default class Home extends BgServiceComponent {
     $refs: HomeRefs;
     public isWatchingLocation: boolean = false;
     public searchingLocation: boolean = false;
-    public lastLocation: GeoLocation;
+    public lastLocation: GeoLocation = null;
     public currentSessionState: SessionState = SessionState.STOPPED;
     public shouldConfirmBack = true;
-    tracks: ObservableArray<Track> = new ObservableArray([]);
+    // tracks: ObservableArray<Track> = new ObservableArray([]);
+
+    aimingAngle: number = 0;
+    eventsLog: string = '';
+    selectedTrack: Track = null;
+    selectedTracks: Track[] = null;
 
     get map() {
         const mapComp = this.$refs.mapComp as MapComponent;
@@ -50,7 +55,6 @@ export default class Home extends BgServiceComponent {
             application.android.on(application.AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
         }
     }
-    eventsLog: string = '';
     eLog(...args) {
         this.log.apply(
             this,
@@ -64,8 +68,9 @@ export default class Home extends BgServiceComponent {
     }
     onTrackSelected(event: EventData) {
         const track = event['track'] as Track;
-        // console.log('onTrackSelected', track && track.id);
-        this.tracks.splice(0, 1, track);
+        this.selectedTrack = track;
+        this.selectedTracks = [track];
+        console.log('onTrackSelected', track && track.id);
         const map = this.map;
         if (track && map) {
             map.moveToFitBounds(track.bounds, undefined, true, true, false, 200);
@@ -79,7 +84,7 @@ export default class Home extends BgServiceComponent {
         }
     }
 
-    async onServiceStarted(geoHandler: GeoHandler) {
+    async onServiceStarted(handlers: BgServiceMethodParams) {
         // this.tracks.push(geoHandler.currentTrack);
     }
     // updateMapWithSession() {
@@ -96,8 +101,8 @@ export default class Home extends BgServiceComponent {
     //     }
     // }
     async onMapReady(e) {
-        if (this.tracks.length > 0) {
-            (e.object as CartoMap<LatLonKeys>).moveToFitBounds(this.tracks.getItem(0).bounds, undefined, true, true, false, 0);
+        if (this.selectedTrack) {
+            (e.object as CartoMap<LatLonKeys>).moveToFitBounds(this.selectedTrack.bounds, undefined, true, true, false, 0);
         }
     }
 
@@ -157,17 +162,29 @@ export default class Home extends BgServiceComponent {
         return this.currenWaitingForFirstPosition;
     }
 
-    setup(geoHandler: GeoHandler) {
-        if (!geoHandler) {
+    setup(handlers: BgServiceMethodParams) {
+        if (!handlers.geoHandler) {
             return;
         }
-        console.log('setup');
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
         this.geoHandlerOn(TrackSelecteEvent, this.onTrackSelected, this);
         this.geoHandlerOn(UserRawLocationEvent, this.onNewLocation, this);
         this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
 
-        this.isWatchingLocation = geoHandler.isWatching();
+        this.isWatchingLocation = handlers.geoHandler.isWatching();
+    }
+
+    get currentBearing() {
+        if (this.lastLocation) {
+            return this.lastLocation.bearing || 0;
+        }
+        return 0;
+    }
+    get currentComputedBearing() {
+        if (this.lastLocation) {
+            return this.lastLocation.computedBearing || 0;
+        }
+        return 0;
     }
 
     @bind
@@ -177,6 +194,7 @@ export default class Home extends BgServiceComponent {
             return;
         }
         this.lastLocation = data.location;
+        this.aimingAngle = data.aimingAngle;
         this.searchingLocation = false;
     }
 
