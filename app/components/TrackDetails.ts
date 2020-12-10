@@ -7,7 +7,7 @@ import { ObservableArray } from '@nativescript/core/data/observable-array';
 import { layout } from '@nativescript/core/utils/utils';
 import { Feature } from 'geojson';
 import { Component, Prop } from 'vue-property-decorator';
-import BgServiceComponent from '~/components/BgServiceComponent';
+import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { GeoHandler, GeoLocation, Session } from '~/handlers/GeoHandler';
 import { UNITS, convertDuration, convertValueToUnit, toImperialUnit } from '~/helpers/formatter';
 import { computeDistance, getBoundsZoomLevel, getCenter } from '~/helpers/geo';
@@ -15,6 +15,7 @@ import Track, { GeometryProperties, TrackGeometry } from '~/models/Track';
 import { borderColor, mdiFontFamily, textColor } from '~/variables';
 // import {notify as appNotify, HistorySessionUpdatedEvent} from './App';
 import MapComponent from './MapComponent';
+import Editor from './Editor.vue';
 import tinycolor from 'tinycolor2';
 
 function timeout(ms) {
@@ -23,7 +24,8 @@ function timeout(ms) {
 
 @Component({
     components: {
-        MapComponent
+        Editor,
+        MapComponent,
     }
 })
 export default class TrackDetails extends BgServiceComponent {
@@ -61,7 +63,7 @@ export default class TrackDetails extends BgServiceComponent {
             chart.invalidate();
         });
     }
-   
+
     onLoaded() {}
     onNavigatedTo() {}
 
@@ -69,11 +71,9 @@ export default class TrackDetails extends BgServiceComponent {
         super.destroyed();
     }
 
-
     get currentSession() {
         return this.track;
     }
-
 
     get fillColor() {
         return (item: Feature<TrackGeometry, GeometryProperties>) => item.properties.color && new tinycolor(item.properties.color).setAlpha(0.5).toRgbString();
@@ -147,5 +147,4 @@ export default class TrackDetails extends BgServiceComponent {
         this.simplified = !this.simplified;
         // this.setMapRoute();
     }
-    onServiceLoaded(geoHandler: GeoHandler) {}
 }

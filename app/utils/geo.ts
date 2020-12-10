@@ -1,9 +1,11 @@
 import { MapBounds, MapPos, MapPosVector, ScreenBounds, fromNativeMapPos } from '@nativescript-community/ui-carto/core';
 import { BBox, Feature, FeatureCollection, GeoJsonObject, GeometryCollection, LineString, MultiPolygon, Point, Polygon, Position } from 'geojson';
+import { TrackFeatureCollection } from '~/models/Track';
+import polylabel from 'polylabel';
 
 const PI = Math.PI;
-const TO_RAD = PI / 180;
-const TO_DEG = 180 / PI;
+export const TO_RAD = PI / 180;
+export const TO_DEG = 180 / PI;
 const PI_X2 = PI * 2;
 const PI_DIV2 = PI / 2;
 const PI_DIV4 = PI / 4;
@@ -17,7 +19,7 @@ export const DEFAULT_TOLERANCE = 0.1;
  * @param        array       Collection of coords [{lat: 51.510, lon: 7.1321} {lat: 49.1238, lon: "8° 30' W"} ...]
  * @return       object      {lat: centerLat, lon: centerLng}
  */
-export function getCenter(...coords: MapPos<LatLonKeys>[]) {
+export function getCenter(coords: Position[]) {
     if (!coords.length) {
         return undefined;
     }
@@ -29,8 +31,8 @@ export function getCenter(...coords: MapPos<LatLonKeys>[]) {
 
     for (let i = 0, l = coords.length; i < l; ++i) {
         coord = coords[i];
-        lat = coord.lat * TO_RAD;
-        lon = coord.lon * TO_RAD;
+        lat = coord[1] * TO_RAD;
+        lon = coord[0] * TO_RAD;
 
         X += Math.cos(lat) * Math.cos(lon);
         Y += Math.cos(lat) * Math.sin(lon);
@@ -46,10 +48,7 @@ export function getCenter(...coords: MapPos<LatLonKeys>[]) {
     const hyp = Math.sqrt(X * X + Y * Y);
     lat = Math.atan2(Z, hyp);
 
-    return {
-        lat: lat * TO_DEG,
-        lon: lon * TO_DEG
-    } as MapPos<LatLonKeys>;
+    return [lon * TO_DEG, lat * TO_DEG] as Position;
 }
 
 function mod(x, m) {
@@ -255,7 +254,7 @@ function distanceRadians(lat1, lng1, lat2, lng2) {
  * Returns the angle between two LatLngs, in radians. This is the same as the distance
  * on the unit sphere.
  */
-function computeAngleBetween(from: Position, to: Position) {
+export function computeAngleBetween(from: Position, to: Position) {
     return distanceRadians(toRadians(from[1]), toRadians(from[0]), toRadians(to[1]), toRadians(to[0]));
 }
 
@@ -353,6 +352,14 @@ function bboxFromCoords(feature: Feature) {
     }, bbox) as BBox;
 }
 
+function centerFromCoords(feature: Feature) {
+    if (feature.geometry.type === 'Point' && feature.properties.radius) {
+        return feature.geometry.coordinates;
+    }
+    const coords = getCoordinatesDump(feature);
+    return polylabel([coords], 1.0);
+}
+
 function bbboxesUnion(bboxes: BBox[]) {
     const res = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY] as BBox;
     bboxes.forEach((b) => {
@@ -365,11 +372,14 @@ function bbboxesUnion(bboxes: BBox[]) {
     return res;
 }
 
-export function bboxify(collection: FeatureCollection) {
+export function bboxify(collection: TrackFeatureCollection) {
     const bboxes = [];
     collection.features.forEach((feature) => {
         if (!feature.bbox) {
             feature.bbox = bboxFromCoords(feature);
+        }
+        if (!feature.geometry.center) {
+            feature.geometry.center = centerFromCoords(feature);
         }
         bboxes.push(feature.bbox);
     });
@@ -379,7 +389,7 @@ export function bboxify(collection: FeatureCollection) {
     return collection;
 }
 
-function getCoordinatesDump(feature: Feature) {
+function getCoordinatesDump(feature: Feature): number[][] {
     let coords;
     const gj = feature.geometry;
     if (gj.type === 'Point') {

@@ -14,7 +14,7 @@ function evalTemplateString(resource: string, obj: {}) {
         return resource;
     }
     const names = Object.keys(obj);
-    const vals = Object.keys(obj).map(key => obj[key]);
+    const vals = Object.keys(obj).map((key) => obj[key]);
     return new Function(...names, `return \`${resource}\`;`)(...vals);
 }
 
@@ -62,7 +62,7 @@ export class CustomError extends BaseError {
         const error = {
             message: this.message
         };
-        Object.getOwnPropertyNames(this).forEach(key => {
+        Object.getOwnPropertyNames(this).forEach((key) => {
             if (typeof this[key] !== 'function') {
                 error[key] = this[key];
             }
@@ -106,7 +106,7 @@ export class NoNetworkError extends CustomError {
     }
 }
 export class MessageError extends CustomError {
-    constructor(props: { title?: string; message: string }) {
+    constructor(props: { [k: string]: any; message: string }) {
         super(
             Object.assign(
                 {
@@ -154,7 +154,7 @@ export default class CrashReportService extends Observable {
     captureException(err: Error | CustomError) {
         if (this.sentryEnabled && this.sentry) {
             if (err instanceof CustomError) {
-                this.withScope(scope => {
+                this.withScope((scope) => {
                     scope.setExtra('errorData', JSON.stringify(err.assignedLocalData));
                     this.sentry.captureException(err);
                 });
@@ -189,7 +189,7 @@ export default class CrashReportService extends Observable {
         const title = $tc('error');
         const reporterEnabled = this.sentryEnabled;
         let showSendBugReport = reporterEnabled && !isString && (!realError || !!realError.stack);
-        if (realError.constructor.name === NoNetworkError.name|| realError .constructor.name === MessageError.name) {
+        if (realError.constructor.name === NoNetworkError.name || realError.constructor.name === MessageError.name) {
             showSendBugReport = false;
         }
         console.log('showError', err, err && err['stack']);
@@ -203,7 +203,7 @@ export default class CrashReportService extends Observable {
             view: label,
             okButtonText: showSendBugReport ? $tc('send_bug_report') : undefined,
             cancelButtonText: showSendBugReport ? $tc('cancel') : $tc('ok')
-        }).then(result => {
+        }).then((result) => {
             if (result && showSendBugReport) {
                 this.captureException(realError);
                 alert($t('bug_report_sent'));

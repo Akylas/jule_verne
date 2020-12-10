@@ -1,16 +1,19 @@
 import { BgServiceLoadedEvent } from '~/services/BgService';
-import { GeoHandler, ImperialUnitChangedEvent } from '~/handlers/GeoHandler';
+import { GeoHandler } from '~/handlers/GeoHandler';
 import BaseVueComponent from './BaseVueComponent';
 import { ApplicationEventData, off as applicationOff, on as applicationOn, resumeEvent, suspendEvent } from '@nativescript/core/application';
-import { setBoolean } from '@nativescript/core/application-settings';
 import { BgServiceStartedEvent } from '~/services/BgService.common';
+import { BluetoothHandler } from '~/handlers/BluetoothHandler';
+import { DBHandler } from '~/handlers/DBHandler';
+
+export interface BgServiceMethodParams {
+    bluetoothHandler: BluetoothHandler;
+    geoHandler: GeoHandler;
+    dbHandler: DBHandler;
+}
 
 export default abstract class BgServiceComponent extends BaseVueComponent {
-    constructor() {
-        super();
-    }
     appPaused = false;
-    mImperialUnit = false;
     mounted() {
         super.mounted();
         if (this.$bgService.loaded) {
@@ -34,21 +37,14 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         this.unloadService();
     }
 
-    get imperialUnit() {
-        return this.mImperialUnit;
-    }
-    set imperialUnit(value: boolean) {
-        this.mImperialUnit = this.geoHandler.imperialUnit = value;
-        setBoolean('unit_imperial', value);
-    }
-
     onAppResume(args: ApplicationEventData) {
         if (!this.appPaused) {
             return;
         }
         this.appPaused = false;
         if (this.setup && this.$bgService.loaded) {
-            this.setup.call(this, this.$bgService.geoHandler);
+            const params = this.getParams();
+            this.setup.call(this, params);
         }
     }
     onAppPause(args: ApplicationEventData) {
@@ -57,7 +53,8 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         }
         this.appPaused = true;
         if (this.unsetup) {
-            this.unsetup.call(this, this.$bgService.geoHandler);
+            const params = this.getParams();
+            this.unsetup.call(this, params);
         }
         // if setup is used we unregister all registered events to prevent trying to
         // update ui while the app is in background
@@ -70,33 +67,35 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
      * they will get disabled when the app is paused
      * @param geoHandler
      */
-    setup?(geoHandler: GeoHandler);
-    unsetup?(geoHandler: GeoHandler);
+    setup?(handlers: BgServiceMethodParams);
+    unsetup?(handlers: BgServiceMethodParams);
 
     onImperialUnitChanged?(value: boolean);
     callOnServiceLoaded() {
-        const geoHandler = this.$bgService.geoHandler;
-        this.mImperialUnit = geoHandler.imperialUnit;
-        this.geoHandlerOn(ImperialUnitChangedEvent, (e) => {
-            this.mImperialUnit = e.data;
-            this.onImperialUnitChanged && this.onImperialUnitChanged(this.mImperialUnit);
-        });
+        const params = this.getParams();
         if (this.setup && !this.appPaused) {
-            this.setup.call(this, geoHandler);
+            this.setup.call(this, params);
         }
         // call onServiceLoaded after setup to make sure everything is set up. onServiceLoaded will be
         // callled only once
-        this.onServiceLoaded.call(this, geoHandler);
+        this.onServiceLoaded.call(this, params);
     }
     callOnServiceStarted() {
-        const geoHandler = this.$bgService.geoHandler;
+        const params = this.getParams();
 
         // call onServiceLoaded after setup to make sure everything is set up. onServiceLoaded will be
         // callled only once
-        this.onServiceStarted.call(this, geoHandler);
+        this.onServiceStarted.call(this, params);
     }
     unregisterEvents() {
+        const bluetoothHandler = this.$bgService.bluetoothHandler;
         const geoHandler = this.$bgService.geoHandler;
+        if (bluetoothHandler) {
+            this.bluetoothHandlerListeners.forEach((r) => {
+                bluetoothHandler.off(r[0], r[1], r[2] || this);
+            });
+        }
+        this.bluetoothHandlerListeners = [];
         if (geoHandler) {
             this.geoHandlerListeners.forEach((r) => {
                 geoHandler.off(r[0], r[1], r[2] || this);
@@ -106,11 +105,23 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         this.geoHandlerListeners = [];
     }
     unloadService() {
-        const geoHandler = this.$bgService.geoHandler;
         this.unregisterEvents();
-        this.onServiceUnloaded.call(this, geoHandler);
+        this.onServiceUnloaded.call(this, this.getParams());
     }
 
+    getParams() {
+        const geoHandler = this.geoHandler;
+        const dbHandler = this.dbHandler;
+        const bluetoothHandler = this.geoHandler;
+        return { geoHandler, dbHandler, bluetoothHandler };
+    }
+
+    bluetoothHandlerListeners: any[] = [];
+    bluetoothHandlerOn(event, listener, context = this) {
+        this.bluetoothHandlerListeners.push([event, listener]);
+        this.bluetoothHandler.on(event, listener, context);
+        return this;
+    }
     geoHandlerListeners: any[] = [];
     geoHandlerOn(event, listener, context = this) {
         this.geoHandlerListeners.push([event, listener]);
@@ -124,7 +135,10 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     get dbHandler() {
         return this.$bgService && this.$bgService.geoHandler && this.$bgService.geoHandler.dbHandler;
     }
-    onServiceLoaded(geoHandler: GeoHandler) {}
-    onServiceStarted(geoHandler: GeoHandler) {}
-    onServiceUnloaded(geoHandler: GeoHandler) {}
+    get bluetoothHandler() {
+        return this.$bgService && this.$bgService.bluetoothHandler && this.$bgService.bluetoothHandler;
+    }
+    onServiceLoaded(handlers: BgServiceMethodParams) {}
+    onServiceStarted(handlers: BgServiceMethodParams) {}
+    onServiceUnloaded(handlers: BgServiceMethodParams) {}
 }

@@ -17,13 +17,12 @@ import { VueConstructor } from 'vue';
 import { Component } from 'vue-property-decorator';
 import Tracks from '~/components/Tracks';
 import { GeoHandler } from '~/handlers/GeoHandler';
-import { setDrawerInstance } from '~/main';
 import Track from '~/models/Track';
 import { BgServiceErrorEvent } from '~/services/BgService.common';
 import { login } from '~/utils/dialogs';
 import { bboxify } from '~/utils/geo';
 import { BaseVueComponentRefs } from './BaseVueComponent';
-import BgServiceComponent from './BgServiceComponent';
+import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 import Home from './Home';
 import Map from './Map';
 import Settings from './Settings';
@@ -92,7 +91,7 @@ export default class App extends BgServiceComponent {
             component: Map
         },
         [ComponentIds.Leaflet]: {
-            component: Leaflet
+            component: Leaflet as any
         }
     };
     public activatedUrl = '';
@@ -166,7 +165,6 @@ export default class App extends BgServiceComponent {
 
     needsImportOldSessionsOnLoaded = false;
     onServiceStarted() {
-        console.log('onServiceStarted');
         if (this.needsImportOldSessionsOnLoaded) {
             this.needsImportOldSessionsOnLoaded = false;
             this.importDevSessions();
@@ -219,8 +217,8 @@ export default class App extends BgServiceComponent {
         });
     }
 
-    onServiceLoaded(geoHandler: GeoHandler) {
-        this.dbHandler.devMode = this.bDevMode;
+    onServiceLoaded(handlers: BgServiceMethodParams) {
+        handlers.dbHandler.devMode = this.bDevMode;
     }
     destroyed() {
         super.destroyed();
@@ -229,7 +227,6 @@ export default class App extends BgServiceComponent {
         super.mounted();
         // we need to set it again, it seems it is not the same instance in the constructor :s
         this.$setAppComponent(this);
-        setDrawerInstance(this.drawer);
 
         if (global.isIOS && app.ios.window.safeAreaInsets) {
             const bottomSafeArea: number = app.ios.window.safeAreaInsets.bottom;

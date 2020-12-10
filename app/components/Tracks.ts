@@ -9,7 +9,7 @@ import { ObservableArray } from '@nativescript/core/data/observable-array';
 import { knownFolders, path } from '@nativescript/core/file-system';
 import { profile } from '@nativescript/core/profiling';
 import { Component } from 'vue-property-decorator';
-import BgServiceComponent from '~/components/BgServiceComponent';
+import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import OptionSelect from '~/components/OptionSelect';
 import TrackDetails from '~/components/TrackDetails';
 import { GeoHandler } from '~/handlers/GeoHandler';
@@ -258,7 +258,7 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
         }
     }
 
-    onServiceLoaded(geoHandler: GeoHandler) {
+    onServiceLoaded(handlers: BgServiceMethodParams) {
         this.refresh();
     }
     onImperialUnitChanged(value: boolean) {
@@ -326,7 +326,9 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
     }
 
     async createTrack() {
-        const result = await this.$showModal(Leaflet);
+        const result = await this.$showModal(Leaflet, {
+            fullscreen: true
+        });
         if (result) {
             const data = JSON.parse(result) as TrackFeatureCollection;
             const track = new Track(Date.now());

@@ -25,8 +25,13 @@ export default class ActionBar extends BaseVueComponent {
 
     @Prop({ default: true })
     public showLogo: boolean;
+    @Prop({ default: false, type: Boolean })
+    public modal: boolean;
 
     get menuIcon() {
+        if (this.modal) {
+            return 'mdi-close';
+        }
         if (this.canGoBack) {
             return global.isIOS ? 'mdi-chevron-left' : 'mdi-arrow-left';
         }
@@ -41,10 +46,14 @@ export default class ActionBar extends BaseVueComponent {
 
     mounted() {
         setTimeout(() => {
-            this.canGoBack = this.$getAppComponent().canGoBack();
+            this.canGoBack = this.modal || this.$getAppComponent().canGoBack();
         }, 0);
     }
     onMenuIcon() {
-        this.$getAppComponent().onMenuIcon();
+        if (this.modal) {
+            this.$modal.close();
+        } else {
+            this.$getAppComponent().onMenuIcon();
+        }
     }
 }

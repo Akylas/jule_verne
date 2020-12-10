@@ -5,13 +5,16 @@ Page {
   background-color: $background-color;
 }
 
+mdbutton {
+  shape: round;
+}
+
 .mdi {
   font-family: $mdi-fontFamily;
 }
 
 .actionBar {
   z-index: 0;
-  border-radius: 0;
   ripple-color: transparent;
   background-color: $primary-color;
   height: $actionbar-height;
@@ -22,8 +25,6 @@ Page {
   width: $actionbar-height;
   height: $actionbar-height;
   color: black;
-  margin: 0;
-  padding: 0;
   font-size: 32;
   border-radius: $actionbar-height/2;
 }
@@ -91,7 +92,6 @@ Page {
 
 .menu-btn {
   @extend .icon-btn;
-  border-radius: 22;
   ripple-color: #b8b7b7;
   color: $accent-color;
 }
@@ -107,18 +107,13 @@ Page {
   background-color: $primary-color;
   ripple-color: $dark-color;
   font-size: 30;
-  padding: 0;
-  margin: 0;
   width: 64;
   height: 64;
-  border-radius: 32;
 }
 .small-floating-btn {
   @extend .mdi;
   color: $primary-color;
   font-size: 15;
-  padding: 0;
   width: 30;
   height: 30;
-  border-radius: 15;
 }

@@ -1,5 +1,6 @@
 import { GPS, GenericGeoLocation, Options as GeolocationOptions, LocationMonitor, setGeoLocationKeys, setMockEnabled } from '@nativescript-community/gps';
 import * as perms from '@nativescript-community/perms';
+import { TNSTextToSpeech } from '@nativescript-community/texttospeech';
 import { MapBounds } from '@nativescript-community/ui-carto/core';
 import {
     AndroidActivityResultEventData,
@@ -17,19 +18,22 @@ import { File } from '@nativescript/core/file-system';
 import { Accuracy } from '@nativescript/core/ui/enums/enums';
 import { Feature, LineString, Point } from 'geojson';
 import { bind } from 'helpful-decorators';
-import { TNSTextToSpeech } from '@nativescript-community/texttospeech';
+import { bearing } from '~/helpers/geo';
 import { parseGPX } from '~/helpers/gpx';
 import { $t, $tc } from '~/helpers/locale';
 import { confirm } from '~/utils/dialogs';
-import { bboxify, computeDistanceBetween, distanceToEnd, isLocactionInBbox, isLocationOnPath } from '~/utils/geo';
+import { TO_DEG, bboxify, computeAngleBetween, computeDistanceBetween, distanceToEnd, isLocactionInBbox, isLocationOnPath } from '~/utils/geo';
 import Track, { GeometryProperties, TrackFeatureCollection, TrackGeometry } from '../models/Track';
 import { DBHandler } from './DBHandler';
+const determineAngleDeviationFromNorth = require('angle-deviation-from-north');
 
 setGeoLocationKeys('lat', 'lon', 'altitude');
 const TTS = new TNSTextToSpeech();
 TTS.init();
 
-export type GeoLocation = GenericGeoLocation<LatLonKeys> & {};
+export type GeoLocation = GenericGeoLocation<LatLonKeys> & {
+    computedBearing?: number;
+};
 
 let geolocation: GPS;
 
@@ -37,7 +41,6 @@ let geolocation: GPS;
 export const desiredAccuracy = global.isAndroid ? Accuracy.high : kCLLocationAccuracyBestForNavigation;
 export const timeout = 20000;
 export const minimumUpdateTime = 1000; // Should update every 1 second according ;
-export const ImperialUnitChangedEvent = 'imperialUnit';
 
 setMockEnabled(true);
 
@@ -59,6 +62,10 @@ export const UserLocationEvent = 'userLocation';
 export const UserRawLocationEvent = 'userRawLocation';
 export const TrackSelecteEvent = 'trackSelected';
 export const PositionStateEvent = 'positionState';
+export const OuterRingEvent = 'outer_ring';
+export const AimingFeatureEvent = 'aimingFeature';
+
+const TAG = '[Geo]';
 
 interface GPSEvent extends EventData {
     data?: any;
@@ -69,6 +76,9 @@ export interface SessionEventData extends GPSEvent {}
 export interface UserLocationdEventData extends GPSEvent {
     location?: GeoLocation;
     error?: Error;
+    aimingFeature?: Feature<TrackGeometry, GeometryProperties>;
+    aimingAngle?: number;
+    isInTrackBounds?: boolean;
 }
 
 export interface SessionChronoEventData extends GPSEvent {
@@ -84,25 +94,15 @@ export class GeoHandler extends Observable {
     dbHandler: DBHandler;
     lastLocation?: GeoLocation;
 
-    mImperialUnit = appSettings.getBoolean('unit_imperial', false);
+    isSpeaking = false;
+    speakQueue: string[] = [];
 
-    get imperialUnit() {
-        return this.mImperialUnit;
-    }
-    set imperialUnit(value: boolean) {
-        this.mImperialUnit = value;
-        appSettings.setBoolean('unit_imperial', value);
-        this.notify({
-            eventName: ImperialUnitChangedEvent,
-            object: this,
-            data: value
-        });
-    }
-
-    log(...args) {
-        console.log('[' + this.constructor.name + ']', ...args);
-    }
-
+    launched = false;
+    positionState: { [k: string]: any } = {};
+    _currentTrack: Track;
+    _isInTrackBounds = false;
+    _aimingFeature: Feature<TrackGeometry, GeometryProperties> = null;
+    aimingAngle = 0;
     isSessionPaused() {
         return this.sessionState === SessionState.PAUSED;
     }
@@ -129,13 +129,12 @@ export class GeoHandler extends Observable {
         this.stopWatch();
     }
 
-    launched = false;
     constructor() {
         super();
 
         this.dbHandler = new DBHandler();
         if (DEV_LOG) {
-            this.log('creating GPS Handler', !!geolocation, DEV_LOG);
+            console.log(TAG, 'creating GPS Handler', !!geolocation, DEV_LOG);
         }
         if (!geolocation) {
             geolocation = new GPS();
@@ -143,7 +142,7 @@ export class GeoHandler extends Observable {
     }
 
     stop() {
-        // this.log('stop');
+        // console.log(TAG,'stop');
         return Promise.resolve().then(() => {
             this.stopSession();
             this.launched = false;
@@ -153,10 +152,24 @@ export class GeoHandler extends Observable {
             return this.dbHandler.stop();
         });
     }
-    _currentTrack: Track;
-
+    set isInTrackBounds(value: boolean) {
+        if (this._isInTrackBounds !== value) {
+            this._isInTrackBounds = value;
+            this.notify({
+                eventName: OuterRingEvent,
+                object: this,
+                data: {
+                    isInBounds: this._isInTrackBounds
+                }
+            });
+        }
+    }
+    get isInTrackBounds() {
+        return this._isInTrackBounds;
+    }
     set currentTrack(track: Track) {
         this._currentTrack = track;
+        this._isInTrackBounds = false;
         if (track) {
             appSettings.setString('selectedTrackId', track.id);
         } else {
@@ -168,8 +181,24 @@ export class GeoHandler extends Observable {
     get currentTrack() {
         return this._currentTrack;
     }
+
+    set aimingFeature(feature: Feature<TrackGeometry, GeometryProperties>) {
+        if (feature !== this._aimingFeature) {
+            this._aimingFeature = feature;
+            this.notify({
+                eventName: AimingFeatureEvent,
+                object: this,
+                data: {
+                    feature
+                }
+            });
+        }
+    }
+    get aimingFeature() {
+        return this._aimingFeature;
+    }
     async start() {
-        this.log('start');
+        console.log(TAG, 'start');
 
         this.launched = true;
         geolocation.on(GPS.gps_status_event, this.onGPSStateChange, this);
@@ -198,7 +227,7 @@ export class GeoHandler extends Observable {
             this._isIOSBackgroundMode = false;
             // For iOS applications, args.ios is UIApplication.
             // if (DEV_LOG) {
-            //     this.log('UIApplication: resumeEvent', this.isWatching());
+            //     console.log(TAG,'UIApplication: resumeEvent', this.isWatching());
             // }
             // if (this.isWatching()) {
             //     const watcher = this.currentWatcher;
@@ -212,7 +241,7 @@ export class GeoHandler extends Observable {
             this._isIOSBackgroundMode = true;
             // For iOS applications, args.ios is UIApplication.
             // if (DEV_LOG) {
-            //     this.log('UIApplication: suspendEvent', this.isWatching());
+            //     console.log(TAG,'UIApplication: suspendEvent', this.isWatching());
             // }
             // if (this.isWatching()) {
             //     const watcher = this.currentWatcher;
@@ -225,7 +254,7 @@ export class GeoHandler extends Observable {
     onGPSStateChange(e: GPSEvent) {
         const enabled = e.data.enabled;
         if (DEV_LOG) {
-            this.log('GPS state change', enabled);
+            console.log(TAG, 'GPS state change', enabled);
         }
         if (!enabled) {
             this.stopSession();
@@ -286,7 +315,7 @@ export class GeoHandler extends Observable {
                         okButtonText: $t('settings'),
                         cancelButtonText: $t('cancel')
                     }).then((result) => {
-                        this.log('stop_session, confirmed', result);
+                        console.log(TAG, 'stop_session, confirmed', result);
                         if (result) {
                             geolocation.openGPSSettings().catch(() => {});
                         }
@@ -357,7 +386,7 @@ export class GeoHandler extends Observable {
             .getCurrentLocation<LatLonKeys>(options || { desiredAccuracy, timeout, onDeferred: this.onDeferred, skipPermissionCheck: true })
             .then((r) => {
                 if (DEV_LOG) {
-                    this.log('getLocation', r);
+                    console.log(TAG, 'getLocation', r);
                 }
                 if (r) {
                     this.notify({
@@ -383,8 +412,6 @@ export class GeoHandler extends Observable {
     onDeferred() {
         this._deferringUpdates = false;
     }
-    isSpeaking = false;
-    speakQueue: string[] = [];
     async speakText(text: string) {
         if (this.isSpeaking) {
             this.speakQueue.push(text);
@@ -441,12 +468,28 @@ export class GeoHandler extends Observable {
         });
     }
 
-    positionState: { [k: string]: any } = {};
     updateTrackWithLocation(loc: GeoLocation) {
         if (this.currentTrack) {
             const features = this.currentTrack.geometry.features;
+
+            const outerRing = features.find((f) => f.properties.index === 'outer_ring');
+            if (outerRing) {
+                this.isInTrackBounds = isLocactionInBbox(loc, outerRing.bbox, 0);
+            }
+            let minFeature: Feature<TrackGeometry, GeometryProperties> = null;
+            let minDist = Number.MAX_SAFE_INTEGER;
+            const currentPosition = [loc.lon, loc.lat];
             features.forEach((feature) => {
                 const properties = feature.properties;
+                if (properties.index === 'outer_ring') {
+                    return;
+                }
+                const dist = computeDistanceBetween(feature.geometry.center, currentPosition);
+                // console.log('dist', feature.geometry, feature.geometry.center, currentPosition, dist, minDist);
+                if (dist < minDist) {
+                    minDist = dist;
+                    minFeature = feature;
+                }
                 // add a bit of delta (m)
                 const isInBounds = isLocactionInBbox(loc, feature.bbox, 0);
                 if (!isInBounds) {
@@ -522,20 +565,31 @@ export class GeoHandler extends Observable {
                     }
                 }
             });
+            this.aimingFeature = minFeature;
+            this.aimingAngle = minFeature
+                ? determineAngleDeviationFromNorth({ longitude: loc.lon, latitude: loc.lat }, { longitude: minFeature.geometry.center[0], latitude: minFeature.geometry.center[1] })
+                : 0;
         }
     }
 
     @bind
     onLocation(loc: GeoLocation, manager?: any) {
+        if (this.lastLocation) {
+            loc.computedBearing = bearing(this.lastLocation, loc);
+        }
         this.lastLocation = loc;
+        // ensure we update before notifying
+        this.updateTrackWithLocation(loc);
         this.notify({
             eventName: UserRawLocationEvent,
             object: this,
-            location: loc
+            location: loc,
+            aimingFeature: this.aimingFeature,
+            aimingAngle: this.aimingAngle,
+            isInTrackBounds: this.isInTrackBounds
         } as UserLocationdEventData);
-        this.updateTrackWithLocation(loc);
         if (DEV_LOG) {
-            // this.log('onLocation', JSON.stringify(loc));
+            // console.log(TAG,'onLocation', JSON.stringify(loc));
         }
 
         if (manager && this._isIOSBackgroundMode && !this._deferringUpdates) {
@@ -546,7 +600,7 @@ export class GeoHandler extends Observable {
     @bind
     onLocationError(err: Error) {
         if (DEV_LOG) {
-            this.log(' location error: ', err);
+            console.log(TAG, ' location error: ', err);
         }
         this.notify({
             eventName: UserRawLocationEvent,
@@ -572,7 +626,7 @@ export class GeoHandler extends Observable {
             // options.provider = 'gps';
         }
         if (DEV_LOG) {
-            this.log('startWatch', options);
+            console.log(TAG, 'startWatch', options);
         }
 
         return geolocation.watchLocation<LatLonKeys>(this.onLocation, this.onLocationError, options).then((id) => (this.watchId = id));
@@ -580,7 +634,7 @@ export class GeoHandler extends Observable {
 
     stopWatch() {
         if (DEV_LOG) {
-            this.log('stopWatch', this.watchId);
+            console.log(TAG, 'stopWatch', this.watchId);
         }
         if (this.watchId) {
             geolocation.clearWatch(this.watchId);
@@ -619,7 +673,7 @@ export class GeoHandler extends Observable {
     @bind
     importJSONFile(filePath: string) {
         const file = File.fromPath(filePath);
-        // this.log('importJSONFile', filePath, file.size);
+        // console.log(TAG,'importJSONFile', filePath, file.size);
         return file.readText().then((r) => this.importJSONString(r));
     }
     @bind
@@ -631,7 +685,7 @@ export class GeoHandler extends Observable {
             // return Promise.resolve().then(() => {
 
             if (DEV_LOG) {
-                this.log('importJSONString', value, value.length);
+                console.log(TAG, 'importJSONString', value, value.length);
             }
 
             const data = JSON.parse(value);
@@ -665,7 +719,7 @@ export class GeoHandler extends Observable {
             throw new Error($t('empty_file'));
         }
         // if (DEV_LOG) {
-        // this.log('importGPXString', value);
+        // console.log(TAG,'importGPXString', value);
         // }
         // console.log('importXMLString', value);
         return parseGPX(value).then((gpx) => {

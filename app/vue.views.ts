@@ -6,10 +6,8 @@ installBottomSheets();
 import ActivityIndicatorPlugin from '@nativescript-community/ui-material-activityindicator/vue';
 import BottomSheetPlugin from '@nativescript-community/ui-material-bottomsheet/vue';
 import ButtonPlugin from '@nativescript-community/ui-material-button/vue';
-import CardViewPlugin from '@nativescript-community/ui-material-cardview/vue';
 import ProgressPlugin from '@nativescript-community/ui-material-progress/vue';
 import TextFieldPlugin from '@nativescript-community/ui-material-textfield/vue';
-import SliderPlugin from '@nativescript-community/ui-material-slider/vue';
 // import NativescriptVue from 'nativescript-vue';
 import CActionBar from '~/components/CActionBar';
 import ListItem from '~/components/ListItem';
@@ -27,9 +25,7 @@ const Plugin = {
         Vue.component('ListItem', ListItem);
         Vue.use(ActivityIndicatorPlugin);
         Vue.use(ButtonPlugin);
-        Vue.use(CardViewPlugin);
         Vue.use(ProgressPlugin);
-        Vue.use(SliderPlugin);
         Vue.use(TextFieldPlugin);
         Vue.use(BottomSheetPlugin);
 
