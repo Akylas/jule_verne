@@ -4,20 +4,38 @@ import { EventData } from '@nativescript/core/data/observable';
 import { ObservableArray } from '@nativescript/core/data/observable-array';
 import { Frame } from '@nativescript/core/ui/frame';
 import { GestureEventData } from '@nativescript/core/ui/gestures';
+import { Feature } from 'geojson';
 import { bind } from 'helpful-decorators';
 import { Component } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
+import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
+import {
+    BLEBatteryEventData,
+    BLEConnectionEventData,
+    GlassesBatteryEvent,
+    GlassesConnectedEvent,
+    GlassesConnectionEventData,
+    GlassesDisconnectedEvent,
+    Peripheral,
+    SPOTA_SERVICE_UUID,
+    StatusChangedEvent
+} from '~/handlers/BluetoothHandler';
 import { GeoHandler, GeoLocation, PositionStateEvent, SessionEventData, SessionState, SessionStateEvent, TrackSelecteEvent, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
-import Track from '~/models/Track';
+import Track, { GeometryProperties, TrackGeometry } from '~/models/Track';
 import { confirm } from '~/utils/dialogs';
 import { ComponentIds } from './App';
 import { BaseVueComponentRefs } from './BaseVueComponent';
+import DeviceSelect from './DeviceSelect';
 import Map from './Map';
 import MapComponent from './MapComponent';
 import MapOnlyComponent from './MapOnlyComponent';
 
 const production = TNS_ENV === 'production';
+const TAG = 'Home';
 
+function timeout(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 export interface HomeRefs extends BaseVueComponentRefs {
     [key: string]: any;
 }
@@ -37,16 +55,34 @@ export default class Home extends BgServiceComponent {
     public lastLocation: GeoLocation = null;
     public currentSessionState: SessionState = SessionState.STOPPED;
     public shouldConfirmBack = true;
-    // tracks: ObservableArray<Track> = new ObservableArray([]);
+
+    public connectedGlasses: GlassesDevice = null;
+    public glassesBattery: number = 0;
+    public glassesSerialNumber = null;
+    public glassesVersion = null;
 
     aimingAngle: number = 0;
     eventsLog: string = '';
     selectedTrack: Track = null;
     selectedTracks: Track[] = null;
+    insideFeature: Feature<TrackGeometry, GeometryProperties> = null;
 
     get map() {
         const mapComp = this.$refs.mapComp as MapComponent;
         return mapComp && mapComp.cartoMap;
+    }
+    get connectedGlassesName() {
+        return this.connectedGlasses?.localName || '';
+    }
+    get glassesSubtitle() {
+        let result = '';
+        if (this.glassesSerialNumber) {
+            result += `${this.glassesSerialNumber}`;
+        }
+        if (this.glassesVersion) {
+            result += ` (${this.glassesVersion})`;
+        }
+        return result;
     }
     mounted() {
         super.mounted();
@@ -64,6 +100,12 @@ export default class Home extends BgServiceComponent {
     }
     onTrackPositionState(event: EventData) {
         const { feature, index, distance, state } = event['data'];
+        if (state === 'entering') {
+            this.insideFeature = feature;
+        } else if (state === 'leaving' && this.insideFeature === feature) {
+            this.insideFeature = null;
+        }
+        console.log('Home', 'onTrackPositionState', feature.id, !!this.insideFeature);
         this.eLog(feature.id, feature.properties.name, state, distance, index);
     }
     onTrackSelected(event: EventData) {
@@ -171,6 +213,23 @@ export default class Home extends BgServiceComponent {
         this.geoHandlerOn(UserRawLocationEvent, this.onNewLocation, this);
         this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
 
+        this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
+        this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
+        this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
+        this.bluetoothHandlerOn(StatusChangedEvent, this.onBLEStatus);
+
+        this.connectingToGlasses = handlers.bluetoothHandler.connectingToGlasses;
+        if (!handlers.bluetoothHandler.glasses) {
+            this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
+        }
+        handlers.bluetoothHandler.isEnabled().then((r) => {
+            this.bluetoothEnabled = r;
+            if (r && !handlers.bluetoothHandler.glasses) {
+                this.tryToAutoConnect();
+            } else if (!r && handlers.bluetoothHandler.savedGlassesUUID) {
+                this.showError(this.$t('bluetooth_not_enabled'));
+            }
+        });
         this.isWatchingLocation = handlers.geoHandler.isWatching();
     }
 
@@ -202,57 +261,216 @@ export default class Home extends BgServiceComponent {
     onNavigatingTo() {}
 
     async onTap(command: string, args: GestureEventData) {
-        switch (command) {
-            case 'location':
-                if (this.searchingLocation) {
-                    return;
-                }
-                try {
-                    await this.geoHandler.enableLocation();
-                    this.searchingLocation = true;
-                    await this.geoHandler.getLocation();
-                } catch (err) {
-                    this.showError(err);
-                } finally {
-                    this.searchingLocation = false;
-                }
-                break;
-            case 'startSession':
-                if (this.currentSessionState === SessionState.PAUSED) {
-                    this.geoHandler.resumeSession();
-                } else if (this.currentSessionState === SessionState.RUNNING) {
-                    this.geoHandler.pauseSession();
-                } else {
+        try {
+            switch (command) {
+                case 'location':
+                    if (this.searchingLocation) {
+                        return;
+                    }
                     try {
-                        await this.geoHandler.askForSessionPerms();
-                        await this.geoHandler.startSession();
+                        await this.geoHandler.enableLocation();
+                        this.searchingLocation = true;
+                        await this.geoHandler.getLocation();
                     } catch (err) {
                         this.showError(err);
+                    } finally {
+                        this.searchingLocation = false;
                     }
-                }
-
-                break;
-            case 'stopSession':
-                confirm({
-                    title: this.$t('stop_session'),
-                    message: this.$t('stop_session_are_you_sure'),
-                    okButtonText: this.$t('stop'),
-                    cancelButtonText: this.$t('cancel')
-                })
-                    .then((result) => {
-                        if (result) {
-                            return this.geoHandler.stopSession().then((session) => {
-                                this.lastLocation = null;
-                            });
+                    break;
+                case 'startSession':
+                    if (this.currentSessionState === SessionState.PAUSED) {
+                        this.geoHandler.resumeSession();
+                    } else if (this.currentSessionState === SessionState.RUNNING) {
+                        this.geoHandler.pauseSession();
+                    } else {
+                        try {
+                            await this.geoHandler.askForSessionPerms();
+                            await this.geoHandler.startSession();
+                        } catch (err) {
+                            this.showError(err);
                         }
+                    }
+
+                    break;
+                case 'stopSession':
+                    confirm({
+                        title: this.$t('stop_session'),
+                        message: this.$t('stop_session_are_you_sure'),
+                        okButtonText: this.$t('stop'),
+                        cancelButtonText: this.$t('cancel')
                     })
-                    .catch(this.showError);
-                break;
-            case 'menu':
-                this.$getAppComponent().drawer.open();
+                        .then((result) => {
+                            if (result) {
+                                return this.geoHandler.stopSession().then((session) => {
+                                    this.lastLocation = null;
+                                });
+                            }
+                        })
+                        .catch(this.showError);
+                    break;
+                case 'menu':
+                    this.$getAppComponent().drawer.open();
+                    break;
+                case 'connectGlasses':
+                    if (this.connectedGlasses) {
+                        this.$refs.drawer.nativeView.toggle();
+                    } else {
+                        if (!this.bluetoothHandler.isEnabled()) {
+                            this.bluetoothHandler.enable();
+                        } else {
+                            this.pickGlasses();
+                        }
+                    }
+
+                    break;
+                case 'startDemo':
+                    await this.bluetoothHandler.playDemo();
+                    break;
+                case 'playHello':
+                    this.bluetoothHandler.playHello();
+                    break;
+                case 'playVicat':
+                    await this.bluetoothHandler.playVicat();
+                    break;
+                case 'playGoLeft':
+                    await this.bluetoothHandler.playGoLeftLoop(false);
+                    break;
+                case 'playGoRight':
+                    await this.bluetoothHandler.playGoRightLoop(false);
+                    break;
+                case 'playGoStraight':
+                    await this.bluetoothHandler.playGoStraightLoop(false);
+                    break;
+                case 'playGoBack':
+                    await this.bluetoothHandler.playGoBackLoop(false);
+                    break;
+                case 'stopPlaying':
+                    await this.bluetoothHandler.stopPlayingLoop();
+                    break;
+            }
+        } catch (err) {
+            this.showError(err);
+        }
+    }
+    enableForScan() {
+        return this.bluetoothHandler
+            .enable()
+            .then(() => this.geoHandler.enableLocation())
+            .then(() => timeout(100)); // the timeout is for and android bug on some device/android where we would try to show a modal view too quckly after a native prompt
+    }
+    connectingToGlasses = false;
+    async pickGlasses() {
+        try {
+            await this.enableForScan();
+            const options = {
+                props: {
+                    title: this.$t('looking_for_glasses'),
+                    scanningParams: {
+                        glasses: true,
+                        // nameFilter: /Microoled/,
+                        filters: [
+                            {
+                                serviceUUID: SPOTA_SERVICE_UUID
+                            }
+                        ]
+                    }
+                },
+                animated: true,
+                fullscreen: true
+            };
+            const device: Peripheral = await this.$showModal(DeviceSelect, options);
+            // console.log(TAG, 'connecting to picked device', device);
+            if (device) {
+                this.connectingToGlasses = true;
+                return this.bluetoothHandler.connect(device.UUID);
+            }
+        } catch (err) {
+            this.showError(err);
+        }
+    }
+
+    playCurrentStory() {
+        console.log('playCurrentStory', !!this.insideFeature);
+        if (this.insideFeature) {
+            this.geoHandler.playStory(this.insideFeature.properties.index);
+        }
+    }
+
+    onLongPress(command: string, args: GestureEventData) {
+        if (args.ios && args.ios.state !== 3) {
+            return;
+        }
+        switch (command) {
+            case 'disconnectGlasses':
+                if (this.connectedGlasses) {
+                    confirm({
+                        title: this.$tt('disconnect_glasses'),
+                        message: this.$tc('disconnect_glasses_are_you_sure'),
+                        okButtonText: this.$t('disconnect'),
+                        cancelButtonText: this.$t('cancel')
+                    }).then((result) => {
+                        console.log(TAG, 'disconnectGlasses, confirmed', result);
+                        if (!!result) {
+                            this.bluetoothHandler.disconnectGlasses(true);
+                        }
+                    });
+                }
                 break;
         }
     }
 
-    //@ts-ignore
+    updateGlassesBattery(value: number) {
+        if (value >= 0) {
+            this.glassesBattery = value;
+        } else {
+            this.glassesBattery = 0;
+        }
+    }
+
+    onGlassesConnected(e: GlassesConnectionEventData) {
+        const glasses = (this.connectedGlasses = e.data);
+        this.connectingToGlasses = false;
+        this.glassesVersion = glasses.firmwareVersion;
+        this.glassesSerialNumber = glasses.serialNumber;
+        setTimeout(() => {
+            this.hideLoading();
+        }, 200);
+    }
+    onGlassesDisconnected(e: BLEConnectionEventData) {
+        console.log(TAG, 'onGlassesDisconnected', e.manualDisconnect);
+        this.connectedGlasses = null;
+        this.connectingToGlasses = false;
+        this.glassesBattery = -1;
+        this.glassesVersion = null;
+        this.glassesSerialNumber = null;
+        this.hideLoading();
+    }
+    onGlassesBattery(e: BLEBatteryEventData) {
+        this.updateGlassesBattery(e.data);
+    }
+    tryToAutoConnect() {
+        if (this.bluetoothHandler.isEnabled() && this.bluetoothHandler.hasSavedGlasses() && !this.bluetoothHandler.connectingToGlasses) {
+            // this.enableForScan()
+            //     .then(() => {
+            this.connectingToGlasses = true;
+            return this.bluetoothHandler
+                .connectToSaved()
+                .then(() => {
+                    console.log(TAG, 'Pairing connectToSaved done', this.bluetoothHandler.connectingToSavedGlasses, this.bluetoothHandler.connectingToGlasses);
+                    this.connectingToGlasses = this.bluetoothHandler.connectingToSavedGlasses || this.bluetoothHandler.connectingToGlasses;
+                })
+                .catch(this.showError);
+        }
+    }
+    onBLEStatus(e) {
+        console.log(TAG, 'onBLEStatus', e.data.state);
+        const newValue = e.data.state === 'on';
+        if (newValue !== this.bluetoothEnabled) {
+            this.bluetoothEnabled = newValue;
+            if (newValue) {
+                this.tryToAutoConnect();
+            }
+        }
+    }
+    bluetoothEnabled = true;
 }

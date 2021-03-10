@@ -1,33 +1,44 @@
+import { getFile, getJSON } from '@akylas/nativescript/http';
 import { AppURL, handleOpenURL } from '@nativescript-community/appurl';
 import * as EInfo from '@nativescript-community/extendedinfo';
 import Observable from '@nativescript-community/observable';
 import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { Drawer } from '@nativescript-community/ui-drawer';
+import { confirm } from '@nativescript-community/ui-material-dialogs';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { TextField } from '@nativescript-community/ui-material-textfield';
 import { Frame, NavigationEntry, Page, StackLayout, knownFolders } from '@nativescript/core';
 import * as app from '@nativescript/core/application';
 import * as appSettings from '@nativescript/core/application-settings';
+import { path } from '@nativescript/core/file-system';
 import { Device, Screen } from '@nativescript/core/platform';
 import { GestureEventData } from '@nativescript/core/ui/gestures';
 import { GC } from '@nativescript/core/utils/utils';
 import { compose } from '@nativescript/email';
+import { Vibrate } from 'nativescript-vibrate';
 import Vue, { NativeScriptVue, NavigationEntryVue } from 'nativescript-vue';
 import { VueConstructor } from 'vue';
 import { Component } from 'vue-property-decorator';
 import Tracks from '~/components/Tracks';
-import { GeoHandler } from '~/handlers/GeoHandler';
+import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
+import { BLEConnectionEventData } from '~/handlers/BluetoothHandler';
 import Track from '~/models/Track';
 import { BgServiceErrorEvent } from '~/services/BgService.common';
+import { versionCompare } from '~/utils';
 import { login } from '~/utils/dialogs';
 import { bboxify } from '~/utils/geo';
+import { backgroundColor, textColor } from '~/variables';
 import { BaseVueComponentRefs } from './BaseVueComponent';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
+import FirmwareUpdate from './FirmwareUpdate';
 import Home from './Home';
+import Leaflet from './Leaflet.vue';
 import Map from './Map';
 import Settings from './Settings';
-import Leaflet from './Leaflet.vue';
 
+function timeout(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 function base64Encode(value) {
     if (global.isIOS) {
         //@ts-ignore
@@ -52,6 +63,7 @@ export interface AppRefs extends BaseVueComponentRefs {
 
 export enum ComponentIds {
     Activity = 'activity',
+    Firmware = 'firmware',
     Settings = 'settings',
     Tracks = 'tracks',
     Map = 'map',
@@ -75,8 +87,10 @@ export const notify = observable.notify.bind(observable);
     }
 })
 export default class App extends BgServiceComponent {
+    textColor = textColor;
     $refs: AppRefs;
     cartoLicenseRegistered = false;
+    backgroundColor = backgroundColor;
     protected routes: { [k: string]: { component: typeof Vue } } = {
         [ComponentIds.Activity]: {
             component: Home
@@ -97,6 +111,11 @@ export default class App extends BgServiceComponent {
     public activatedUrl = '';
     public appVersion: string;
     public appPaused = false;
+
+    public glassesSerialNumber = null;
+    public glassesVersion = null;
+    public connectedGlasses: GlassesDevice = null;
+
     get drawer() {
         return this.getRef<Drawer>('drawer');
     }
@@ -203,8 +222,6 @@ export default class App extends BgServiceComponent {
             }
         }
     }
-
-    updateSentryInfos() {}
 
     quitApp() {
         this.$bgService.stop().then(() => {
@@ -452,5 +469,105 @@ export default class App extends BgServiceComponent {
         this.devMode = !this.devMode;
 
         showSnack({ message: `devmode:${this.devMode}` });
+    }
+    onGlassesDisconnected(e: BLEConnectionEventData) {
+        this.connectedGlasses = null;
+        this.glassesVersion = null;
+        this.glassesSerialNumber = null;
+        // if not manual disconnect we are going to try and reconnect
+
+        this.$crashReportService.setExtra('glasses', null);
+        if (this.devMode) {
+            const vibrator = new Vibrate();
+            vibrator.vibrate(2000);
+        }
+    }
+    onGlassesConnected(e: BLEConnectionEventData) {
+        const glasses = (this.connectedGlasses = e.data as GlassesDevice);
+        this.glassesVersion = glasses.firmwareVersion;
+        this.glassesSerialNumber = glasses.serialNumber;
+        this.updateSentryInfos();
+
+        this.hideLoading();
+    }
+    updateSentryInfos() {
+        const glasses = this.connectedGlasses;
+        if (glasses) {
+            this.$crashReportService.setExtra(
+                'glasses',
+                JSON.stringify({
+                    name: glasses.localName,
+                    uuid: glasses.UUID,
+                    firmware: this.glassesVersion,
+                    serial: this.glassesSerialNumber
+                })
+            );
+        } else {
+            this.$crashReportService.setExtra('glasses', null);
+        }
+    }
+    onGlassesReconnecting() {
+        this.showLoading(this.$t('connection_lost_reconnecting'));
+    }
+    onGlassesReconnectingFailed() {
+        this.hideLoading();
+    }
+    onGlassesVersion(e) {
+        this.glassesVersion = e.data;
+        this.checkFirmwareUpdateOnline();
+        this.updateSentryInfos();
+    }
+    onGlassesSerialNumber(e) {
+        this.glassesSerialNumber = e.data;
+        this.updateSentryInfos();
+    }
+    checkFirmwareUpdateOnline(beta?: boolean) {
+        getJSON({
+            url: `https://gitlab.com/api/v4/projects/9965259/repository/files/${beta ? 'beta' : 'latest'}.json/raw?ref=master`,
+            method: 'GET',
+            headers: {
+                'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
+            }
+        })
+            .then((response: any) => {
+                // if (response.statusCode === 200) {
+                // const content = response.content;
+                const newVersion = response.version;
+                const compareResult = versionCompare(newVersion, this.glassesVersion);
+
+                if (compareResult > 0) {
+                    confirm({
+                        cancelable: !response.mandatory,
+                        title: this.$t('firmware_update', newVersion),
+                        message: response.mandatory ? this.$t('mandatory_firmware_update_available_desc') : this.$t('firmware_update_available_desc'),
+                        okButtonText: this.$t('update'),
+                        cancelButtonText: response.mandatory ? undefined : this.$t('cancel')
+                    })
+                        .then((result) => timeout(500).then(() => result)) // delay a bit for android. Too fast
+                        .then((result) => {
+                            if (result) {
+                                this.showLoading(this.$t('downloading_update'));
+                                const filePath = path.join(knownFolders.temp().path, `update_${newVersion}.img`);
+                                const args = {
+                                    url: response.url,
+                                    method: 'GET',
+                                    headers: {
+                                        'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
+                                    }
+                                };
+                                return getFile(args, filePath).then((response) => {
+                                    this.hideLoading();
+                                    this.navigateTo(FirmwareUpdate, { props: { firmwareFile: response } });
+                                });
+                            } else if (response.mandatory) {
+                                // this.quitApp();
+                            }
+                        })
+                        .catch(this.showError);
+                }
+            })
+            .catch((error) => {
+                console.error('Https.request error', error);
+            });
     }
 }

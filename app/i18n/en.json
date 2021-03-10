@@ -2,8 +2,10 @@
   "ios": {
     "info": {
       "plist": {
-        "NSLocationWhenInUseUsageDescription": "\"Jule Verne\" uses GPS to display it ",
-        "NSMotionUsageDescription": "Jule Verne uses the Barometer to compute more accurate elevation"
+        "NSLocationWhenInUseUsageDescription": "«Jule Verne» uses GPS to display it ",
+        "NSMotionUsageDescription": "«Jule Verne» uses the Barometer to compute more accurate elevation",
+        "NSBluetoothPeripheralUsageDescription": "«Jule Verne» uses Bluetooth to connect to your glasses",
+        "NSBluetoothAlwaysUsageDescription": "«Jule Verne» uses Bluetooth to connect to your glasses"
       }
     }
   },

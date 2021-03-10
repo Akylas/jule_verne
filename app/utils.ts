@@ -44,3 +44,7 @@ export function versionCompare(v1: string, v2: string) {
 
     return 0;
 }
+
+export function timeout(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}

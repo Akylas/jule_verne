@@ -1,9 +1,9 @@
 <template>
     <Page ref="page" actionBarHidden @loaded="onLoaded">
         <Drawer ref="drawer" leftDrawerMode="slide">
-            <GridLayout ~leftDrawer rows="auto, *, auto" height="100%" backgroundColor="white" width="80%">
+            <GridLayout ~leftDrawer rows="auto, *, auto" height="100%" :backgroundColor="backgroundColor" width="80%">
                 <GridLayout padding="10" height="80" rows="auto, *" columns="auto, *">
-                    <Label marginLeft="15" fontSize="20" :text="$t('browse') | titlecase" />
+                    <Label marginLeft="15" fontSize="20" :text="$t('browse') | titlecase" :color="textColor"/>
                 </GridLayout>
                 <CollectionView :items="menuItems" row="1" paddingTop="10" rowHeight="50" @tap="noop">
                     <v-template>

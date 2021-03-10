@@ -3,6 +3,7 @@ import { Frame, topmost } from '@nativescript/core/ui/frame';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import BaseVueComponent from './BaseVueComponent';
 import { GestureEventData } from '@nativescript/core/ui/gestures';
+import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
 
 @Component({})
 export default class ActionBar extends BaseVueComponent {
@@ -27,6 +28,15 @@ export default class ActionBar extends BaseVueComponent {
     public showLogo: boolean;
     @Prop({ default: false, type: Boolean })
     public modal: boolean;
+
+    @Prop({ default: 0, type: Number })
+    public battery: number;
+
+    @Prop({ default: false })
+    public showGlassesIcon: boolean;
+
+    @Prop({ default: null })
+    public glasses: GlassesDevice;
 
     get menuIcon() {
         if (this.modal) {
@@ -55,5 +65,36 @@ export default class ActionBar extends BaseVueComponent {
         } else {
             this.$getAppComponent().onMenuIcon();
         }
+    }
+
+    get glassesBatteryColumns() {
+        const value = this.battery;
+        if (value > 0) {
+            return value + '*,' + (100 - value) + '*';
+        }
+        return '0,*';
+    }
+    get glassBatteryColor() {
+        if (this.battery > 40) {
+            return '#53da22';
+        }
+        if (this.battery > 20) {
+            return '#FDB92C';
+        }
+        return '#ed243e';
+    }
+
+    get shouldShowGlassesIcon() {
+        return this.showGlassesIcon || !!this.glasses;
+    }
+
+    onGlassesButton() {
+        this.$emit('tapGlass');
+    }
+    onLongGlassesButton(args: GestureEventData) {
+        if (args && args.ios && args.ios.state !== 3) {
+            return;
+        }
+        this.$emit('longPressGlass', args);
     }
 }

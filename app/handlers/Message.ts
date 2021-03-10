@@ -42,6 +42,7 @@ export enum CommandType {
     Luma = 0x10,
     Dim = 0x11,
     LumaMode = 0x12,
+    SetLuma = 0x13,
     Sensor = 0x20,
     Gesture = 0x21,
     Als = 0x22,
@@ -421,9 +422,9 @@ export function buildMessageData(
         case CommandType.Gesture:
             data = options.params[0] === 'on' ? [1] : [0];
             break;
-        case CommandType.Luma:
-        case CommandType.Color:
-            data = options.params;
+            break;
+        case CommandType.Bitmap:
+            data = [options.params[0]].concat(numberToUint8Array(options.params[1])).concat(numberToUint8Array(options.params[2]));
             break;
         case CommandType.SetName:
             data = toUTF8Array(options.params[0]);
@@ -431,19 +432,12 @@ export function buildMessageData(
         case CommandType.Shift:
             data = numberToUint8Array(options.params[0]).concat(numberToUint8Array(options.params[1]));
             break;
-        case CommandType.Rconfig:
-            data = [options.params[0]];
-            break;
         case CommandType.Rectf:
             data = numberToUint8Array(options.params[0]).concat(numberToUint8Array(options.params[1])).concat(numberToUint8Array(options.params[2])).concat(numberToUint8Array(options.params[3]));
             break;
         case CommandType.Wconfig:
-            data = [1] //reserved
-                .concat([0, 0])
-                .concat(numberToUint8Array(options.params[0])) // configId
-                .concat([options.params[1]]) // nbBitmapSaved
-                .concat([options.params[2]]) // nbLayersSaved
-                .concat([options.params[3]]); //nbFontsSaved
+            const configId = options.params[0];
+            data = [0x01, (configId & 0xff000000) >> 24, (configId & 0xff0000) >> 16, (configId & 0xff00) >> 8, configId & 0xff].concat(options.params[1], options.params[2], options.params[3]);
             break;
         case CommandType.Txt:
             data = numberToUint8Array(options.params[0])
@@ -452,6 +446,7 @@ export function buildMessageData(
                 .concat(toUTF8Array(options.params[5]));
             break;
         default:
+            data = options.params;
             break;
     }
 

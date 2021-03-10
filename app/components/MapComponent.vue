@@ -15,9 +15,9 @@
             :text="lastLocationDetails"
         />
 
-        <GridLayout v-if="locationEnabled && showLocationButton" class="floating-btn" margin="8" horizontalAlignment="right" verticalAlignment="bottom" @tap="askUserLocation">
+        <MDCardView v-if="locationEnabled && showLocationButton" class="floating-btn" margin="8" horizontalAlignment="right" verticalAlignment="bottom" @tap="askUserLocation">
             <Label textAlignment="center" verticalAlignment="middle" class="mdi" :class="locationButtonLabelClass" :text="'mdi-crosshairs-gps'" :color="accentColor" />
-        </GridLayout>
+        </MDCardView>
     </GridLayout>
 </template>
 

@@ -18,14 +18,10 @@ import MapComponent from './MapComponent';
 import Editor from './Editor.vue';
 import tinycolor from 'tinycolor2';
 
-function timeout(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 @Component({
     components: {
         Editor,
-        MapComponent,
+        MapComponent
     }
 })
 export default class TrackDetails extends BgServiceComponent {
@@ -55,13 +51,6 @@ export default class TrackDetails extends BgServiceComponent {
         this.editableName = this.track.name || '';
         this.editableDesc = this.track.desc || '';
         this.loaded = true;
-    }
-
-    onImperialUnitChanged(value: boolean) {
-        this.$refs.charts.forEach((view) => {
-            const chart = view.nativeView as LineChart;
-            chart.invalidate();
-        });
     }
 
     onLoaded() {}

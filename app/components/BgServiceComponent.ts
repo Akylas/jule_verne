@@ -21,6 +21,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         } else {
             this.$bgService.once(BgServiceLoadedEvent, this.callOnServiceLoaded, this);
         }
+
         if (this.$bgService.started) {
             this.callOnServiceStarted();
         } else {
@@ -37,14 +38,17 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         this.unloadService();
     }
 
+    inSetup = false;
     onAppResume(args: ApplicationEventData) {
         if (!this.appPaused) {
             return;
         }
         this.appPaused = false;
         if (this.setup && this.$bgService.loaded) {
+            this.inSetup = true;
             const params = this.getParams();
             this.setup.call(this, params);
+            this.inSetup = false;
         }
     }
     onAppPause(args: ApplicationEventData) {
@@ -59,7 +63,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         // if setup is used we unregister all registered events to prevent trying to
         // update ui while the app is in background
         if (this.setup) {
-            this.unregisterEvents();
+            this.unregisterSetupEvents();
         }
     }
     /**
@@ -70,7 +74,6 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     setup?(handlers: BgServiceMethodParams);
     unsetup?(handlers: BgServiceMethodParams);
 
-    onImperialUnitChanged?(value: boolean);
     callOnServiceLoaded() {
         const params = this.getParams();
         if (this.setup && !this.appPaused) {
@@ -83,9 +86,32 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     callOnServiceStarted() {
         const params = this.getParams();
 
+        if (this.setup && !this.appPaused) {
+            this.inSetup = true;
+            this.setup.call(this, params);
+            this.inSetup = false;
+        }
+
         // call onServiceLoaded after setup to make sure everything is set up. onServiceLoaded will be
         // callled only once
         this.onServiceStarted.call(this, params);
+    }
+    unregisterSetupEvents() {
+        const bluetoothHandler = this.$bgService.bluetoothHandler;
+        const geoHandler = this.$bgService.geoHandler;
+        if (bluetoothHandler) {
+            this.bluetoothHandlerSetupListeners.forEach((r) => {
+                bluetoothHandler.off(r[0], r[1], r[2] || this);
+            });
+        }
+        this.bluetoothHandlerSetupListeners = [];
+        if (geoHandler) {
+            this.geoHandlerSetupListeners.forEach((r) => {
+                geoHandler.off(r[0], r[1], r[2] || this);
+            });
+        }
+
+        this.geoHandlerSetupListeners = [];
     }
     unregisterEvents() {
         const bluetoothHandler = this.$bgService.bluetoothHandler;
@@ -105,6 +131,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         this.geoHandlerListeners = [];
     }
     unloadService() {
+        this.unregisterSetupEvents();
         this.unregisterEvents();
         this.onServiceUnloaded.call(this, this.getParams());
     }
@@ -112,19 +139,29 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     getParams() {
         const geoHandler = this.geoHandler;
         const dbHandler = this.dbHandler;
-        const bluetoothHandler = this.geoHandler;
+        const bluetoothHandler = this.bluetoothHandler;
         return { geoHandler, dbHandler, bluetoothHandler };
     }
 
+    bluetoothHandlerSetupListeners: any[] = [];
     bluetoothHandlerListeners: any[] = [];
     bluetoothHandlerOn(event, listener, context = this) {
-        this.bluetoothHandlerListeners.push([event, listener]);
+        if (this.inSetup) {
+            this.bluetoothHandlerSetupListeners.push([event, listener]);
+        } else {
+            this.bluetoothHandlerListeners.push([event, listener]);
+        }
         this.bluetoothHandler.on(event, listener, context);
         return this;
     }
+    geoHandlerSetupListeners: any[] = [];
     geoHandlerListeners: any[] = [];
     geoHandlerOn(event, listener, context = this) {
-        this.geoHandlerListeners.push([event, listener]);
+        if (this.inSetup) {
+            this.geoHandlerSetupListeners.push([event, listener]);
+        } else {
+            this.geoHandlerListeners.push([event, listener]);
+        }
         this.geoHandler.on(event, listener, context);
         return this;
     }

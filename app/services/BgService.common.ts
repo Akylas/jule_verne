@@ -1,12 +1,14 @@
 import { GeoHandler } from '~/handlers/GeoHandler';
 import { Observable } from '@nativescript/core/data/observable';
 import { ApplicationEventData, off as applicationOff, on as applicationOn, exitEvent, launchEvent } from '@nativescript/core/application';
+import { BluetoothHandler } from '~/handlers/BluetoothHandler';
 
 export const BgServiceLoadedEvent = 'BgServiceLoadedEvent';
 export const BgServiceStartedEvent = 'BgServiceStartedEvent';
 export const BgServiceErrorEvent = 'BgServiceErrorEvent';
 export abstract class BgServiceCommon extends Observable {
     abstract get  geoHandler(): GeoHandler;
+    abstract get  bluetoothHandler(): BluetoothHandler;
     protected _loaded = false;
     protected _started = false;
 
@@ -22,6 +24,8 @@ export abstract class BgServiceCommon extends Observable {
         return this._started;
     }
     protected _handlerLoaded() {
+        this.geoHandler.bluetoothHandler = this.bluetoothHandler;
+        this.bluetoothHandler.geoHandler = this.geoHandler;
         if (!this._loaded) {
             this._loaded = true;
             this.notify({
@@ -41,7 +45,7 @@ export abstract class BgServiceCommon extends Observable {
     }
     start() {
         this.log(' start');
-        return Promise.all([this.geoHandler.start()]).then(() => {
+        return Promise.all([this.geoHandler.start(), this.bluetoothHandler.start()]).then(() => {
             this._started = true;
             this.log('started');
             this.notify({

@@ -21,19 +21,20 @@ import { MBVectorTileDecoder } from '@nativescript-community/ui-carto/vectortile
 import { Application } from '@nativescript/core';
 import { getNumber, getString } from '@nativescript/core/application-settings';
 import { Color } from '@nativescript/core/color';
-import { Observable } from '@nativescript/core/data/observable';
+import { EventData, Observable } from '@nativescript/core/data/observable';
 import { ChangeType, ChangedData, ObservableArray } from '@nativescript/core/data/observable-array';
 import { Folder, knownFolders, path } from '@nativescript/core/file-system';
 import { addWeakEventListener, removeWeakEventListener } from '@nativescript/core/ui';
 import dayjs from 'dayjs';
 import { Component, Prop, Watch } from 'vue-property-decorator';
-import { GeoHandler, GeoLocation, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
+import { GeoHandler, GeoLocation, PositionStateEvent, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
 import Track from '~/models/Track';
 import { getDataFolder } from '~/utils/utils';
 import { computeAngleBetween } from '~/utils/geo';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 import { GeoJSONGeometryReader } from '@nativescript-community/ui-carto/geometry/reader';
 import { BBox } from 'geojson';
+import { VectorElement } from '@nativescript-community/ui-carto/vectorelements';
 
 const LOCATION_ANIMATION_DURATION = 300;
 const production = TNS_ENV === 'production';
@@ -422,9 +423,43 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
             return;
         }
         this.geoHandlerOn(UserRawLocationEvent, this.onLocation, this);
+        this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
         const loc = handlers.geoHandler.lastLocation;
         if (loc) {
             this.onLocation({ data: loc } as any);
+        }
+    }
+
+    onTrackPositionState(event: EventData) {
+        const { feature, index, distance, state, trackId } = event['data'];
+        const object = this.mappedTracks[trackId][feature.id];
+        console.log('MapComponent', 'onTrackPositionState', trackId, feature.id, !!object, state, object instanceof Group);
+        if (object) {
+            if (state === 'entering') {
+                if (object instanceof Group) {
+                    object.elements.forEach((e) => {
+                        (e as any).offLineColor = (e as any).lineColor;
+                        (e as any).offColor = (e as any).color;
+                        (e as any).color = 'green';
+                        (e as any).lineColor = 'green';
+                    });
+                } else {
+                    (object as any).offColor = (object as any).lineColor;
+                    (object as any).offLineColor = (object as any).lineColor;
+                    (object as any).color = 'green';
+                    (object as any).lineColor = 'green';
+                }
+            } else if (state === 'leaving') {
+                if (object instanceof Group) {
+                    object.elements.forEach((e) => {
+                        (e as any).lineColor = (e as any).offLineColor;
+                        (e as any).color = (e as any).offColor;
+                    });
+                } else {
+                    (object as any).lineColor = (object as any).offLineColor;
+                    (object as any).color = (object as any).offColor;
+                }
+            }
         }
     }
     searchingForUserLocation = false;
@@ -478,7 +513,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         }
     }
     mappedTracks: {
-        [k: string]: Line<LatLonKeys>[];
+        [k: string]: { [k: string]: VectorElement<any, any> };
     } = {};
 
     bboxToPolygon(bbox: BBox) {
@@ -508,7 +543,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         console.log('addTrack', track.id);
         const featureCollection = track.geometry;
         const count = featureCollection.features.length;
-        const objects = (this.mappedTracks[track.id] = []);
+        const objects = (this.mappedTracks[track.id] = {});
         const reader = new GeoJSONGeometryReader({});
 
         // const bboxpolygon = new Polygon<LatLonKeys>({
@@ -528,17 +563,17 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
             const geometry = reader.readGeometry(JSON.stringify(feature.geometry));
             const properties = feature.properties;
 
-            // const bboxpolygon = new Polygon<LatLonKeys>({
-            //     positions: this.bboxToPolygon(feature.bbox),
-            //     styleBuilder: {
-            //         color: 'transparent',
-            //         lineStyleBuilder: {
-            //             color: 'white',
-            //             width: 2
-            //         }
-            //     }
-            // });
-            // this.localVectorDataSource.add(bboxpolygon);
+            const bboxpolygon = new Polygon<LatLonKeys>({
+                positions: this.bboxToPolygon(feature.bbox),
+                styleBuilder: {
+                    color: 'transparent',
+                    lineStyleBuilder: {
+                        color: 'white',
+                        width: 2
+                    }
+                }
+            });
+            this.localVectorDataSource.add(bboxpolygon);
             switch ((properties.shape || properties.type).toLowerCase()) {
                 case 'line': {
                     const line = new Line<LatLonKeys>({
@@ -552,7 +587,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                         }
                     });
                     this.localVectorDataSource.add(line);
-                    objects.push(line);
+                    objects[feature.id] = line;
                     break;
                 }
                 case 'circle': {
@@ -571,7 +606,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                         }
                     });
                     this.localVectorDataSource.add(circle);
-                    objects.push(circle);
+                    objects[feature.id] = circle;
                     break;
                 }
                 case 'marker': {
@@ -586,7 +621,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                         }
                     });
                     this.localVectorDataSource.add(marker);
-                    objects.push(marker);
+                    objects[feature.id] = marker;
                     break;
                 }
                 case 'polygon': {
@@ -624,7 +659,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                         })
                     ];
                     this.localVectorDataSource.add(group);
-                    objects.push(group);
+                    objects[feature.id] = group;
                     break;
                 }
             }
@@ -649,7 +684,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         // console.log('removeTrack', track.id, this.mappedTracks[track.id]);
         const objects = this.mappedTracks[track.id];
         if (objects) {
-            objects.forEach((o) => this.localVectorDataSource.remove(o));
+            Object.values(objects).forEach((o) => this.localVectorDataSource.remove(o));
             delete this.mappedTracks[track.id];
         }
     }

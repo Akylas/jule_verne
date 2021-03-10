@@ -13,6 +13,7 @@
             <CollectionView ref="collectionView" row="1" :items="dataItems" rowHeight="50">
                 <v-template>
                     <ListItem
+                        showChecked="true"
                         :title="itemTitle(item)"
                         :subtitle="itemSubtitle(item)"
                         :checked="item.checked"

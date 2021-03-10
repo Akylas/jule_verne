@@ -3,9 +3,13 @@ module.exports = {
 
     parser: 'vue-eslint-parser',
     parserOptions: {
+        ecmaVersion: 2019,
+        sourceType: 'module',
         parser: '@typescript-eslint/parser',
-        createDefaultProgram: true,
-        project: 'tsconfig.json'
+        project: 'tsconfig.eslint.json',
+        extraFileExtensions: ['.vue'],
+        warnOnUnsupportedTypeScriptVersion: false,
+        tsconfigRootDir: __dirname
     },
     plugins: ['prettier', '@typescript-eslint'],
     rules: {

@@ -8,14 +8,18 @@
 		android:largeScreens="true"
 		android:xlargeScreens="true"/>
     <uses-sdk android:targetSdkVersion="__APILEVEL__" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission  android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
     <uses-feature android:name="android.hardware.location.gps" />
     <application
 		android:name="com.tns.NativeScriptApplication"
@@ -97,6 +101,7 @@
             </intent-filter>
         </activity>
         <activity android:name="com.tns.ErrorReportActivity" />
+        <meta-data android:name="android.webkit.WebView.MetricsOptOut" android:value="true" />
         <service android:name=".BgService" android:enabled="true" android:exported="false"  android:stopWithTask="false" android:foregroundServiceType="location"/>
     </application>
 </manifest>

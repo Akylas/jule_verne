@@ -261,10 +261,6 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
     onServiceLoaded(handlers: BgServiceMethodParams) {
         this.refresh();
     }
-    onImperialUnitChanged(value: boolean) {
-        this.listView.refresh();
-    }
-
     async importTrace() {
         try {
             let result;

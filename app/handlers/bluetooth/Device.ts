@@ -36,14 +36,14 @@ export class Device extends Observable {
         console.log(`[${this.constructor.name}]`, ...args);
     }
     requestMtu(value: number) {
-        console.log('requestMtu', value);
+        // console.log('requestMtu', value);
         return bluetooth
             .requestMtu({
                 peripheralUUID: this.peripheral.UUID,
                 value
             })
             .then((result) => {
-                console.log('result requestMtu', value, result);
+                // console.log('result requestMtu', value, result);
                 if (result > 0) {
                     this.setMtu(result);
                 }

@@ -1,119 +1,163 @@
-@import "./variables";
+@use "sass:color";
+@import './variables';
 // @import "./animations";
 
 Page {
-  background-color: $background-color;
+    background-color: $background-color;
 }
 
-mdbutton {
-  shape: round;
+mdbutton,
+mdcardview {
+    shape: round;
+}
+
+TabViewItem {
+    color: $text-color;
 }
 
 .mdi {
-  font-family: $mdi-fontFamily;
+    font-family: $mdi-fontFamily;
 }
 
 .actionBar {
-  z-index: 0;
-  ripple-color: transparent;
-  background-color: $primary-color;
-  height: $actionbar-height;
+    background-color: $primary-color;
+    height: $actionbar-height;
 }
 
 .actionBarButton {
-  @extend .mdi;
-  width: $actionbar-height;
-  height: $actionbar-height;
-  color: black;
-  font-size: 32;
-  border-radius: $actionbar-height/2;
+    @extend .mdi;
+    width: $actionbar-height;
+    height: $actionbar-height;
+    color: black;
+    font-size: 32;
+    border-radius: $actionbar-height/2;
 }
 
 .actionBarTitle {
-  vertical-alignment: center;
-  font-size: 18;
-  font-weight: 500;
-  color: white;
+    vertical-alignment: center;
+    font-size: 18;
+    font-weight: 500;
+    color: white;
 }
 
 .actionBarSubtitle {
-  font-size: 13;
-  color: rgba(255, 255, 255, 0.533);
+    font-size: 13;
+    color: rgba(255, 255, 255, 0.533);
 }
 
 .icon-btn {
-  @extend .mdi;
-  color: $text-color;
-  width: $actionbar-button-height;
-  height: $actionbar-button-height;
-  font-size: 24;
-  margin: 0;
-  padding: 0;
+    @extend .mdi;
+    color: $accent-color;
+    width: $actionbar-button-height;
+    height: $actionbar-button-height;
+    font-size: 24;
+    margin: 0;
+    padding: 0;
 }
 .menu {
-  background-color: #ffffff;
-  border-radius: 4;
-  margin-left: 10;
-  margin-right: 10;
+    border-radius: 4;
+    margin-left: 10;
+    margin-right: 10;
 }
 
 .menuIcon {
-  @extend .mdi;
-  text-align: center;
-  font-size: 24;
-  color: $accent-color;
+    @extend .mdi;
+    text-align: center;
+    font-size: 24;
+    color: $accent-color;
 }
 
 .menuText {
-  color: black;
-  font-size: 16;
+    color: $text-color;
+    font-size: 16;
 }
 
-.menu[active="true"] {
-  background-color: #ececec;
+.menu[active='true'] {
+    background-color: color.adjust($accent-color, $alpha: -0.4);
 }
-.menuText[active="true"] {
+.menuText[active='true'] {
 }
 
 .menuInfos {
-  padding-left: 25;
-  padding-right: 25;
+    padding-left: 25;
+    padding-right: 25;
 }
 .menuInfos label {
-  font-size: 14;
-  horizontal-alignment: left;
+    color: $text-color;
+    font-size: 14;
+    horizontal-alignment: left;
 }
 
 .menuButtons {
-  padding-left: 12;
-  padding-right: 12;
-  margin-bottom: 10;
+    padding-left: 12;
+    padding-right: 12;
+    margin-bottom: 10;
 }
 
 .menu-btn {
-  @extend .icon-btn;
-  ripple-color: #b8b7b7;
-  color: $accent-color;
+    @extend .icon-btn;
+    ripple-color: #b8b7b7;
+    color: $accent-color;
 }
 .menuButtons mdbutton {
-  @extend .menu-btn;
+    @extend .menu-btn;
 }
-
-
 
 .floating-btn {
-  @extend .mdi;
-  color: $accent-color;
-  background-color: $primary-color;
-  ripple-color: $dark-color;
-  font-size: 30;
-  width: 64;
-  height: 64;
+    @extend .mdi;
+    color: $accent-color;
+    background-color: $primary-color;
+    ripple-color: $dark-color;
+    font-size: 30;
+    width: 64;
+    height: 64;
 }
 .small-floating-btn {
-  @extend .mdi;
-  color: $primary-color;
-  font-size: 15;
-  width: 30;
-  height: 30;
+    @extend .mdi;
+    color: $primary-color;
+    font-size: 15;
+    width: 30;
+    height: 30;
+}
+
+.settings-section-title {
+    color: $text-color;
+    padding: 5 0 5 0;
+    font-size: 17;
+    vertical-alignment: center;
+}
+.settings-section-desc {
+    font-size: 13;
+    vertical-alignment: center;
+    color: $text-color;
+}
+
+.settings-section {
+    margin: 8;
+    padding: 10;
+    border-radius: 4;
+    background-color: #032332;
+    & .settings-section-title {
+        color: white;
+    }
+    & .settings-section-desc {
+        color: white;
+    }
+}
+.settings-section-holder {
+    margin: 10;
+}
+.settings-section-button {
+    vertical-alignment: center;
+    padding: 20;
+    color: $accent-color;
+    ripple-color: $accent-color;
+}
+
+.settings-shift-button {
+    @extend .mdi;
+    font-size: 30;
+    margin: 5;
+    padding: 0;
+    elevation: 0;
 }

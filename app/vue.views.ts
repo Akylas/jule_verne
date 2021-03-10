@@ -8,7 +8,8 @@ import BottomSheetPlugin from '@nativescript-community/ui-material-bottomsheet/v
 import ButtonPlugin from '@nativescript-community/ui-material-button/vue';
 import ProgressPlugin from '@nativescript-community/ui-material-progress/vue';
 import TextFieldPlugin from '@nativescript-community/ui-material-textfield/vue';
-// import NativescriptVue from 'nativescript-vue';
+import CardViewPlugin from '@nativescript-community/ui-material-cardview/vue';
+import SliderPlugin from '@nativescript-community/ui-material-slider/vue';
 import CActionBar from '~/components/CActionBar';
 import ListItem from '~/components/ListItem';
 import CanvasPlugin from '@nativescript-community/ui-canvas/vue';
@@ -25,9 +26,11 @@ const Plugin = {
         Vue.component('ListItem', ListItem);
         Vue.use(ActivityIndicatorPlugin);
         Vue.use(ButtonPlugin);
+        Vue.use(CardViewPlugin);
         Vue.use(ProgressPlugin);
         Vue.use(TextFieldPlugin);
         Vue.use(BottomSheetPlugin);
+        Vue.use(SliderPlugin);
 
         Vue.use(CanvasPlugin);
         Vue.use(CanvasLabelPlugin);

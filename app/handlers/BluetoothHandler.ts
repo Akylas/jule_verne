@@ -3,6 +3,7 @@ import { Bluetooth, StartScanningOptions as IStartScanningOptions, Peripheral, R
 import { isSimulator } from '@nativescript-community/extendedinfo';
 import * as appSettings from '@nativescript/core/application-settings';
 import { EventData, Observable } from '@nativescript/core/data/observable';
+import { Folder, knownFolders, path } from '@nativescript/core/file-system';
 import { GeoHandler, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
 import { $t, $tc } from '~/helpers/locale';
 import { MessageError } from '~/services/CrashReportService';
@@ -14,6 +15,7 @@ import { GlassesDevice } from './bluetooth/GlassesDevice';
 import { CommandType, Message } from './Message';
 
 export { Peripheral };
+import { TNSPlayer } from 'nativescript-audio';
 
 export const MICROOLED_MANUFACTURER_ID = 0x08f2;
 export const MICROOLED_MANUFACTURER_NAME = 'Microoled';
@@ -72,6 +74,74 @@ export function hexToBytes(hex) {
     for (let c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
     return bytes;
 }
+
+// function pictureDimensionToByteArray(height, width) {
+//     const result = [];
+
+//     const size = height * Math.ceil(width / 2);
+
+//     result.push((size & 0xff000000) >> 24);
+//     result.push((size & 0xff0000) >> 16);
+//     result.push((size & 0xff00) >> 8);
+//     result.push(size & 0xff);
+
+//     result.push((width & 0xff00) >> 8);
+//     result.push(width & 0xff);
+//     return result;
+// }
+
+// function createBitmapData(filePath: string) {
+//     const mat = cv2.Imgcodecs.imread(filePath);
+//     cv2.Core.rotate(mat, mat, cv2.Core.ROTATE_180);
+//     cv2.Imgproc.cvtColor(mat, mat, cv2.Imgproc.COLOR_RGB2GRAY);
+//     const imgHeight = mat.size().height;
+//     const imgWidth = mat.size().width;
+//     let cptImg = 0;
+//     const commandsToSend = [[0xff, 0x41, 0x00, 0x0b].concat(pictureDimensionToByteArray(imgHeight, imgWidth)).concat([0xaa])];
+//     let commandToSend = [];
+//     let val0;
+//     for (let i = 0; i < imgHeight; i++) {
+//         for (let j = 0; j < imgWidth; j++) {
+//             // const pixel = mat.(i, j);
+//             const pixel = mat[j][i];
+//             if (cptImg % 2 === 0) {
+//                 if (pixel < 16 && pixel > 0) {
+//                     val0 = 0;
+//                 } else {
+//                     val0 = Math.floor(pixel / 16);
+//                 }
+//             } else {
+//                 let valShifted;
+//                 if (pixel < 16 && pixel > 0) {
+//                     valShifted = 0;
+//                 } else {
+//                     valShifted = Math.floor(pixel / 16);
+//                 }
+//                 const val = valShifted * 16 + val0;
+//                 commandToSend.push(val);
+//                 if (commandToSend.length >= 100) {
+//                     commandToSend.unshift(0xff, 0x41, 0x00, commandToSend.length + 5);
+//                     commandToSend.push(0xaa);
+//                     commandsToSend.push(commandToSend);
+//                     commandToSend = [];
+//                 }
+//             }
+
+//             cptImg += 1;
+//         }
+
+//         if (imgWidth % 2) {
+//             commandToSend.push(val0);
+//         }
+//     }
+//     if (commandToSend.length > 0) {
+//         commandToSend.unshift(0xff, 0x41, 0x00, commandToSend.length + 5);
+//         commandToSend.push(0xaa);
+//         commandsToSend.push(commandToSend);
+//         commandToSend = [];
+//     }
+//     return commandsToSend;
+// }
 
 export let bluetooth: Bluetooth;
 
@@ -497,7 +567,7 @@ export class BluetoothHandler extends Observable {
             });
         } catch (err) {
             this.removeConnectingDeviceUUID(UUID);
-            console.error(`Failed to connect to device ${UUID}: ${err}`);
+            console.error(`Failed to  connect to device ${UUID}: ${err}`);
             throw err || new MessageError({ message: 'device_connection_failed', UUID });
         }
     }
@@ -593,7 +663,7 @@ export class BluetoothHandler extends Observable {
     isSensorOn = true;
     isGestureOn = true;
     levelLuminance = 10;
-
+    _player = new TNSPlayer();
     setScreenOn(value) {
         if (this.isScreenOn === value) {
             return false;
@@ -650,6 +720,7 @@ export class BluetoothHandler extends Observable {
     async changeLuminance(level: number) {
         this.levelLuminance = level;
         // appSettings.setNumber('levelLuminance', level);
+        console.log('changeLuminance', level);
         return this.sendCommand({ command: CommandType.Luma, params: [level] });
     }
     shiftImage(x: number, y: number) {
@@ -830,4 +901,194 @@ export class BluetoothHandler extends Observable {
 
         await this.clearFullScreen();
     }
+
+    async startLoop(index: number) {
+        // console.log('startLoop', index);
+        await this.glasses.sendCommand(CommandType.Clear);
+        this.sendDim(0);
+        await timeout(50); // ms
+    }
+    async fadein() {
+        for (let i = 0; i < 20; i++) {
+            await timeout(20); // ms
+            this.sendDim(i * 5);
+        }
+    }
+    // async function stopLoop(index: number) {
+    //     console.log('stopLoop', index);
+    // }
+    async fadeout() {
+        for (let i = 20; i >= 0; i--) {
+            await timeout(10); // ms
+            this.sendDim(i * 5);
+        }
+    }
+
+    async demoLoop(bmpIndex: number, count = 3, pauseOnFirst = false, duration = 200) {
+        for (let index = 0; index < count; index++) {
+            await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
+            await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
+            await timeout(pauseOnFirst && index === 0 ? 1000 : duration);
+        }
+    }
+
+    get isInLoop() {
+        return this.currentLoop !== null;
+    }
+    currentLoop: string = null;
+    async stopPlayingLoop() {
+        if (this._player) {
+            this._player.pause();
+        }
+        if (this.currentLoop) {
+            this.currentLoop = null;
+            await this.fadeout();
+        }
+        await this.glasses.sendCommand(CommandType.Clear);
+        if (this._player) {
+            try {
+                await this._player.dispose();
+            } catch (err) {
+                console.log('error disposing player', err);
+            }
+            this._player = new TNSPlayer();
+        }
+    }
+    async playLoop(index: number, count = 3) {
+        const myLoop = index + '_' + count;
+        if (this.currentLoop === myLoop) {
+            return;
+        }
+        this.currentLoop = myLoop;
+        await this.startLoop(index);
+        this.fadein();
+        let loopIndex = 0;
+        while (this.currentLoop === myLoop) {
+            await this.demoLoop(index, count, loopIndex % 2 === 0);
+            loopIndex++;
+        }
+        // await this.fadeout();
+    }
+
+    async playGoLeftLoop(loop = true) {
+        console.log('playGoLeftLoop');
+        if (loop) {
+            await this.playLoop(0, 3);
+        } else {
+            this.sendDim(100);
+            await this.demoLoop(0, 3);
+        }
+    }
+    async playGoRightLoop(loop = true) {
+        console.log('playGoRightLoop');
+        if (loop) {
+            await this.playLoop(10, 3);
+        } else {
+            this.sendDim(100);
+            await this.demoLoop(10, 3);
+        }
+    }
+    async playGoStraightLoop(loop = true) {
+        console.log('playGoStraightLoop');
+        if (loop) {
+            await this.playLoop(7, 3);
+        } else {
+            this.sendDim(100);
+            await this.demoLoop(7, 3);
+        }
+    }
+    async playGoBackLoop(loop = true) {
+        console.log('playGoBackLoop');
+        if (loop) {
+            await this.playLoop(21, 6);
+        } else {
+            this.sendDim(100);
+            await this.demoLoop(21, 6);
+        }
+    }
+
+    async sendDim(percentage: number) {
+        // console.log('sendDim', percentage, this.levelLuminance, Math.round((this.levelLuminance * percentage) / 100));
+        // return this.glasses.sendCommand(CommandType.Luma, { params: [Math.round((this.levelLuminance * 15 * percentage) / 100)] });
+        return this.glasses.sendCommand(CommandType.Dim, { params: [percentage] });
+    }
+    async playHello() {
+        await this._player.playFromFile({
+            audioFile: '~/assets/audio/présentation.wav',
+            loop: false,
+            completeCallback: () => {
+                this.stopPlayingLoop();
+            }
+        });
+        await this.glasses.sendCommand(CommandType.Clear);
+        this.sendDim(100);
+        await this.glasses.sendCommand(CommandType.Bitmap, { params: [32, 0, 0] });
+        await timeout(3000);
+        await this.glasses.sendCommand(CommandType.Bitmap, { params: [33, 0, 0] });
+        await timeout(3000);
+        await this.demoLoop(27, 5, false, 400);
+        await this.glasses.sendCommand(CommandType.Clear);
+    }
+    async playVicat() {
+        this.playStory(34, 13, 3000);
+    }
+
+    async playDemo() {
+        await this._player.playFromFile({
+            audioFile: '~/assets/audio/présentation.wav', // ~ = app directory
+            loop: false,
+            completeCallback: () => {
+                this.stopPlayingLoop();
+            }
+        });
+        this.playLoop(13, 8);
+    }
+
+    async playStory(bmpIndex: number, count: number, duration: number) {
+        const myLoop = bmpIndex + '_' + count;
+        console.log('playStory', this.currentLoop, myLoop);
+        if (this.currentLoop === myLoop) {
+            return;
+        }
+        this.currentLoop = myLoop;
+        await this._player.playFromFile({
+            audioFile: "~/assets/audio/La fable de l'or gris.wav", // ~ = app directory
+            loop: false,
+            completeCallback: () => {
+                this.stopPlayingLoop();
+            }
+        });
+        await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex, 0, 0] });
+        await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex, 0, 0] });
+        this.fadein();
+        while (this.currentLoop === myLoop) {
+            for (let index = 0; index < count; index++) {
+                if (this.currentLoop !== myLoop) {
+                    break;
+                }
+                await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
+                await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
+                await timeout(duration);
+            }
+        }
+    }
+
+    // async sendBitmapImages() {
+    //     const folder = knownFolders.currentApp().getFolder('assets').getFolder('glasses_images');
+    //     const files = folder
+    //         .getEntitiesSync()
+    //         .filter((s) => s.name.endsWith('.jpg') || s.name.endsWith('.bmp'));
+    //     console.log(files);
+    //     const data = files.reduce((accumulator, currentValue) => accumulator.concat(createBitmapData(currentValue)), [] as number[][]);
+    //     // const data = createBitmapData(filePath);
+    //     await bluetoothDevice.sendWriteConfig({
+    //         configId: 0,
+    //         nbBitmapSaved: 0,
+    //         nbFontsSaved: 0,
+    //         nbLayersSaved: 0
+    //     });
+    //     bluetoothDevice.sendBinaryCommand(CommandType.EraseBmp, { params: [0] });
+    //     await sendRawCommands(data, `sending bitmap: ${filePath}`);
+    //     await bluetoothDevice.sendReadConfig(0);
+    // }
 }

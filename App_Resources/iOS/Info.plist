@@ -28,6 +28,7 @@
     <true/>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
+      <string>bluetooth-le</string>
       <string>location-services</string>
     </array>
     <key>UISupportedInterfaceOrientations</key>
@@ -50,6 +51,8 @@
     <key>UIBackgroundModes</key>
     <array>
       <string>location</string>
+      <string>bluetooth-central</string>
+      <string>bluetooth-peripheral</string>
     </array>
     <key>NSAppTransportSecurity</key>
     <dict>
@@ -122,8 +125,12 @@
       </dict>
     </array>
     <key>NSMotionUsageDescription</key>
-    <string>Jule Verne uses the Barometer to compute more accurate elevation</string>
+    <string>«Jule Verne» uses the Barometer to compute more accurate elevation</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>"Jule Verne" uses GPS to display it </string>
+    <string>«Jule Verne» uses GPS to display it </string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>«Jule Verne» uses Bluetooth to connect to your glasses</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>«Jule Verne» uses Bluetooth to connect to your glasses</string>
   </dict>
 </plist>

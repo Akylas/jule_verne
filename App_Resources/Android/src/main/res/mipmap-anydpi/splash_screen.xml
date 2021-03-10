@@ -1,0 +1,11 @@
+<layer-list
+    xmlns:android="http://schemas.android.com/apk/res/android" android:gravity="fill">
+    <item>
+        <shape>
+            <solid android:color="@color/ns_primaryDark" />
+        </shape>
+    </item>
+    <item>
+        <bitmap android:gravity="center|clip_horizontal" android:src="@drawable/logo" />
+    </item>
+</layer-list>

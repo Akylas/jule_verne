@@ -1,8 +1,9 @@
 <template>
-    <GridLayout id="listitem" :rippleColor="color" height="60" columns="auto,*" :backgroundColor="selected ? color : 'white'">
-        <CheckBox v-show="checked !== null" :checked="checked" verticalAlignment="center" @checkedChange="onCheckedChange" />
+    <GridLayout id="listitem" :rippleColor="color" height="60" columns="auto,*" :backgroundColor="selected ? color : backgroundColor">
+        <CheckBox v-show="showChecked" :checked="checked" verticalAlignment="center" @checkedChange="onCheckedChange" :fillColor="accentColor" />
         <CanvasLabel
-            @tap="onTap" @longPress="onLongPress"
+            @tap="onTap"
+            @longPress="onLongPress"
             col="1"
             id="listitemcanvaslabel"
             paddingLeft="16"
@@ -10,7 +11,7 @@
             fontSize="14"
             class="robotoMedium"
             borderBottomWidth="1"
-            :borderBottomColor="borderColor"
+            :borderBottomColor="accentColor"
             backgroundColor="transparent"
         >
             <CSpan

@@ -1,6 +1,6 @@
 <template>
     <Page ref="page" :navigateUrl="navigateUrl" @navigatedTo="onNavigatedTo" @loaded="onLoaded">
-        <GridLayout backgroundColor="white" rows="auto,150,*">
+        <GridLayout rows="auto,150,*">
             <CActionBar :title="$t('details')" showMenuIcon>
                 <MDButton v-show="editable" variant="text" class="icon-btn" :text="isEditing ? 'mdi-content-save' : 'mdi-pencil'" @tap="isEditing ? save() : (isEditing = !isEditing)" />
 

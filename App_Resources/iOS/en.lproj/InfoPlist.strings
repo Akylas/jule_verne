@@ -1,4 +1,5 @@
 "CFBundleDisplayName" = "Jule Verne";
-"CFBundleName" = "Jule Verne";
-"NSMotionUsageDescription" = "Jule Verne uses the Barometer to compute more accurate elevation";
-"NSLocationWhenInUseUsageDescription" = "\"Jule Verne\" uses GPS to display it ";
+"NSBluetoothAlwaysUsageDescription" = "«Jule Verne» uses Bluetooth to connect to your glasses";
+"NSBluetoothPeripheralUsageDescription" = "«Jule Verne» uses Bluetooth to connect to your glasses";
+"NSMotionUsageDescription" = "«Jule Verne» uses the Barometer to compute more accurate elevation";
+"NSLocationWhenInUseUsageDescription" = "«Jule Verne» uses GPS to display it ";

@@ -1,6 +1,6 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import Vue from 'nativescript-vue';
-import { accentColor, borderColor, mdiFontFamily, textColor } from '~/variables';
+import { accentColor, backgroundColor, borderColor, mdiFontFamily, textColor } from '~/variables';
 import { Color } from '@nativescript/core/color';
 
 @Component({
@@ -9,6 +9,7 @@ import { Color } from '@nativescript/core/color';
 export default class ListItem extends Vue {
     mdiFontFamily = mdiFontFamily;
     borderColor = borderColor;
+    backgroundColor = backgroundColor;
     accentColor = accentColor;
     defaultTextColor = textColor;
     @Prop({})
@@ -27,6 +28,8 @@ export default class ListItem extends Vue {
     coloredIcon: boolean;
     @Prop({ default: false })
     checked: boolean;
+    @Prop({ default: false })
+    showChecked: boolean;
     @Prop({ default: false })
     selected: boolean;
 
