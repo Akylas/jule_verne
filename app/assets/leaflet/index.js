@@ -1,4 +1,18 @@
-const map = L.map('example2').setView([45.18453, 5.75], 13);
+function GetURLParameter(sParam) {
+    const sPageURL = window.location.search.substring(1);
+    const sURLVariables = sPageURL.split('&');
+    for (let i = 0; i < sURLVariables.length; i++) {
+        const sParameterName = sURLVariables[i].split('=');
+        if (sParameterName[0] === sParam) {
+            return sParameterName[1];
+        }
+    }
+}
+
+const position = (GetURLParameter('position') || '45.18453,5.75').split(',').map(parseFloat);
+const zoom = parseFloat(GetURLParameter('zoom') || '13');
+
+const map = L.map('example2').setView(position, zoom);
 
 L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
     maxZoom: 180,
@@ -11,13 +25,16 @@ map.pm.addControls({
     position: 'topleft'
 });
 
-map.pm.Toolbar.createCustomControl({name:"alertBox",block: "custom",className: "save-button",title: "Count layers",onClick: ()=>{
-    generateGeoJson();
-},toggle: false});
-
-
-
-
+map.pm.Toolbar.createCustomControl({
+    name: 'alertBox',
+    block: 'custom',
+    className: 'save-button',
+    title: 'Count layers',
+    onClick: () => {
+        generateGeoJson();
+    },
+    toggle: false
+});
 
 function findLayers(map) {
     let layers = [];
@@ -135,6 +152,5 @@ function generateGeoJson() {
     } else {
         console.log(JSON.stringify(geo));
         alert(JSON.stringify(geo));
-
     }
 }

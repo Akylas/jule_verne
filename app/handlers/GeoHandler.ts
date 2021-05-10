@@ -15,7 +15,7 @@ import {
 import * as appSettings from '@nativescript/core/application-settings';
 import { EventData, Observable } from '@nativescript/core/data/observable';
 import { File } from '@nativescript/core/file-system';
-import { Accuracy } from '@nativescript/core/ui/enums/enums';
+import { CoreTypes } from '@nativescript/core/ui/enums/enums';
 import { Feature, LineString, Point, Polygon } from 'geojson';
 import { bind } from 'helpful-decorators';
 import { bearing } from '~/helpers/geo';
@@ -40,7 +40,7 @@ export type GeoLocation = GenericGeoLocation<LatLonKeys> & {
 let geolocation: GPS;
 
 //@ts-ignore
-export const desiredAccuracy = global.isAndroid ? Accuracy.high : kCLLocationAccuracyBestForNavigation;
+export const desiredAccuracy = global.isAndroid ? CoreTypes.Accuracy.high : kCLLocationAccuracyBestForNavigation;
 export const timeout = 20000;
 export const minimumUpdateTime = 1000; // Should update every 1 second according ;
 

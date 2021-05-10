@@ -13,5 +13,6 @@
     "name": "Jule Verne"
   },
   "entering_feature": "you are entering %s",
-  "leaving_feature": "you are leaving %s"
+  "leaving_feature": "you are leaving %s",
+  "tap_to_open": "tap to open"
 }

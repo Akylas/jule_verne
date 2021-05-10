@@ -3,7 +3,7 @@ import { GeoHandler, SessionChronoEventData, SessionEventData, SessionState, Ses
 import { BgServiceBinder } from '~/services/android/BgServiceBinder';
 import { ACTION_PAUSE, ACTION_RESUME, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, NotificationHelper } from './NotifcationHelper';
 import { $tc } from '~/helpers/locale';
-import { BluetoothHandler, GlassesDisconnectedEvent } from '~/handlers/BluetoothHandler';
+import { BluetoothHandler, GlassesConnectedEvent, GlassesDisconnectedEvent } from '~/handlers/BluetoothHandler';
 
 const NOTIFICATION_ID = 3426824;
 
@@ -19,10 +19,6 @@ export class BgService extends android.app.Service {
     mNotification: globalAndroid.app.Notification;
     notificationManager: any;
     recording: boolean;
-    alwaysShowNotification: boolean;
-    log(...args) {
-        console.log('[BgService]', ...args);
-    }
     onStartCommand(intent: android.content.Intent, flags: number, startId: number) {
         this.onStartCommand(intent, flags, startId);
         const action = intent ? intent.getAction() : null;
@@ -38,7 +34,6 @@ export class BgService extends android.app.Service {
         this.recording = false;
         this.inBackground = false;
         this.bounded = false;
-        this.alwaysShowNotification = false;
         this.notificationManager = this.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
         NotificationHelper.createNotificationChannel(this);
     }
@@ -48,8 +43,8 @@ export class BgService extends android.app.Service {
             this.geoHandler.off(SessionStateEvent, this.onSessionStateEvent, this);
             this.geoHandler = null;
         }
-        applicationOff(resumeEvent, this.onAppEvent, this);
-        applicationOff(suspendEvent, this.onAppEvent, this);
+        // applicationOff(resumeEvent, this.onAppEvent, this);
+        // applicationOff(suspendEvent, this.onAppEvent, this);
     }
 
     onBind(intent: android.content.Intent) {
@@ -71,13 +66,11 @@ export class BgService extends android.app.Service {
     onBounded() {
         this.geoHandler = new GeoHandler();
         this.bluetoothHandler = new BluetoothHandler();
-        if (!!this.bluetoothHandler.glasses && this.inBackground) {
-            this.showForeground();
-        }
+        this.showForeground();
+        this.bluetoothHandler.on(GlassesConnectedEvent, this.onGlassesConnected, this);
         this.bluetoothHandler.on(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
         this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
-        applicationOn(resumeEvent, this.onAppEvent, this);
-        applicationOn(suspendEvent, this.onAppEvent, this);
+        // this.geoHandler.on(SessionChronoEvent, this.onSessionChronoEvent, this);
     }
 
     displayNotification(sessionRunning) {
@@ -86,78 +79,78 @@ export class BgService extends android.app.Service {
         this.mNotification = NotificationHelper.getNotification(this, this.mNotificationBuilder);
         this.notificationManager.notify(NOTIFICATION_ID, this.mNotification); // todo check if necessary in pre Android O
     }
-    dismissNotification() {
-        this.stopForeground(false);
-        this.notificationManager.cancel(NOTIFICATION_ID); // todo check if necessary?
-        this.mNotification = null;
-    }
     onSessionStateEvent(e: SessionEventData) {
         switch (e.data.state) {
             case SessionState.RUNNING:
-                if (!this.recording) {
-                    this.recording = true;
-                    this.showForeground();
-                }
+                this.recording = true;
+                this.showForeground();
                 break;
             case SessionState.STOPPED:
                 this.recording = false;
-                this.dismissNotification();
+                this.removeForeground();
                 break;
         }
         this.updateNotification();
     }
     updateNotification() {
-        if (!this.mNotificationBuilder) {
-            this.displayNotification(this.recording);
-        } else {
-            this.mNotification = NotificationHelper.getUpdatedNotification(this, this.mNotificationBuilder);
-            this.notificationManager.notify(NOTIFICATION_ID, this.mNotification);
+        try {
+            if (!this.mNotificationBuilder) {
+                this.displayNotification(this.recording);
+            } else {
+                this.mNotification = NotificationHelper.getUpdatedNotification(this, this.mNotificationBuilder);
+                this.notificationManager.notify(NOTIFICATION_ID, this.mNotification);
+            }
+        } catch (err) {
+            console.error('updateNotification', err);
         }
     }
     onSessionChronoEvent(e: SessionChronoEventData) {
-        this.updateNotification();
+        if (this.mNotification) {
+            this.updateNotification();
+        }
     }
 
     showForeground() {
         if (!this.bounded) {
             return;
         }
-        if (this.inBackground || this.recording || this.alwaysShowNotification) {
+        if (!!this.bluetoothHandler.glasses || this.recording) {
             try {
                 if (!this.mNotification) {
                     this.displayNotification(this.recording);
                 }
-                this.startForeground(NOTIFICATION_ID, this.mNotification);
+                console.error('startForeground');
+                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    this.startForeground(NOTIFICATION_ID, this.mNotification);
+                } else {
+                    this.startForeground(
+                        NOTIFICATION_ID,
+                        this.mNotification,
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION | android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                    );
+                }
             } catch (err) {
-                console.error(err);
+                console.error('showForeground', err);
             }
         }
     }
 
     removeForeground() {
-        this.stopForeground(false);
-        this.notificationManager.cancel(NOTIFICATION_ID);
-        this.mNotification = null;
-    }
-
-    onAppEvent(event: ApplicationEventData) {
-        if (event.eventName === suspendEvent) {
-            if (!this.inBackground) {
-                this.inBackground = true;
-                if (!!this.bluetoothHandler.glasses || this.recording) {
-                    this.showForeground();
-                }
+        try {
+            if (!this.recording && !this.bluetoothHandler.glasses) {
+                this.stopForeground(false);
+                this.notificationManager.cancel(NOTIFICATION_ID);
+                this.mNotification = null;
             }
-        } else if (event.eventName === resumeEvent) {
-            if (this.inBackground) {
-                this.inBackground = false;
-                if (!this.alwaysShowNotification) {
-                    this.removeForeground();
-                }
-            }
+        } catch (err) {
+            console.error('showForeground', err);
         }
     }
+
     onGlassesDisconnected() {
         this.removeForeground();
+    }
+    onGlassesConnected() {
+        this.showForeground();
     }
 }

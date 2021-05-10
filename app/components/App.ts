@@ -256,6 +256,9 @@ export default class App extends BgServiceComponent {
         this.innerFrame.on(Page.navigatingToEvent, this.onPageNavigation, this);
     }
     onPageNavigation(event) {
+        if (!event.entry.resolvedPage) {
+            return;
+        }
         this.navigating = false;
         this.closeDrawer();
         this.setActivatedUrl(event.entry.resolvedPage[navigateUrlProperty]);

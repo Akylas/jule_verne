@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <string name="tap_to_open">"tap to open"</string>
   <string name="leaving_feature">"you are leaving %1$s"</string>
   <string name="entering_feature">"you are entering %1$s"</string>
   <string name="app_name">"Jule Verne"</string>
