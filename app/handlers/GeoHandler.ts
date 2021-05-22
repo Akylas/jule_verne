@@ -23,11 +23,12 @@ import { parseGPX } from '~/helpers/gpx';
 import { $t, $tc } from '~/helpers/locale';
 import { confirm } from '~/utils/dialogs';
 import { TO_DEG, bboxify, computeAngleBetween, computeDistanceBetween, distanceToEnd, isLocactionInBbox, isLocationOnPath } from '~/utils/geo';
-import Track, { GeometryProperties, TrackFeatureCollection, TrackGeometry } from '../models/Track';
+import Track, { GeometryProperties, TrackFeature, TrackFeatureCollection, TrackGeometry } from '../models/Track';
 import { BluetoothHandler } from './BluetoothHandler';
 import { DBHandler } from './DBHandler';
 const determineAngleDeviationFromNorth = require('angle-deviation-from-north');
 const insidePolygon = require('point-in-polygon');
+const geojsonArea = require('@mapbox/geojson-area');
 
 setGeoLocationKeys('lat', 'lon', 'altitude');
 const TTS = new TNSTextToSpeech();
@@ -64,6 +65,7 @@ export const UserLocationEvent = 'userLocation';
 export const UserRawLocationEvent = 'userRawLocation';
 export const TrackSelecteEvent = 'trackSelected';
 export const PositionStateEvent = 'positionState';
+export const InsideFeatureEvent = 'insideFeature';
 export const OuterRingEvent = 'outer_ring';
 export const AimingFeatureEvent = 'aimingFeature';
 
@@ -160,7 +162,14 @@ export class GeoHandler extends Observable {
     }
     set isInTrackBounds(value: boolean) {
         if (this._isInTrackBounds !== value) {
+            console.log('isInTrackBounds', value);
             this._isInTrackBounds = value;
+            if (!value) {
+                this.bluetoothHandler.playInstruction('uturn', { frameDuration: 400 });
+            } else {
+                // stop instruction
+                this.bluetoothHandler.stopPlayingLoop();
+            }
             this.notify({
                 eventName: OuterRingEvent,
                 object: this,
@@ -292,17 +301,25 @@ export class GeoHandler extends Observable {
             });
         }
     }
+    permResultCheck(r) {
+        if (Array.isArray(r)) {
+            return r[0] === 'authorized';
+        } else {
+            const unauthorized = Object.keys(r).some((s) => r[s] !== 'authorized');
+            return !unauthorized;
+        }
+    }
     async checkLocationPerm() {
-        const r = await perms.check('location', { type: global.isAndroid ? 'always' : undefined });
-        return (Array.isArray(r) && r[0] !== 'authorized') || Object.keys(r).some((s) => r[s] !== 'authorized');
+        const r = await perms.check('location');
+        return this.permResultCheck(r);
     }
     async authorizeLocation() {
-        const result = await perms.request('location', { type: global.isAndroid ? 'always' : undefined });
-        if ((Array.isArray(result) && result[0] !== 'authorized') || Object.keys(result).some((s) => result[s] !== 'authorized')) {
+        const r = await perms.request('location');
+        if (!this.permResultCheck(r)) {
             throw new Error('gps_denied');
         }
         this.gpsEnabled = geolocation.isEnabled();
-        return result;
+        return r;
     }
     checkEnabledAndAuthorized(always = true) {
         return Promise.resolve()
@@ -436,47 +453,101 @@ export class GeoHandler extends Observable {
             this.isSpeaking = false;
         }
     }
-    async handleLeavingFeature(trackId: string, feature: Feature<TrackGeometry, GeometryProperties>) {
-        this.speakText($t('leaving_feature', feature.properties.name));
-        this.insideFeature = null;
+    _insideFeature: TrackFeature = null;
+
+    set insideFeature(value) {
+        if (value !== this._insideFeature) {
+            this._insideFeature = value;
+            console.log('insideFeature', value);
+            if (value) {
+                const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
+                if (!name.endsWith('_out')) {
+                    this.bluetoothHandler.playRideauAndStory();
+                }
+            } else {
+                this.bluetoothHandler.stopPlayingLoop();
+            }
+            this.notify({
+                eventName: InsideFeatureEvent,
+                object: this,
+                data: {
+                    feature: value
+                }
+            });
+        }
+    }
+
+    get insideFeature() {
+        return this._insideFeature;
+    }
+    async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {
+        const insideFeatures = events.filter((e) => e.state !== 'leaving');
+        console.log('handleFeatureEvent', insideFeatures.length);
+        if (insideFeatures.length > 1) {
+            let minIndex = 0;
+            let minArea = Number.MAX_SAFE_INTEGER;
+            insideFeatures.forEach((f, index) => {
+                const area = geojsonArea.geometry(f.feature.geometry);
+                if (area < minArea) {
+                    minIndex = index;
+                    minArea = area;
+                }
+            });
+            this.insideFeature = insideFeatures[minIndex].feature;
+        } else if (insideFeatures.length === 1) {
+            this.insideFeature = insideFeatures[0].feature;
+        } else {
+            this.insideFeature = null;
+        }
         this.notify({
             eventName: PositionStateEvent,
             object: this,
             data: {
-                feature,
-                trackId,
-                state: 'leaving'
+                events
             }
         });
     }
-    insideFeature: Feature<TrackGeometry, GeometryProperties> = null;
-    async handleEnteringFeature(trackId: string, feature: Feature<TrackGeometry, GeometryProperties>, extraData) {
-        this.speakText($t('entering_feature', feature.properties.name));
-        this.insideFeature = feature;
-        this.bluetoothHandler.stopPlayingLoop();
-        this.notify({
-            eventName: PositionStateEvent,
-            object: this,
-            data: {
-                ...extraData,
-                trackId,
-                feature,
-                state: 'entering'
-            }
-        });
-    }
-    handleInsideFeature(trackId: string, feature: Feature<TrackGeometry, GeometryProperties>, extraData) {
-        this.notify({
-            eventName: PositionStateEvent,
-            object: this,
-            data: {
-                ...extraData,
-                trackId,
-                feature,
-                state: 'inside'
-            }
-        });
-    }
+
+    // async handleLeavingFeature(trackId: string, feature: TrackFeature) {
+    //     this.speakText($t('leaving_feature', feature.properties.name));
+    //     this.insideFeature = null;
+    //     this.notify({
+    //         eventName: PositionStateEvent,
+    //         object: this,
+    //         data: {
+    //             feature,
+    //             trackId,
+    //             state: 'leaving'
+    //         }
+    //     });
+    // }
+    // async handleEnteringFeature(trackId: string, feature: Feature<TrackGeometry, GeometryProperties>, extraData) {
+    //     this.speakText($t('entering_feature', feature.properties.name));
+    //     this.insideFeature = feature;
+    //     this.bluetoothHandler.stopPlayingLoop();
+    //     this.notify({
+    //         eventName: PositionStateEvent,
+    //         object: this,
+    //         data: {
+    //             ...extraData,
+    //             trackId,
+    //             feature,
+    //             state: 'entering'
+    //         }
+    //     });
+    // }
+    // handleInsideFeature(trackId: string, feature: Feature<TrackGeometry, GeometryProperties>, extraData) {
+    //     this.notify({
+    //         eventName: PositionStateEvent,
+    //         object: this,
+    //         data: {
+    //             ...extraData,
+    //             trackId,
+    //             feature,
+    //             state: 'inside'
+    //         }
+    //     });
+    // }
 
     playStory(index: string) {
         const rindex = parseInt(index, 10);
@@ -490,12 +561,22 @@ export class GeoHandler extends Observable {
         if (this.currentTrack) {
             const features = this.currentTrack.geometry.features;
 
-            const outerRing = features.find((f) => f.properties.index === 'outer_ring');
-            if (outerRing) {
-                this.isInTrackBounds = isLocactionInBbox(loc, outerRing.bbox, 0);
+            const outerRings = features.filter((f) => ('index' in f.properties ? f.properties.index : f.properties.name === 'outer_ring'));
+            if (outerRings) {
+                // console.log('outerRings', outerRings.length);
+                const inBounds = outerRings.reduce((acc, current) => {
+                    const g = current.geometry as Polygon;
+                    return acc || insidePolygon([loc.lon, loc.lat], g.coordinates[0]);
+                }, false);
+                // this.isInTrackBounds = isLocactionInBbox(loc, outerRing.bbox, 0);
+                this.isInTrackBounds = inBounds;
             }
-            let minFeature: Feature<TrackGeometry, GeometryProperties> = null;
+            let minFeature: TrackFeature = null;
             let minDist = Number.MAX_SAFE_INTEGER;
+            const closestStoryStep = 100;
+
+            // the aiming algorithm will tend to get you to the next story
+            // except if you are very close(closestStoryStep) to another story
             let nextPotentialIndex = Math.max(0, ...this._playedHistory) + 1;
             for (let index = nextPotentialIndex; index > 0; index--) {
                 if (this._playedHistory.indexOf(index) === -1) {
@@ -503,28 +584,41 @@ export class GeoHandler extends Observable {
                 }
             }
             const currentPosition = [loc.lon, loc.lat];
+            const events = [];
             features.forEach((feature) => {
                 const properties = feature.properties;
-                if (properties.index === 'outer_ring') {
+                const name = 'index' in properties ? properties.index : properties.name;
+                if (name === 'outer_ring') {
                     return;
                 }
-                const dist = computeDistanceBetween(feature.geometry.center, currentPosition);
-                if (dist < minDist) {
-                    minDist = dist;
-                    minFeature = feature;
+
+                // used to compute aiming feature
+                if (feature.properties.isStory === true) {
+                    const dist = computeDistanceBetween(feature.geometry.center, currentPosition);
+                    console.log();
+                    if (dist < minDist) {
+                        minDist = dist;
+                        minFeature = feature;
+                    }
                 }
                 // add a bit of delta (m)
                 const isInBounds = isLocactionInBbox(loc, feature.bbox, 0);
                 if (!isInBounds) {
                     if (this.positionState[feature.id]) {
                         delete this.positionState[feature.id];
+                        events.push({
+                            state: 'leaving',
+                            trackId: this.currentTrack.id,
+                            feature
+                        });
                         // we are getting out
-                        this.handleLeavingFeature(this.currentTrack.id, feature);
+                        // this.handleLeavingFeature(this.currentTrack.id, feature);
                     }
                     return;
                 }
                 // we are in bounds!
                 const geometry = feature.geometry;
+
                 switch (properties.shape.toLowerCase()) {
                     case 'line': {
                         const g = geometry as LineString;
@@ -537,23 +631,43 @@ export class GeoHandler extends Observable {
                                 distance
                             };
                             if (currentData) {
-                                this.handleInsideFeature(this.currentTrack.id, feature, {
+                                events.push({
+                                    state: 'inside',
+                                    trackId: this.currentTrack.id,
                                     feature,
                                     index,
                                     distance
                                 });
+                                // this.handleInsideFeature(this.currentTrack.id, feature, {
+                                //     feature,
+                                //     index,
+                                //     distance
+                                // });
                             } else {
-                                this.handleEnteringFeature(this.currentTrack.id, feature, {
+                                events.push({
+                                    state: 'entering',
+                                    trackId: this.currentTrack.id,
                                     feature,
                                     index,
                                     distance
                                 });
+                                // this.handleEnteringFeature(this.currentTrack.id, feature, {
+                                //     feature,
+                                //     index,
+                                //     distance
+                                // });
                             }
                         } else {
                             const currentData = this.positionState[feature.id];
                             if (currentData) {
                                 delete this.positionState[feature.id];
-                                this.handleLeavingFeature(this.currentTrack.id, feature);
+                                // this.handleLeavingFeature(this.currentTrack.id, feature);
+                                events.push({
+                                    state: 'leaving',
+                                    trackId: this.currentTrack.id,
+                                    feature,
+                                    index
+                                });
                             }
                         }
                         break;
@@ -568,19 +682,36 @@ export class GeoHandler extends Observable {
                             };
                             // we are in the circle
                             if (currentData) {
-                                this.handleInsideFeature(this.currentTrack.id, feature, {
+                                // this.handleInsideFeature(this.currentTrack.id, feature, {
+                                //     feature,
+                                //     distance
+                                // });
+                                events.push({
+                                    state: 'inside',
+                                    trackId: this.currentTrack.id,
                                     feature,
                                     distance
                                 });
                             } else {
-                                this.handleEnteringFeature(this.currentTrack.id, feature, {
+                                // this.handleEnteringFeature(this.currentTrack.id, feature, {
+                                //     feature,
+                                //     distance
+                                // });
+                                events.push({
+                                    state: 'entering',
+                                    trackId: this.currentTrack.id,
                                     feature,
                                     distance
                                 });
                             }
                         } else if (currentData) {
                             delete this.positionState[feature.id];
-                            this.handleLeavingFeature(this.currentTrack.id, feature);
+                            // this.handleLeavingFeature(this.currentTrack.id, feature);
+                            events.push({
+                                state: 'leaving',
+                                trackId: this.currentTrack.id,
+                                feature
+                            });
                         }
                         break;
                     }
@@ -588,14 +719,24 @@ export class GeoHandler extends Observable {
                         const g = geometry as Polygon;
                         const inside = insidePolygon([loc.lon, loc.lat], g.coordinates[0]);
                         const currentData = this.positionState[feature.id];
-                        if (inside && !currentData) {
+                        if (inside) {
                             this.positionState[feature.id] = {};
-                            this.handleEnteringFeature(this.currentTrack.id, feature, {
+                            // this.handleEnteringFeature(this.currentTrack.id, feature, {
+                            //     feature
+                            // });
+                            events.push({
+                                state: currentData ? 'inside' : 'entering',
+                                trackId: this.currentTrack.id,
                                 feature
                             });
                         } else if (!inside && currentData) {
                             delete this.positionState[feature.id];
-                            this.handleLeavingFeature(this.currentTrack.id, feature);
+                            // this.handleLeavingFeature(this.currentTrack.id, feature);
+                            events.push({
+                                state: 'leaving',
+                                trackId: this.currentTrack.id,
+                                feature
+                            });
                         }
                         break;
                     }
@@ -604,10 +745,14 @@ export class GeoHandler extends Observable {
                     }
                 }
             });
-            if (minDist < 100) {
+            this.handleFeatureEvent(events);
+            if (minDist < closestStoryStep) {
                 this.aimingFeature = minFeature;
             } else {
-                this.aimingFeature = features.find((s) => s.properties.index === nextPotentialIndex + '');
+                this.aimingFeature = features.find((s) => {
+                    const name = 'index' in s.properties ? s.properties.index : s.properties.name;
+                    return name === nextPotentialIndex + '';
+                });
             }
             this.aimingAngle = this.aimingFeature
                 ? (determineAngleDeviationFromNorth({ longitude: loc.lon, latitude: loc.lat }, { longitude: this.aimingFeature.geometry.center[0], latitude: this.aimingFeature.geometry.center[1] }) +
@@ -616,19 +761,21 @@ export class GeoHandler extends Observable {
                   360
                 : 0;
             // console.log('this.aimingAngle', this.aimingAngle);
-            if (!this.insideFeature && !!this.bluetoothHandler.glasses) {
-                if (Math.abs(this.aimingAngle) <= 18 || Math.abs(this.aimingAngle) >= 342) {
-                    this.bluetoothHandler.playGoStraightLoop();
-                } else if (this.aimingAngle >= 270 && this.aimingAngle <= 306) {
-                    this.bluetoothHandler.playGoLeftLoop();
-                } else if (this.aimingAngle >= 54 && this.aimingAngle <= 90) {
-                    this.bluetoothHandler.playGoRightLoop();
-                } else if (this.aimingAngle >= 160 && this.aimingAngle <= 200) {
-                    this.bluetoothHandler.playGoBackLoop();
-                } else {
-                    this.bluetoothHandler.stopPlayingLoop();
-                }
-            }
+
+            // we are not inside any feature let s start guidance
+            // if (!this.insideFeature && !!this.bluetoothHandler.glasses) {
+            //     if (Math.abs(this.aimingAngle) <= 18 || Math.abs(this.aimingAngle) >= 342) {
+            //         this.bluetoothHandler.playGoStraightLoop();
+            //     } else if (this.aimingAngle >= 270 && this.aimingAngle <= 306) {
+            //         this.bluetoothHandler.playGoLeftLoop();
+            //     } else if (this.aimingAngle >= 54 && this.aimingAngle <= 90) {
+            //         this.bluetoothHandler.playGoRightLoop();
+            //     } else if (this.aimingAngle >= 160 && this.aimingAngle <= 200) {
+            //         this.bluetoothHandler.playGoBackLoop();
+            //     } else {
+            //         this.bluetoothHandler.stopPlayingLoop();
+            //     }
+            // }
         }
     }
 
@@ -683,7 +830,7 @@ export class GeoHandler extends Observable {
             options.activityType = CLActivityType.OtherNavigation;
             // }
         } else {
-            // options.provider = 'gps';
+            options.provider = 'gps';
         }
         if (DEV_LOG) {
             console.log(TAG, 'startWatch', options);
@@ -708,6 +855,7 @@ export class GeoHandler extends Observable {
 
     async stopSession() {
         this.actualSessionStop(true);
+        this.bluetoothHandler.stopPlayingLoop();
     }
     async pauseSession() {
         this.actualSessionStop();
@@ -721,7 +869,8 @@ export class GeoHandler extends Observable {
         return this.startSession();
     }
     async startSession() {
-        return this.actualSessionStart(true);
+        this.actualSessionStart(true);
+        this.bluetoothHandler.playInstruction('start');
     }
 
     async resumeSession() {
@@ -789,7 +938,7 @@ export class GeoHandler extends Observable {
             const trkseg = trk.trkseg[0] || trk.trkseg;
             const locs = trkseg.trkpt as any[];
             const coordinates = [];
-            const geojson = ({
+            const geojson = {
                 name: gpx.metadata.name,
                 geometry: {
                     type: 'FeatureCollection',
@@ -801,7 +950,7 @@ export class GeoHandler extends Observable {
                         } as LineString
                     ]
                 }
-            } as unknown) as TrackFeatureCollection;
+            } as unknown as TrackFeatureCollection;
             bboxify(geojson);
             const track = new Track(Date.now());
             track.name = trk.name;

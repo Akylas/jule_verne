@@ -16,6 +16,8 @@ import { CommandType, Message } from './Message';
 
 export { Peripheral };
 import { TNSPlayer } from 'nativescript-audio';
+import Lyric from './Lyric';
+import { TWEEN } from '@nativescript-community/tween';
 
 export const MICROOLED_MANUFACTURER_ID = 0x08f2;
 export const MICROOLED_MANUFACTURER_NAME = 'Microoled';
@@ -67,6 +69,9 @@ export const DevLogMessageEvent = 'devlogmessage';
 
 export function timeout(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function shuffleArray(arr) {
+    return arr.sort(() => Math.random() - 0.5);
 }
 
 export function hexToBytes(hex) {
@@ -470,6 +475,9 @@ export class BluetoothHandler extends Observable {
                     this.activateGesture(this.isGestureOn);
                     this.changeLuminance(this.levelLuminance);
                 }
+                // we use config 2 for images
+                this.sendCommand({ command: CommandType.Setconfig, params: [2] });
+                this.sendDim(100);
                 this.clearScreen();
             }
             this.removeConnectingDeviceUUID(data.UUID);
@@ -631,9 +639,9 @@ export class BluetoothHandler extends Observable {
         this.addDevLogMessage(message);
         switch (message.commandType) {
             // TODO: unused in binary
-            case CommandType.PowerDown:
-                this.disconnectGlasses();
-                break;
+            // case CommandType.PowerDown:
+            //     this.disconnectGlasses();
+            //     break;
             case CommandType.Settings:
                 const settings = (this.glasses.settings = message.data as GlassesSettings);
                 this.notify({
@@ -728,7 +736,7 @@ export class BluetoothHandler extends Observable {
             this.glasses.settings.shift.x = x;
             this.glasses.settings.shift.y = y;
             this.sendCommand({ command: CommandType.Shift, params: [x, y] });
-            this.clearFullScreen();
+            // this.clearFullScreen();
         }
     }
 
@@ -902,7 +910,7 @@ export class BluetoothHandler extends Observable {
         await this.clearFullScreen();
     }
 
-    async startLoop(index: number) {
+    async startLoop() {
         // console.log('startLoop', index);
         await this.glasses.sendCommand(CommandType.Clear);
         this.sendDim(0);
@@ -917,17 +925,20 @@ export class BluetoothHandler extends Observable {
     // async function stopLoop(index: number) {
     //     console.log('stopLoop', index);
     // }
+    isFaded = false;
     async fadeout() {
-        for (let i = 20; i >= 0; i--) {
-            await timeout(10); // ms
-            this.sendDim(i * 5);
+        this.isFaded = true;
+        for (let i = 10; i >= 0; i--) {
+            // await timeout(0); // ms
+            this.sendDim(i * 10);
         }
+        this.clearScreen();
     }
 
     async demoLoop(bmpIndex: number, count = 3, pauseOnFirst = false, duration = 200) {
         for (let index = 0; index < count; index++) {
             await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
-            await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
+            // await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
             await timeout(pauseOnFirst && index === 0 ? 1000 : duration);
         }
     }
@@ -936,142 +947,407 @@ export class BluetoothHandler extends Observable {
         return this.currentLoop !== null;
     }
     currentLoop: string = null;
-    async stopPlayingLoop() {
-        if (this._player) {
-            this._player.pause();
+    isPlaying = false;
+    toPlayNext: Function = null;
+    async stopPlayingLoop(fade = true) {
+        console.log('stopPlayingLoop');
+        if (!this.isPlaying) {
+            return;
+        }
+        if (this.lyric) {
+            this.lyric.pause();
+            this.lyric = null;
         }
         if (this.currentLoop) {
             this.currentLoop = null;
-            await this.fadeout();
+            // await this.fadeout();
         }
-        await this.glasses.sendCommand(CommandType.Clear);
-        if (this._player) {
-            try {
-                await this._player.dispose();
-            } catch (err) {
-                console.log('error disposing player', err);
+        if (this._player.isAudioPlaying()) {
+            const onDone = async () => {
+                this.isPlaying = false;
+                this._player.pause();
+                this._player['_options']?.errorCallback();
+                try {
+                    await this._player.dispose();
+                } catch (err) {
+                    console.log('error disposing player', err);
+                }
+                this._player = new TNSPlayer();
+                this.toPlayNext && this.toPlayNext();
+                this.toPlayNext = null;
+            };
+            if (fade) {
+                new TWEEN.Tween({ value: 1 })
+                    .to({ value: 0 }, 500)
+                    .easing(TWEEN.Easing.Quadratic.Out)
+                    .onUpdate((obj) => {
+                        this._player.volume = obj.value;
+                    })
+                    .onComplete(onDone)
+                    .start(0);
+            } else {
+                onDone();
             }
-            this._player = new TNSPlayer();
+        }
+        if (fade) {
+            this.fadeout();
+        } else {
+            if (this.glasses) {
+                await this.glasses.sendCommand(CommandType.Clear);
+            }
+        }
+        this.notify({ eventName: 'drawBitmap', bitmap: null });
+    }
+    // async playLoop(index: number, count = 3) {
+    //     const myLoop = index + '_' + count;
+    //     if (this.currentLoop === myLoop) {
+    //         return;
+    //     }
+    //     this.currentLoop = myLoop;
+    //     await this.startLoop();
+    //     this.fadein();
+    //     let loopIndex = 0;
+    //     while (this.currentLoop === myLoop) {
+    //         await this.demoLoop(index, count, loopIndex % 2 === 0);
+    //         loopIndex++;
+    //     }
+    //     // await this.fadeout();
+    // }
+
+    async clearFadeout() {
+        if (this.isFaded) {
+            this.isFaded = false;
+            if (this.glasses) {
+                this.glasses.sendCommand(CommandType.Clear);
+                this.sendDim(100);
+            }
         }
     }
-    async playLoop(index: number, count = 3) {
-        const myLoop = index + '_' + count;
+    async playOfImages(images: string[], imagesFolder, options?: { frameDuration?; randomize?; iterations? }) {
+        const myLoop = images.join('');
         if (this.currentLoop === myLoop) {
             return;
         }
         this.currentLoop = myLoop;
-        await this.startLoop(index);
-        this.fadein();
+        this.clearFadeout();
+        // await this.startLoop();
+        // this.fadein();
         let loopIndex = 0;
-        while (this.currentLoop === myLoop) {
-            await this.demoLoop(index, count, loopIndex % 2 === 0);
+        const iterations = options?.iterations || 0;
+        const imageMap = this.imageMap;
+        while (this.currentLoop === myLoop && !this.isFaded && (!iterations || loopIndex < iterations)) {
+            if (options?.randomize === true) {
+                images = shuffleArray(images);
+            }
+            for (let index = 0; index < images.length; index++) {
+                if (this.isFaded) {
+                    break;
+                }
+                this.notify({ eventName: 'drawBitmap', bitmap: path.join(imagesFolder, images[index]) });
+                if (this.glasses) {
+                    // console.log('playing image', images[index], imageMap[images[index]]);
+                    await this.glasses.sendCommand(CommandType.Bitmap, { params: [imageMap[images[index]], 0, 0] });
+                    // await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
+                }
+                await timeout(options?.frameDuration || 200);
+            }
+            // await this.demoLoop(index, count, loopIndex % 2 === 0);
             loopIndex++;
         }
+        this.notify({ eventName: 'drawBitmap', bitmap: null });
         // await this.fadeout();
     }
 
-    async playGoLeftLoop(loop = true) {
-        console.log('playGoLeftLoop');
-        if (loop) {
-            await this.playLoop(0, 3);
-        } else {
-            this.sendDim(100);
-            await this.demoLoop(0, 3);
-        }
-    }
-    async playGoRightLoop(loop = true) {
-        console.log('playGoRightLoop');
-        if (loop) {
-            await this.playLoop(10, 3);
-        } else {
-            this.sendDim(100);
-            await this.demoLoop(10, 3);
-        }
-    }
-    async playGoStraightLoop(loop = true) {
-        console.log('playGoStraightLoop');
-        if (loop) {
-            await this.playLoop(7, 3);
-        } else {
-            this.sendDim(100);
-            await this.demoLoop(7, 3);
-        }
-    }
-    async playGoBackLoop(loop = true) {
-        console.log('playGoBackLoop');
-        if (loop) {
-            await this.playLoop(21, 6);
-        } else {
-            this.sendDim(100);
-            await this.demoLoop(21, 6);
-        }
-    }
+    // async playGoLeftLoop(loop = true) {
+    //     console.log('playGoLeftLoop');
+    //     if (loop) {
+    //         await this.playLoop(0, 3);
+    //     } else {
+    //         this.sendDim(100);
+    //         await this.demoLoop(0, 3);
+    //     }
+    // }
+    // async playGoRightLoop(loop = true) {
+    //     console.log('playGoRightLoop');
+    //     if (loop) {
+    //         await this.playLoop(10, 3);
+    //     } else {
+    //         this.sendDim(100);
+    //         await this.demoLoop(10, 3);
+    //     }
+    // }
+    // async playGoStraightLoop(loop = true) {
+    //     console.log('playGoStraightLoop');
+    //     if (loop) {
+    //         await this.playLoop(7, 3);
+    //     } else {
+    //         this.sendDim(100);
+    //         await this.demoLoop(7, 3);
+    //     }
+    // }
+    // async playGoBackLoop(loop = true) {
+    //     console.log('playGoBackLoop');
+    //     if (loop) {
+    //         await this.playLoop(21, 6);
+    //     } else {
+    //         this.sendDim(100);
+    //         await this.demoLoop(21, 6);
+    //     }
+    // }
 
     async sendDim(percentage: number) {
         // console.log('sendDim', percentage, this.levelLuminance, Math.round((this.levelLuminance * percentage) / 100));
         // return this.glasses.sendCommand(CommandType.Luma, { params: [Math.round((this.levelLuminance * 15 * percentage) / 100)] });
         return this.glasses.sendCommand(CommandType.Dim, { params: [percentage] });
     }
-    async playHello() {
-        await this._player.playFromFile({
-            audioFile: '~/assets/audio/présentation.wav',
-            loop: false,
-            completeCallback: () => {
-                this.stopPlayingLoop();
-            }
-        });
-        await this.glasses.sendCommand(CommandType.Clear);
-        this.sendDim(100);
-        await this.glasses.sendCommand(CommandType.Bitmap, { params: [32, 0, 0] });
-        await timeout(3000);
-        await this.glasses.sendCommand(CommandType.Bitmap, { params: [33, 0, 0] });
-        await timeout(3000);
-        await this.demoLoop(27, 5, false, 400);
-        await this.glasses.sendCommand(CommandType.Clear);
-    }
-    async playVicat() {
-        this.playStory(34, 13, 3000);
-    }
+    // async playHello() {
+    //     await this._player.playFromFile({
+    //         audioFile: '~/assets/audio/présentation.wav',
+    //         loop: false,
+    //         completeCallback: () => {
+    //             this.stopPlayingLoop();
+    //         }
+    //     });
+    //     await this.glasses.sendCommand(CommandType.Clear);
+    //     this.sendDim(100);
+    //     await this.glasses.sendCommand(CommandType.Bitmap, { params: [32, 0, 0] });
+    //     await timeout(3000);
+    //     await this.glasses.sendCommand(CommandType.Bitmap, { params: [33, 0, 0] });
+    //     await timeout(3000);
+    //     await this.demoLoop(27, 5, false, 400);
+    //     await this.glasses.sendCommand(CommandType.Clear);
+    // }
 
-    async playDemo() {
-        await this._player.playFromFile({
-            audioFile: '~/assets/audio/présentation.wav', // ~ = app directory
-            loop: false,
-            completeCallback: () => {
-                this.stopPlayingLoop();
-            }
-        });
-        this.playLoop(13, 8);
-    }
+    // async playDemo() {
+    //     await this._player.playFromFile({
+    //         audioFile: '~/assets/audio/présentation.wav', // ~ = app directory
+    //         loop: false,
+    //         completeCallback: () => {
+    //             this.stopPlayingLoop();
+    //         }
+    //     });
+    //     this.playLoop(13, 8);
+    // }
 
-    async playStory(bmpIndex: number, count: number, duration: number) {
-        const myLoop = bmpIndex + '_' + count;
-        console.log('playStory', this.currentLoop, myLoop);
-        if (this.currentLoop === myLoop) {
-            return;
+    parseLottieFile(data: any) {
+        const assets = {};
+        data.assets.forEach((a) => {
+            assets[a.id] = a.layers;
+        });
+        const timeline = [];
+        let lastOp;
+        function addData(data, start = 0, end = 0) {
+            // timeline[Math.round(((data.ip + start) * 1000) / 24)] = data.nm;
+            const newStart = Math.round(((data.ip + start) * 1000) / 24);
+            const last = timeline.length > 1 && timeline[timeline.length - 1];
+            if (last && (timeline[timeline.length - 1].time >= newStart || newStart - timeline[timeline.length - 1].time <= 18)) {
+                timeline.splice(timeline.length - 1, 1);
+            }
+            if (!last || last.text !== data.nm) {
+                timeline.push({
+                    time: Math.round(((data.ip + start) * 1000) / 24),
+                    text: data.nm
+                });
+            }
+            if (end) {
+                timeline.push({
+                    time: Math.round((Math.min(data.op + start, end) * 1000) / 24),
+                    text: ''
+                });
+            } else {
+                timeline.push({
+                    time: Math.round(((data.op + start) * 1000) / 24),
+                    text: ''
+                });
+            }
         }
-        this.currentLoop = myLoop;
-        await this._player.playFromFile({
-            audioFile: "~/assets/audio/La fable de l'or gris.wav", // ~ = app directory
-            loop: false,
-            completeCallback: () => {
-                this.stopPlayingLoop();
+        data.layers.forEach((l) => {
+            if (assets[l.refId]) {
+                assets[l.refId].forEach((d) => addData(d, l.ip, l.op));
+            } else {
+                addData(l);
             }
         });
-        await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex, 0, 0] });
-        await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex, 0, 0] });
-        this.fadein();
-        while (this.currentLoop === myLoop) {
-            for (let index = 0; index < count; index++) {
-                if (this.currentLoop !== myLoop) {
-                    break;
+        return timeline;
+    }
+
+    _imagesMap: { [k: string]: number };
+    get imageMap() {
+        if (!this._imagesMap) {
+            const filePath = path.join(knownFolders.currentApp().path, '/assets/data/glasses_images/image_map.json');
+            this._imagesMap = JSON.parse(File.fromPath(filePath).readTextSync());
+        }
+        return this._imagesMap;
+    }
+
+    async playAudios(audios: string[]) {
+        for (let index = 0; index < audios.length; index++) {
+            const audio = audios[index];
+            await new Promise<void>(async (resolve, reject) => {
+                await this._player.playFromFile({
+                    audioFile: audio, // ~ = app directory
+                    loop: false,
+                    completeCallback: () => {
+                        resolve();
+                    },
+                    errorCallback: () => {
+                        reject();
+                    }
+                });
+            });
+        }
+    }
+    async playInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay? }) {
+        if (this.isPlaying) {
+            return new Promise<void>((resolve) => {
+                this.toPlayNext = async () => {
+                    await this.playInstruction(instruction, options);
+                    resolve();
+                };
+            });
+        }
+        this.isPlaying = true;
+        console.log('playInstruction', instruction);
+
+        const instFolder = path.join(knownFolders.currentApp().path, `/assets/data/glasses_images/navigation/${instruction}`);
+        const files = await Folder.fromPath(instFolder).getEntities();
+        const images = files
+            .filter((f) => f.name.endsWith('.png') || f.name.endsWith('.bmp'))
+            .map((f) => f.name)
+            .sort();
+        const audios = files
+            .filter((f) => f.name.endsWith('.mp3'))
+            .map((f) => f.path)
+            .sort();
+        // console.log('images', images);
+        // console.log('audios', audios);
+        return new Promise<void>((resolve, reject) => {
+            this.playAudios(audios)
+                .then(() => {
+                    resolve();
+                    this.stopPlayingLoop();
+                })
+                .catch(reject);
+            if (options?.delay) {
+                setTimeout(() => {
+                    this.playOfImages(images, instFolder, options);
+                }, options?.delay);
+            } else {
+                this.playOfImages(images, instFolder, options);
+            }
+        });
+    }
+    lyric: Lyric = null;
+
+    async playRideauAndStory() {
+        if (this.isPlaying) {
+            return new Promise<void>((resolve) => {
+                this.toPlayNext = async () => {
+                    await this.playRideauAndStory();
+                    resolve();
+                };
+            });
+        }
+        this.isPlaying = true;
+        await this.playInstruction('rideau');
+        await timeout(1000);
+        this.playStory(1);
+    }
+    async playStory(index = 1) {
+        if (this.isPlaying) {
+            return new Promise<void>((resolve) => {
+                this.toPlayNext = async () => {
+                    await this.playStory(index);
+                    resolve();
+                };
+            });
+        }
+        try {
+            this.isPlaying = true;
+            const storyFolder = path.join(knownFolders.currentApp().path, `/assets/data/glasses_images/stories/${index}`);
+            const data = await File.fromPath(path.join(storyFolder, 'composition.json')).readText();
+            const imagesMap = this.imageMap;
+            const result = this.parseLottieFile(JSON.parse(data));
+            console.log('lines', result);
+            console.log('imagesMap', imagesMap);
+            if (this.glasses) {
+                this.glasses.sendCommand(CommandType.Dim, { params: [70] });
+            }
+            if (this.lyric) {
+                this.lyric.pause();
+            }
+            this.lyric = new Lyric({
+                lines: [{ time: 0, text: '' }].concat(result),
+                onPlay: async (line, text) => {
+                    if (text && text.length > 0) {
+                        const cleaned = text.split('.')[0].replace(/\s/g, '-');
+                        const imageId = imagesMap[cleaned];
+                        // console.log('playing image', imageId);
+                        this.clearFadeout();
+
+                        console.log('playing image', text, imageId);
+                        this.notify({ eventName: 'drawBitmap', bitmap: path.join(storyFolder, 'images', text) });
+                        if (this.glasses) {
+                            this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, 0, 0] });
+                            this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, 0, 0] });
+                        }
+                    } else {
+                        this.notify({ eventName: 'drawBitmap', bitmap: null });
+                        this.clearScreen();
+                    }
                 }
-                await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
-                await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
-                await timeout(duration);
-            }
+            });
+            this.clearFadeout();
+            await new Promise<void>(async (resolve, reject) => {
+                await this._player.playFromFile({
+                    audioFile: path.join(storyFolder, 'audio.mp3'), // ~ = app directory
+                    loop: false,
+                    completeCallback: () => {
+                        this.stopPlayingLoop();
+                        resolve();
+                    },
+                    errorCallback: () => {
+                        this.stopPlayingLoop();
+                        reject();
+                    }
+                });
+                this.lyric.play();
+            });
+            // console.log('done');
+        } catch (error) {
+            this.isPlaying = false;
+            console.error(error);
         }
     }
+
+    // async playStory(bmpIndex: number, count: number, duration: number) {
+    //     const myLoop = bmpIndex + '_' + count;
+    //     console.log('playStory', this.currentLoop, myLoop);
+    //     if (this.currentLoop === myLoop) {
+    //         return;
+    //     }
+    //     this.currentLoop = myLoop;
+    //     await this._player.playFromFile({
+    //         audioFile: "~/assets/audio/La fable de l'or gris.wav", // ~ = app directory
+    //         loop: false,
+    //         completeCallback: () => {
+    //             this.stopPlayingLoop();
+    //         }
+    //     });
+    //     await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex, 0, 0] });
+    //     await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex, 0, 0] });
+    //     this.fadein();
+    //     while (this.currentLoop === myLoop) {
+    //         for (let index = 0; index < count; index++) {
+    //             if (this.currentLoop !== myLoop) {
+    //                 break;
+    //             }
+    //             await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
+    //             await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
+    //             await timeout(duration);
+    //         }
+    //     }
+    // }
 
     // async sendBitmapImages() {
     //     const folder = knownFolders.currentApp().getFolder('assets').getFolder('glasses_images');
@@ -1087,7 +1363,7 @@ export class BluetoothHandler extends Observable {
     //         nbFontsSaved: 0,
     //         nbLayersSaved: 0
     //     });
-    //     bluetoothDevice.sendBinaryCommand(CommandType.EraseBmp, { params: [0] });
+    //     this.glasses.sendCommand(CommandType.EraseBmp, { params: [0] });
     //     await sendRawCommands(data, `sending bitmap: ${filePath}`);
     //     await bluetoothDevice.sendReadConfig(0);
     // }

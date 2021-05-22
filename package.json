@@ -12,6 +12,7 @@
         "@akylas/nativescript": "8.0.1",
         "@akylas/nativescript-sqlite": "3.3.12",
         "@geoman-io/leaflet-geoman-free": "2.10.0",
+        "@mapbox/geojson-area": "^0.2.2",
         "@mdi/font": "4.9.95",
         "@nativescript-community/appurl": "1.4.2",
         "@nativescript-community/ble": "3.0.19",

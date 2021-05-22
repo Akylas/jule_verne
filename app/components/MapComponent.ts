@@ -28,12 +28,12 @@ import { addWeakEventListener, removeWeakEventListener } from '@nativescript/cor
 import dayjs from 'dayjs';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { GeoHandler, GeoLocation, PositionStateEvent, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
-import Track from '~/models/Track';
+import Track, { GeometryProperties, TrackFeature, TrackGeometry } from '~/models/Track';
 import { getDataFolder } from '~/utils/utils';
 import { computeAngleBetween } from '~/utils/geo';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 import { GeoJSONGeometryReader } from '@nativescript-community/ui-carto/geometry/reader';
-import { BBox } from 'geojson';
+import { BBox, Feature } from 'geojson';
 import { VectorElement } from '@nativescript-community/ui-carto/vectorelements';
 
 const LOCATION_ANIMATION_DURATION = 300;
@@ -431,36 +431,39 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
     }
 
     onTrackPositionState(event: EventData) {
-        const { feature, index, distance, state, trackId } = event['data'];
-        const object = this.mappedTracks[trackId][feature.id];
-        console.log('MapComponent', 'onTrackPositionState', trackId, feature.id, !!object, state, object instanceof Group);
-        if (object) {
-            if (state === 'entering') {
-                if (object instanceof Group) {
-                    object.elements.forEach((e) => {
-                        (e as any).offLineColor = (e as any).lineColor;
-                        (e as any).offColor = (e as any).color;
-                        (e as any).color = 'green';
-                        (e as any).lineColor = 'green';
-                    });
-                } else {
-                    (object as any).offColor = (object as any).lineColor;
-                    (object as any).offLineColor = (object as any).lineColor;
-                    (object as any).color = 'green';
-                    (object as any).lineColor = 'green';
-                }
-            } else if (state === 'leaving') {
-                if (object instanceof Group) {
-                    object.elements.forEach((e) => {
-                        (e as any).lineColor = (e as any).offLineColor;
-                        (e as any).color = (e as any).offColor;
-                    });
-                } else {
-                    (object as any).lineColor = (object as any).offLineColor;
-                    (object as any).color = (object as any).offColor;
+        const events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[] = event['data'].events;
+        events.forEach((e) => {
+            const { feature, index, distance, state, trackId } = e;
+            const object = this.mappedTracks[trackId][feature.id];
+            console.log('MapComponent', 'onTrackPositionState', trackId, feature.id, !!object, state, object instanceof Group);
+            if (object) {
+                if (state === 'entering') {
+                    if (object instanceof Group) {
+                        object.elements.forEach((e) => {
+                            (e as any).offLineColor = (e as any).lineColor;
+                            (e as any).offColor = (e as any).color;
+                            (e as any).color = 'green';
+                            (e as any).lineColor = 'green';
+                        });
+                    } else {
+                        (object as any).offColor = (object as any).lineColor;
+                        (object as any).offLineColor = (object as any).lineColor;
+                        (object as any).color = 'green';
+                        (object as any).lineColor = 'green';
+                    }
+                } else if (state === 'leaving') {
+                    if (object instanceof Group) {
+                        object.elements.forEach((e) => {
+                            (e as any).lineColor = (e as any).offLineColor;
+                            (e as any).color = (e as any).offColor;
+                        });
+                    } else {
+                        (object as any).lineColor = (object as any).offLineColor;
+                        (object as any).color = (object as any).offColor;
+                    }
                 }
             }
-        }
+        });
     }
     searchingForUserLocation = false;
     askUserLocation() {
@@ -499,6 +502,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         //         });
         //     }
         // }
+        return false;
     }
 
     onTracksChanged(event: ChangedData<Track>) {
@@ -574,12 +578,14 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                 }
             });
             this.localVectorDataSource.add(bboxpolygon);
+            const name = ('index' in properties ? properties.index : properties.name) + '';
+            let color = properties.color || properties.stroke || this.accentColor;
             switch ((properties.shape || properties.type).toLowerCase()) {
                 case 'line': {
                     const line = new Line<LatLonKeys>({
                         geometry: geometry as LineGeometry<LatLonKeys>,
                         styleBuilder: {
-                            color: properties.color || this.accentColor,
+                            color,
                             joinType: LineJointType.ROUND,
                             endType: LineEndType.ROUND,
                             clickWidth: 20,
@@ -591,7 +597,6 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                     break;
                 }
                 case 'circle': {
-                    let color = properties.color || this.accentColor;
                     if (!(color instanceof Color)) {
                         color = new Color(color);
                     }
@@ -610,7 +615,6 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                     break;
                 }
                 case 'marker': {
-                    let color = properties.color || this.accentColor;
                     if (!(color instanceof Color)) {
                         color = new Color(color);
                     }
@@ -625,8 +629,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                     break;
                 }
                 case 'polygon': {
-                    let color = properties.color || this.accentColor;
-                    if (properties.index === 'outer_ring') {
+                    if (name === 'outer_ring') {
                         color = this.geoHandler.isInTrackBounds ? 'black' : 'red';
                     }
                     if (!(color instanceof Color)) {
@@ -644,10 +647,11 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                                 }
                             }
                         }),
+
                         new Text({
                             position: { lat: feature.geometry.center[1], lon: feature.geometry.center[0] },
-                            text: properties.index,
-                            visible: properties.index !== 'outer_ring',
+                            text: name,
+                            visible: name !== 'outer_ring',
                             styleBuilder: {
                                 fontSize: 15,
                                 anchorPointX: 0.5,

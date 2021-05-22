@@ -1,6 +1,6 @@
 import * as utils from '@nativescript/core/utils/utils';
 import { BgService as AndroidBgService } from '~/services/android/BgService';
-import { BgServiceBinder } from '~/services/android/BgServiceBinder';
+import { IBgServiceBinder } from '~/services/android/BgServiceBinder';
 import { BgServiceCommon, BgServiceLoadedEvent } from '~/services/BgService.common';
 
 export { BgServiceLoadedEvent };
@@ -47,7 +47,7 @@ export class BgService extends BgServiceCommon {
         return super.stop().then(() => {
             const bgService = this.bgService && this.bgService.get();
             if (bgService) {
-                bgService.dismissNotification();
+                bgService.removeForeground();
                 const intent = new android.content.Intent(this.context, com.akylas.juleverne.BgService.class);
                 this.context.stopService(intent);
                 this.context.unbindService(this.serviceConnection);
@@ -56,7 +56,7 @@ export class BgService extends BgServiceCommon {
         });
     }
     handleBinder(binder: android.os.IBinder) {
-        const bgBinder = binder as BgServiceBinder;
+        const bgBinder = binder as IBgServiceBinder;
         const localservice = bgBinder.getService();
         bgBinder.setService(null);
         this.bgService = new WeakRef(localservice);

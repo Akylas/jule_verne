@@ -121,13 +121,13 @@ export class BgService extends android.app.Service {
                 }
                 console.error('startForeground');
                 if (android.os.Build.VERSION.SDK_INT >= 29) {
-                    this.startForeground(NOTIFICATION_ID, this.mNotification);
-                } else {
                     this.startForeground(
                         NOTIFICATION_ID,
                         this.mNotification,
                         android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION | android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
                     );
+                } else {
+                    this.startForeground(NOTIFICATION_ID, this.mNotification);
                 }
             } catch (err) {
                 console.error('showForeground', err);

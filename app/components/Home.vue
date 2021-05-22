@@ -1,6 +1,6 @@
 <template>
     <Page ref="page" id="activity" :navigateUrl="navigateUrl">
-        <Drawer ref="drawer" rightDrawerMode="slide">
+        <Drawer ref="drawer" rightDrawerMode="slide" :gestureEnabled="true">
             <GridLayout rows="auto,*" ~mainContent>
                 <CActionBar
                     showMenuIcon
@@ -16,10 +16,12 @@
                 <Label row="1" horizontalAlignment="left" color="blue" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentBearing" padding="10" />
                 <Label row="1" horizontalAlignment="center" color="black" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="aimingAngle" padding="10" />
                 <Label row="1" horizontalAlignment="right" color="red" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentComputedBearing" padding="10" />
-                <StackLayout horizontalAlignment="left" verticalAlignment="bottom" row="1" marginBottom="100" backgroundColor="#44000000" width="100%">
-                    <TextView variant="none" :text="eventsLog" fontSize="12" editable="false" color="#EDEDED" height="100" backgroundColor="transparent" />
-                    <MDButton variant="text" v-show="!!insideFeature" :text="insideFeature ? `play ${insideFeature.properties.index}` : ''" @tap="playCurrentStory" />
+                <StackLayout horizontalAlignment="left" verticalAlignment="bottom" row="1" marginBottom="100" backgroundColor="#44000000" width="100%" :isPassThroughParentEnabled="true">
+                    <TextView variant="none" :text="eventsLog" fontSize="12" editable="false" color="#EDEDED" height="100" backgroundColor="transparent" isUserInteractionEnabled="false" />
+                    <!-- <MDButton variant="text" v-show="!!insideFeature" :text="insideFeature ? `play ${insideFeatureName}` : ''" @tap="playCurrentStory" /> -->
                 </StackLayout>
+
+                <Image :src="currentDrawImage" width="100" height="100" horizontalAlignment="left" verticalAlignment="bottom" row="1" />
                 <StackLayout orientation="horizontal" horizontalAlignment="center" verticalAlignment="bottom" row="1">
                     <MDButton class="floating-btn" :text="sessionRunning ? 'mdi-pause' : 'mdi-play'" @tap="onTap('startSession', $event)" />
                     <MDButton class="floating-btn" v-show="sessionPaused" :text="'mdi-stop'" @tap="onTap('stopSession', $event)" />
@@ -42,14 +44,11 @@
                         @tap="onTap('changeDeviceName')"
                     />
                 </GridLayout>
-                <StackLayout v-show="!!connectedGlasses" row="1">
-                    <MDButton :text="$tc('start_demo')" @tap="onTap('startDemo')" />
-                    <MDButton :text="$tc('play_hello')" @tap="onTap('playHello')" />
-                    <MDButton :text="$tc('play_vicat')" @tap="onTap('playVicat')" />
-                    <MDButton :text="$tc('play_goLeft')" @tap="onTap('playGoLeft')" />
-                    <MDButton :text="$tc('play_goRight')" @tap="onTap('playGoRight')" />
-                    <MDButton :text="$tc('play_goStraight')" @tap="onTap('playGoStraight')" />
-                    <MDButton :text="$tc('play_goBack')" @tap="onTap('playGoBack')" />
+                <StackLayout row="1">
+                    <MDButton :text="$tc('histoire 1')" @tap="onTap('histoire 1')" />
+                    <MDButton :text="$tc('bonjour')" @tap="onTap('hello')" />
+                    <MDButton :text="$tc('rideau')" @tap="onTap('rideau')" />
+                    <MDButton :text="$tc('demitour')" @tap="onTap('demitour')" />
                     <MDButton :text="$tc('stop')" @tap="onTap('stopPlaying')" />
                 </StackLayout>
             </GridLayout>

@@ -20,8 +20,19 @@ import {
     SPOTA_SERVICE_UUID,
     StatusChangedEvent
 } from '~/handlers/BluetoothHandler';
-import { GeoHandler, GeoLocation, PositionStateEvent, SessionEventData, SessionState, SessionStateEvent, TrackSelecteEvent, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
-import Track, { GeometryProperties, TrackGeometry } from '~/models/Track';
+import {
+    GeoHandler,
+    GeoLocation,
+    InsideFeatureEvent,
+    PositionStateEvent,
+    SessionEventData,
+    SessionState,
+    SessionStateEvent,
+    TrackSelecteEvent,
+    UserLocationdEventData,
+    UserRawLocationEvent
+} from '~/handlers/GeoHandler';
+import Track, { GeometryProperties, TrackFeature, TrackGeometry } from '~/models/Track';
 import { confirm } from '~/utils/dialogs';
 import { ComponentIds } from './App';
 import { BaseVueComponentRefs } from './BaseVueComponent';
@@ -60,12 +71,15 @@ export default class Home extends BgServiceComponent {
     public glassesBattery: number = 0;
     public glassesSerialNumber = null;
     public glassesVersion = null;
+    bluetoothEnabled = true;
 
     aimingAngle: number = 0;
     eventsLog: string = '';
     selectedTrack: Track = null;
     selectedTracks: Track[] = null;
-    insideFeature: Feature<TrackGeometry, GeometryProperties> = null;
+    insideFeature: TrackFeature = null;
+
+    currentDrawImage = null;
 
     get map() {
         const mapComp = this.$refs.mapComp as MapComponent;
@@ -98,15 +112,20 @@ export default class Home extends BgServiceComponent {
         );
         this.eventsLog = args.join(' ') + '\n' + this.eventsLog;
     }
+    onInsideFeature(event: EventData) {
+        this.insideFeature = event['data'].feature;
+    }
     onTrackPositionState(event: EventData) {
-        const { feature, index, distance, state } = event['data'];
-        if (state === 'entering') {
-            this.insideFeature = feature;
-        } else if (state === 'leaving' && this.insideFeature === feature) {
-            this.insideFeature = null;
-        }
-        console.log('Home', 'onTrackPositionState', feature.id, !!this.insideFeature);
-        this.eLog(feature.id, feature.properties.name, state, distance, index);
+        const events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[] = event['data'].events;
+        // const { feature, index, distance, state } = event['data'];
+        // if (state === 'entering') {
+        //     this.insideFeature = feature;
+        // } else if (state === 'leaving' && this.insideFeature === feature) {
+        //     this.insideFeature = null;
+        // }
+        events.forEach((e) => {
+            this.eLog(e.feature.id, e.feature.properties.name, e.state, e.distance, index);
+        });
     }
     onTrackSelected(event: EventData) {
         const track = event['track'] as Track;
@@ -212,7 +231,9 @@ export default class Home extends BgServiceComponent {
         this.geoHandlerOn(TrackSelecteEvent, this.onTrackSelected, this);
         this.geoHandlerOn(UserRawLocationEvent, this.onNewLocation, this);
         this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
+        this.geoHandlerOn(InsideFeatureEvent, this.onInsideFeature, this);
 
+        this.bluetoothHandlerOn('drawBitmap', this.onDrawImage);
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
         this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
         this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
@@ -323,26 +344,17 @@ export default class Home extends BgServiceComponent {
                     }
 
                     break;
-                case 'startDemo':
-                    await this.bluetoothHandler.playDemo();
+                case 'histoire 1':
+                    await this.bluetoothHandler.playStory(1);
                     break;
-                case 'playHello':
-                    this.bluetoothHandler.playHello();
+                case 'hello':
+                    await this.bluetoothHandler.playInstruction('start', { randomize: true });
                     break;
-                case 'playVicat':
-                    await this.bluetoothHandler.playVicat();
+                case 'rideau':
+                    await this.bluetoothHandler.playInstruction('rideau', { iterations: 1, delay: 1500 });
                     break;
-                case 'playGoLeft':
-                    await this.bluetoothHandler.playGoLeftLoop(false);
-                    break;
-                case 'playGoRight':
-                    await this.bluetoothHandler.playGoRightLoop(false);
-                    break;
-                case 'playGoStraight':
-                    await this.bluetoothHandler.playGoStraightLoop(false);
-                    break;
-                case 'playGoBack':
-                    await this.bluetoothHandler.playGoBackLoop(false);
+                case 'demitour':
+                    await this.bluetoothHandler.playInstruction('uturn', { frameDuration: 400 });
                     break;
                 case 'stopPlaying':
                     await this.bluetoothHandler.stopPlayingLoop();
@@ -388,11 +400,16 @@ export default class Home extends BgServiceComponent {
             this.showError(err);
         }
     }
-
+    get insideFeatureName() {
+        const properties = this.insideFeature.properties;
+        const name = 'index' in properties ? properties.index : properties.name;
+        return name;
+    }
     playCurrentStory() {
         console.log('playCurrentStory', !!this.insideFeature);
         if (this.insideFeature) {
-            this.geoHandler.playStory(this.insideFeature.properties.index);
+            const name = this.insideFeatureName;
+            this.geoHandler.playStory(name);
         }
     }
 
@@ -472,5 +489,8 @@ export default class Home extends BgServiceComponent {
             }
         }
     }
-    bluetoothEnabled = true;
+
+    onDrawImage(event) {
+        this.currentDrawImage = event.bitmap;
+    }
 }

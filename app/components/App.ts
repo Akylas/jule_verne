@@ -199,10 +199,14 @@ export default class App extends BgServiceComponent {
     }
     async importDevSessions() {
         if (DEV_LOG) {
+            const devDataImported = appSettings.getBoolean('devDataImported', false);
+            // if (devDataImported) {
+            //     return;
+            // }
             console.log('importDevSessions');
             try {
-                this.showLoading({ text: this.$t('importing_data'), progress: 0 });
-                const importData = knownFolders.currentApp().getFile('assets/test_data.json').readTextSync();
+                // this.showLoading({ text: this.$t('importing_data'), progress: 0 });
+                const importData = knownFolders.currentApp().getFile('assets/data/map.geojson').readTextSync();
                 const data = JSON.parse(importData);
                 for (let index = 0; index < data.length; index++) {
                     const d = data[index];
@@ -214,11 +218,12 @@ export default class App extends BgServiceComponent {
                     // track.geometry = reader.readFeatureCollection(JSON.stringify(d.geometry));
                     track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.bbox[3], lon: geojson.bbox[2] }, { lat: geojson.bbox[1], lon: geojson.bbox[0] });
                     await track.save();
+                    appSettings.setBoolean('devDataImported', true);
                 }
             } catch (err) {
                 this.showError(err);
             } finally {
-                this.hideLoading();
+                // this.hideLoading();
             }
         }
     }

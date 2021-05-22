@@ -6,13 +6,32 @@ export function numberToUint8Array(n: number) {
 }
 
 export function toUTF8Array(str: string) {
-    // str = str.normalize("NFKD").replace(/[\u0300-\u036F]/g, "");
+    str = str.normalize('NFKD').replace(/[\u0300-\u036F]/g, '');
     const utf8 = [];
     for (let i = 0; i < str.length; i++) {
         const charcode = str.charCodeAt(i);
         if (charcode < 0xff) {
             utf8.push(charcode);
         }
+        // else if (charcode < 0xd800 || charcode >= 0xe000) {
+        //     utf8.push(0xe0 | (charcode >> 12),
+        //               0x80 | ((charcode>>6) & 0x3f),
+        //               0x80 | (charcode & 0x3f));
+        // }
+        // surrogate pair
+        // else {
+        // i++;
+        // we ignore utf16
+        // // UTF-16 encodes 0x10000-0x10FFFF by
+        // // subtracting 0x10000 and splitting the
+        // // 20 bits of 0x0-0xFFFFF into two halves
+        // charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+        //           | (str.charCodeAt(i) & 0x3ff))
+        // utf8.push(0xf0 | (charcode >>18),
+        //           0x80 | ((charcode>>12) & 0x3f),
+        //           0x80 | ((charcode>>6) & 0x3f),
+        //           0x80 | (charcode & 0x3f));
+        // }
     }
     utf8.push(0);
     return utf8;
@@ -42,7 +61,6 @@ export enum CommandType {
     Luma = 0x10,
     Dim = 0x11,
     LumaMode = 0x12,
-    SetLuma = 0x13,
     Sensor = 0x20,
     Gesture = 0x21,
     Als = 0x22,
@@ -76,10 +94,11 @@ export enum CommandType {
     WriteMdpProm = 0x91,
     ReadMdpData = 0x92,
     Setece = 0xa0,
+    TDBG = 0xb0,
     Wconfig = 0xa1,
     Rconfig = 0xa2,
-    TDBG = 0xa0,
-    PowerDown = 0xb3,
+    Setconfig = 0xa3,
+    Memory = 0xd7,
     RawCommand = 0xefefef // only used in app to say we want to send raw data
 }
 
@@ -140,36 +159,20 @@ export interface ProgressData {
     received?: number;
     total?: number;
 }
-export function intFromBytes(x) {
-    let val = 0;
-    const length = x.length;
-    for (let i = 0; i < length; ++i) {
-        val += x[i];
-        if (i < length - 1) {
-            val = val << 8;
-        }
-    }
-    return val;
-}
+
 function parseMessagePayload(commandType: CommandType, data: Buffer) {
     // console.log('parseMessagePayload', commandType, data);
     switch (commandType) {
-        case CommandType.Rconfig:
-            // 8bytes
-            return {
-                version: data ? intFromBytes(data.slice(1, 5)) : -1
-            };
         case CommandType.Version:
             return {
                 version: `${data[0]}.${data[1]}.${data[2]}${String.fromCharCode(data[3])}`
             };
         case CommandType.Settings:
-            const mask0 = data[0] >> 7; // gets the 6th bit
-            const mask1 = data[1] >> 7; // gets the 6th bit
+            const mask = 1 << 7; // gets the 6th bit
             return {
                 shift: {
-                    x: mask0 ? data[0] - 256 : data[0],
-                    y: mask1 ? data[1] - 256 : data[1]
+                    x: (data[0] & ~mask) * (data[0] & mask ? -1 : 1),
+                    y: (data[1] & ~mask) * (data[1] & mask ? -1 : 1)
                 },
                 luma: data[2],
                 als: !!data[3],
@@ -184,7 +187,7 @@ function parseMessagePayload(commandType: CommandType, data: Buffer) {
 }
 
 export type ByteArray = number[];
-export type MessageBuffer = ByteArray | Uint8Array;
+export type MessageBuffer = Buffer | ByteArray;
 export class MessageParser {
     currentPayload?: Buffer;
     private currentMessageType: CommandType;
@@ -199,7 +202,7 @@ export class MessageParser {
     private currentTotalMessageLengthArray: ByteArray;
     private currentQueryIdArray: ByteArray;
     parsingState = ParsingState.Waiting;
-    constructor(onMessage?: (message: Message) => void) {
+    constructor(onMessage?: (btmessage: Message) => {}) {
         if (onMessage) {
             this.onMessage = onMessage;
         }
@@ -208,7 +211,7 @@ export class MessageParser {
     isReceiving() {
         return this.parsingState !== ParsingState.Waiting;
     }
-    onMessage?(message: Message) {}
+    onMessage(btmessage: Message) {}
     reset() {
         this.setParsingState(ParsingState.Waiting);
         this.currentPayload = undefined;
@@ -401,10 +404,10 @@ export function buildMessageData(
     } = {}
 ) {
     if (commandType === CommandType.RawCommand) {
-        return new Uint8Array(options.params[0]);
+        return Buffer.from(options.params[0]);
     }
+    // console.log('sendBinaryCommand', commandType, options);
     const queryIdLength = options.timestamp ? 8 : 0;
-    // console.log('buildMessageData', commandType, options, queryIdLength);
     let messageLength =
         1 + // header
         1 + // command Id
@@ -437,7 +440,7 @@ export function buildMessageData(
             break;
         case CommandType.Wconfig:
             const configId = options.params[0];
-            data = [0x01, (configId & 0xff000000) >> 24, (configId & 0xff0000) >> 16, (configId & 0xff00) >> 8, configId & 0xff].concat(options.params[1], options.params[2], options.params[3]);
+            data = [configId, 0, 0, 0, 1].concat(options.params[1], options.params[2], options.params[3]);
             break;
         case CommandType.Txt:
             data = numberToUint8Array(options.params[0])
@@ -455,7 +458,7 @@ export function buildMessageData(
     if (hasLongData) {
         messageLength += 1;
     }
-    const messageData = new Uint8Array(messageLength);
+    const messageData = Buffer.alloc(messageLength);
     let index = 0;
     messageData[index++] = HEADER;
     messageData[index++] = commandType;
@@ -479,6 +482,7 @@ export function buildMessageData(
         for (let i = 0; i < data.length; i++) {
             messageData[index++] = data[i];
         }
+        // index += data.length;
     }
     messageData[index++] = FOOTER;
 
