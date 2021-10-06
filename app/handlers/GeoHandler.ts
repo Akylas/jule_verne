@@ -1,3 +1,4 @@
+import { isNumber } from '@akylas/nativescript/utils/types';
 import { GPS, GenericGeoLocation, Options as GeolocationOptions, LocationMonitor, setGeoLocationKeys, setMockEnabled } from '@nativescript-community/gps';
 import * as perms from '@nativescript-community/perms';
 import { TNSTextToSpeech } from '@nativescript-community/texttospeech';
@@ -162,10 +163,10 @@ export class GeoHandler extends Observable {
     }
     set isInTrackBounds(value: boolean) {
         if (this._isInTrackBounds !== value) {
-            console.log('isInTrackBounds', value);
+            // console.log('isInTrackBounds', value);
             this._isInTrackBounds = value;
             if (!value) {
-                this.bluetoothHandler.playInstruction('uturn', { frameDuration: 400 });
+                this.bluetoothHandler.playInstruction('uturn', { frameDuration: 400, queue: true });
             } else {
                 // stop instruction
                 this.bluetoothHandler.stopPlayingLoop();
@@ -184,7 +185,7 @@ export class GeoHandler extends Observable {
     }
     set currentTrack(track: Track) {
         this._currentTrack = track;
-        this._isInTrackBounds = false;
+        this._isInTrackBounds = true;
         if (track) {
             appSettings.setString('selectedTrackId', track.id);
         } else {
@@ -461,7 +462,12 @@ export class GeoHandler extends Observable {
             console.log('insideFeature', value);
             if (value) {
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
+                console.log('insideFeature name ', name);
                 if (!name.endsWith('_out')) {
+                    this.bluetoothHandler.stopPlayingLoop();
+                    this.bluetoothHandler.playRideauAndStory(parseInt(name, 10));
+                } else {
+                    // this.bluetoothHandler.stopPlayingLoop();
                     this.bluetoothHandler.playRideauAndStory();
                 }
             } else {
@@ -482,7 +488,9 @@ export class GeoHandler extends Observable {
     }
     async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {
         const insideFeatures = events.filter((e) => e.state !== 'leaving');
-        console.log('handleFeatureEvent', insideFeatures.length);
+        // if (DEV_LOG) {
+        //     console.log('handleFeatureEvent', insideFeatures.length);
+        // }
         if (insideFeatures.length > 1) {
             let minIndex = 0;
             let minArea = Number.MAX_SAFE_INTEGER;
@@ -549,15 +557,18 @@ export class GeoHandler extends Observable {
     //     });
     // }
 
-    playStory(index: string) {
+    playedStory(index: string) {
         const rindex = parseInt(index, 10);
         if (this._playedHistory.indexOf(rindex) === -1) {
             this._playedHistory.push(rindex);
         }
-        console.log('playStory', index, rindex, this._playedHistory);
+        console.log('playedStory', index, rindex, this._playedHistory);
     }
-
+    mLastAimingDirection: string;
     updateTrackWithLocation(loc: GeoLocation) {
+        // if (DEV_LOG) {
+        //     console.log('updateTrackWithLocation', loc);
+        // }
         if (this.currentTrack) {
             const features = this.currentTrack.geometry.features;
 
@@ -573,7 +584,7 @@ export class GeoHandler extends Observable {
             }
             let minFeature: TrackFeature = null;
             let minDist = Number.MAX_SAFE_INTEGER;
-            const closestStoryStep = 100;
+            const closestStoryStep = 50;
 
             // the aiming algorithm will tend to get you to the next story
             // except if you are very close(closestStoryStep) to another story
@@ -593,9 +604,8 @@ export class GeoHandler extends Observable {
                 }
 
                 // used to compute aiming feature
-                if (feature.properties.isStory === true) {
+                if (feature.properties.isStory === true || isNumber(name)) {
                     const dist = computeDistanceBetween(feature.geometry.center, currentPosition);
-                    console.log();
                     if (dist < minDist) {
                         minDist = dist;
                         minFeature = feature;
@@ -603,6 +613,10 @@ export class GeoHandler extends Observable {
                 }
                 // add a bit of delta (m)
                 const isInBounds = isLocactionInBbox(loc, feature.bbox, 0);
+
+                // if (DEV_LOG) {
+                //     console.log('updateTrackWithLocation in bounds!', name, feature.id);
+                // }
                 if (!isInBounds) {
                     if (this.positionState[feature.id]) {
                         delete this.positionState[feature.id];
@@ -619,7 +633,7 @@ export class GeoHandler extends Observable {
                 // we are in bounds!
                 const geometry = feature.geometry;
 
-                switch (properties.shape.toLowerCase()) {
+                switch ((properties.shape || geometry.type).toLowerCase()) {
                     case 'line': {
                         const g = geometry as LineString;
                         const index = isLocationOnPath(loc, g.coordinates, false, true, 10);
@@ -746,12 +760,16 @@ export class GeoHandler extends Observable {
                 }
             });
             this.handleFeatureEvent(events);
+
+            // if (DEV_LOG) {
+            //     console.log('aimingFeature ', minDist, minFeature, nextPotentialIndex);
+            // }
             if (minDist < closestStoryStep) {
                 this.aimingFeature = minFeature;
             } else {
                 this.aimingFeature = features.find((s) => {
                     const name = 'index' in s.properties ? s.properties.index : s.properties.name;
-                    return name === nextPotentialIndex + '';
+                    return name + '' === nextPotentialIndex + '';
                 });
             }
             this.aimingAngle = this.aimingFeature
@@ -762,20 +780,28 @@ export class GeoHandler extends Observable {
                 : 0;
             // console.log('this.aimingAngle', this.aimingAngle);
 
-            // we are not inside any feature let s start guidance
-            // if (!this.insideFeature && !!this.bluetoothHandler.glasses) {
-            //     if (Math.abs(this.aimingAngle) <= 18 || Math.abs(this.aimingAngle) >= 342) {
-            //         this.bluetoothHandler.playGoStraightLoop();
-            //     } else if (this.aimingAngle >= 270 && this.aimingAngle <= 306) {
-            //         this.bluetoothHandler.playGoLeftLoop();
-            //     } else if (this.aimingAngle >= 54 && this.aimingAngle <= 90) {
-            //         this.bluetoothHandler.playGoRightLoop();
-            //     } else if (this.aimingAngle >= 160 && this.aimingAngle <= 200) {
-            //         this.bluetoothHandler.playGoBackLoop();
-            //     } else {
-            //         this.bluetoothHandler.stopPlayingLoop();
-            //     }
-            // }
+            //we are not inside any story feature
+            if (!this.insideFeature || (!isNumber(this.insideFeature.properties.name) && this.insideFeature.properties.name.endsWith('_out'))) {
+                let newAimingDirection;
+                if (Math.abs(this.aimingAngle) <= 18 || Math.abs(this.aimingAngle) >= 342) {
+                    newAimingDirection = 'forward';
+                    this.bluetoothHandler.playInstruction('forward');
+                } else if (this.aimingAngle >= 270 && this.aimingAngle <= 306) {
+                    newAimingDirection = 'left';
+                } else if (this.aimingAngle >= 54 && this.aimingAngle <= 90) {
+                    newAimingDirection = 'right';
+                } else if (this.aimingAngle >= 160 && this.aimingAngle <= 200) {
+                    newAimingDirection = 'uturn';
+                } else {
+                    // this.bluetoothHandler.stopNavigationInstruction();
+                }
+                if (newAimingDirection && this.mLastAimingDirection !== newAimingDirection) {
+                    this.mLastAimingDirection = newAimingDirection;
+                    this.bluetoothHandler.playNavigationInstruction(newAimingDirection);
+                }
+            } else {
+                this.mLastAimingDirection = null;
+            }
         }
     }
 
@@ -795,9 +821,9 @@ export class GeoHandler extends Observable {
             aimingAngle: this.aimingAngle,
             isInTrackBounds: this.isInTrackBounds
         } as UserLocationdEventData);
-        if (DEV_LOG) {
-            // console.log(TAG,'onLocation', JSON.stringify(loc));
-        }
+        // if (DEV_LOG) {
+        //     console.log(TAG, 'onLocation', JSON.stringify(loc));
+        // }
 
         if (manager && this._isIOSBackgroundMode && !this._deferringUpdates) {
             this._deferringUpdates = true;
@@ -870,7 +896,7 @@ export class GeoHandler extends Observable {
     }
     async startSession() {
         this.actualSessionStart(true);
-        this.bluetoothHandler.playInstruction('start');
+        this.bluetoothHandler.playInstruction('start', { force: true });
     }
 
     async resumeSession() {

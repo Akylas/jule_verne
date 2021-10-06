@@ -61,6 +61,7 @@
                                             horizontalAlignment="center"
                                             textAlignment="center"
                                             verticalAlignment="center"
+                                            @tap="onTap('drawTestImage')"
                                         />
                                     </StackLayout>
                                 </GridLayout>

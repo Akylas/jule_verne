@@ -1,4 +1,5 @@
 import { CartoMap } from '@nativescript-community/ui-carto/ui';
+import { prompt } from '@nativescript-community/ui-material-dialogs';
 import * as application from '@nativescript/core/application';
 import { EventData } from '@nativescript/core/data/observable';
 import { ObservableArray } from '@nativescript/core/data/observable-array';
@@ -32,6 +33,7 @@ import {
     UserLocationdEventData,
     UserRawLocationEvent
 } from '~/handlers/GeoHandler';
+import { $tc } from '~/helpers/locale';
 import Track, { GeometryProperties, TrackFeature, TrackGeometry } from '~/models/Track';
 import { confirm } from '~/utils/dialogs';
 import { ComponentIds } from './App';
@@ -232,6 +234,13 @@ export default class Home extends BgServiceComponent {
         this.geoHandlerOn(UserRawLocationEvent, this.onNewLocation, this);
         this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
         this.geoHandlerOn(InsideFeatureEvent, this.onInsideFeature, this);
+        this.onNewLocation({
+            error: null,
+            location: handlers.geoHandler.lastLocation,
+            aimingFeature: handlers.geoHandler.aimingFeature,
+            aimingAngle: handlers.geoHandler.aimingAngle,
+            isInTrackBounds: handlers.geoHandler.isInTrackBounds
+        } as any);
 
         this.bluetoothHandlerOn('drawBitmap', this.onDrawImage);
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
@@ -332,6 +341,9 @@ export default class Home extends BgServiceComponent {
                 case 'menu':
                     this.$getAppComponent().drawer.open();
                     break;
+                case 'settings':
+                    this.$getAppComponent().navigateToUrl(ComponentIds.Settings);
+                    break;
                 case 'connectGlasses':
                     if (this.connectedGlasses) {
                         this.$refs.drawer.nativeView.toggle();
@@ -351,13 +363,41 @@ export default class Home extends BgServiceComponent {
                     await this.bluetoothHandler.playInstruction('start', { randomize: true });
                     break;
                 case 'rideau':
-                    await this.bluetoothHandler.playInstruction('rideau', { iterations: 1, delay: 1500 });
+                    await this.bluetoothHandler.playRideauAndStory();
                     break;
                 case 'demitour':
                     await this.bluetoothHandler.playInstruction('uturn', { frameDuration: 400 });
                     break;
                 case 'stopPlaying':
                     await this.bluetoothHandler.stopPlayingLoop();
+                    break;
+                case 'changeDeviceName':
+                    prompt({
+                        title: $tc('change_glasses_name'),
+                        // message: $tc('change_glasses_name'),
+                        okButtonText: $tc('change'),
+                        cancelButtonText: $tc('cancel'),
+                        autoFocus: true,
+                        defaultText: this.connectedGlasses.localName,
+                        textFieldProperties: {
+                            marginLeft: 10,
+                            marginRight: 10,
+                            hint: $tc('name')
+                        }
+                    })
+                        .then((result) => {
+                            console.log(TAG, 'changeDeviceName', result, this.connectedGlasses.localName);
+                            if (result && !!result.result && result.text.length > 0 && result.text !== this.connectedGlasses.localName) {
+                                return this.bluetoothHandler.setGlassesName(result.text).then(() =>
+                                    alert({
+                                        title: $tc('glasses_updated'),
+                                        message: $tc('reboot_glasses_required'),
+                                        okButtonText: $tc('ok')
+                                    })
+                                );
+                            }
+                        })
+                        .catch(this.showError);
                     break;
             }
         } catch (err) {
@@ -405,13 +445,13 @@ export default class Home extends BgServiceComponent {
         const name = 'index' in properties ? properties.index : properties.name;
         return name;
     }
-    playCurrentStory() {
-        console.log('playCurrentStory', !!this.insideFeature);
-        if (this.insideFeature) {
-            const name = this.insideFeatureName;
-            this.geoHandler.playStory(name);
-        }
-    }
+    // playCurrentStory() {
+    //     console.log('playCurrentStory', !!this.insideFeature);
+    //     if (this.insideFeature) {
+    //         const name = this.insideFeatureName;
+    //         this.geoHandler.playStory(name);
+    //     }
+    // }
 
     onLongPress(command: string, args: GestureEventData) {
         if (args.ios && args.ios.state !== 3) {
@@ -491,6 +531,7 @@ export default class Home extends BgServiceComponent {
     }
 
     onDrawImage(event) {
+        // console.log('onDrawImage', event.bitmap);
         this.currentDrawImage = event.bitmap;
     }
 }

@@ -1,12 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools" tools:node="replace" package="__PACKAGE__">
-    <supports-screens
-		android:smallScreens="true"
-		android:normalScreens="true"
-		android:largeScreens="true"
-		android:xlargeScreens="true"/>
+    xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" tools:node="replace" package="__PACKAGE__">
+    <supports-screens android:smallScreens="true" android:normalScreens="true" android:largeScreens="true" android:xlargeScreens="true" />
     <uses-sdk android:targetSdkVersion="__APILEVEL__" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
@@ -35,7 +30,7 @@
 			android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|locale|uiMode"
 			android:theme="@style/LaunchScreenTheme"
 			android:windowSoftInputMode="stateHidden|adjustPan"
-			android:launchMode="singleTask">
+			android:launchMode="singleTask" android:exported="true">
             <meta-data android:name="SET_THEME_ON_LAUNCH" android:resource="@style/AppTheme" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -51,7 +46,6 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="application/gpx"/>
             </intent-filter>
-
             <intent-filter
                 android:label="@string/app_name"
                 android:priority="50">
@@ -75,7 +69,6 @@
                 <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\..*\\..*\\.gpx" />
                 <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\..*\\..*\\..*\\.gpx" />
             </intent-filter>
-
             <intent-filter
                 android:label="@string/app_name"
                 android:priority="50">
@@ -99,7 +92,7 @@
                 <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\..*\\..*\\..*\\.gpx" />
             </intent-filter>
         </activity>
-        <activity android:name="com.tns.ErrorReportActivity" />
+        <activity android:name="com.tns.ErrorReportActivity"  android:exported="false"/>
         <meta-data android:name="android.webkit.WebView.MetricsOptOut" android:value="true" />
         <service android:name=".BgService" android:enabled="true" android:exported="false"  android:stopWithTask="false" android:foregroundServiceType="location|connectedDevice"/>
     </application>

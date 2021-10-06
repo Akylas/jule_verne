@@ -1,22 +1,15 @@
 import { CartoMap } from '@nativescript-community/ui-carto/ui';
-import { LineChart } from '@nativescript-community/ui-chart/charts/LineChart';
-import { XAxisPosition } from '@nativescript-community/ui-chart/components/XAxis';
-import { LineData } from '@nativescript-community/ui-chart/data/LineData';
-import { LineDataSet } from '@nativescript-community/ui-chart/data/LineDataSet';
-import { ObservableArray } from '@nativescript/core/data/observable-array';
+import { Color, ObservableArray } from '@nativescript/core';
 import { layout } from '@nativescript/core/utils/utils';
 import { Feature } from 'geojson';
 import { Component, Prop } from 'vue-property-decorator';
-import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
-import { GeoHandler, GeoLocation, Session } from '~/handlers/GeoHandler';
-import { UNITS, convertDuration, convertValueToUnit, toImperialUnit } from '~/helpers/formatter';
-import { computeDistance, getBoundsZoomLevel, getCenter } from '~/helpers/geo';
+import BgServiceComponent from '~/components/BgServiceComponent';
+import { getBoundsZoomLevel, getCenter } from '~/helpers/geo';
 import Track, { GeometryProperties, TrackGeometry } from '~/models/Track';
 import { borderColor, mdiFontFamily, textColor } from '~/variables';
+import Editor from './Editor.vue';
 // import {notify as appNotify, HistorySessionUpdatedEvent} from './App';
 import MapComponent from './MapComponent';
-import Editor from './Editor.vue';
-import tinycolor from 'tinycolor2';
 
 @Component({
     components: {
@@ -65,7 +58,7 @@ export default class TrackDetails extends BgServiceComponent {
     }
 
     get fillColor() {
-        return (item: Feature<TrackGeometry, GeometryProperties>) => item.properties.color && new tinycolor(item.properties.color).setAlpha(0.5).toRgbString();
+        return (item: Feature<TrackGeometry, GeometryProperties>) => item.properties.color && new Color(item.properties.color).setAlpha(0.5);
     }
     get icon() {
         return (item: Feature<TrackGeometry, GeometryProperties>) => {

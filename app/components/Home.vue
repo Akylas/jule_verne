@@ -16,16 +16,26 @@
                 <Label row="1" horizontalAlignment="left" color="blue" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentBearing" padding="10" />
                 <Label row="1" horizontalAlignment="center" color="black" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="aimingAngle" padding="10" />
                 <Label row="1" horizontalAlignment="right" color="red" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentComputedBearing" padding="10" />
-                <StackLayout horizontalAlignment="left" verticalAlignment="bottom" row="1" marginBottom="100" backgroundColor="#44000000" width="100%" :isPassThroughParentEnabled="true">
+                <!-- <StackLayout horizontalAlignment="left" verticalAlignment="bottom" row="1" marginBottom="100" backgroundColor="#44000000" width="100%" :isPassThroughParentEnabled="true">
                     <TextView variant="none" :text="eventsLog" fontSize="12" editable="false" color="#EDEDED" height="100" backgroundColor="transparent" isUserInteractionEnabled="false" />
-                    <!-- <MDButton variant="text" v-show="!!insideFeature" :text="insideFeature ? `play ${insideFeatureName}` : ''" @tap="playCurrentStory" /> -->
-                </StackLayout>
+                    <MDButton variant="text" v-show="!!insideFeature" :text="insideFeature ? `play ${insideFeatureName}` : ''" @tap="playCurrentStory" />
+                </StackLayout> -->
 
                 <Image :src="currentDrawImage" width="100" height="100" horizontalAlignment="left" verticalAlignment="bottom" row="1" />
                 <StackLayout orientation="horizontal" horizontalAlignment="center" verticalAlignment="bottom" row="1">
                     <MDButton class="floating-btn" :text="sessionRunning ? 'mdi-pause' : 'mdi-play'" @tap="onTap('startSession', $event)" />
                     <MDButton class="floating-btn" v-show="sessionPaused" :text="'mdi-stop'" @tap="onTap('stopSession', $event)" />
                 </StackLayout>
+                <MDButton
+                    class="small-floating-btn"
+                    v-show="connectedGlasses"
+                    text="mdi-settings"
+                    @tap="onTap('settings', $event)"
+                    verticalAlignment="bottom"
+                    row="1"
+                    horizontalAlignment="left"
+                    marginBottom="8"
+                />
             </GridLayout>
             <GridLayout ~rightDrawer rows="auto, *, auto" height="100%" backgroundColor="white" width="70%">
                 <GridLayout v-show="!!connectedGlasses" columns="auto,*,auto" rows="*,auto,auto,*,30" margin="15 15 30 15">

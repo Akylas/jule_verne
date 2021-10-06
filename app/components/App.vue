@@ -1,6 +1,6 @@
 <template>
     <Page ref="page" actionBarHidden @loaded="onLoaded">
-        <Drawer ref="drawer" leftDrawerMode="slide">
+        <Drawer ref="drawer" leftDrawerMode="slide" :leftClosedDrawerAllowDraging="false">
             <GridLayout ~leftDrawer rows="auto, *, auto" height="100%" :backgroundColor="backgroundColor" width="80%">
                 <GridLayout padding="10" height="80" rows="auto, *" columns="auto, *">
                     <Label marginLeft="15" fontSize="20" :text="$t('browse') | titlecase" :color="textColor"/>

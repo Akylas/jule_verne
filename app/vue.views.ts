@@ -21,7 +21,6 @@ import DrawerPlugin from '@nativescript-community/ui-drawer/vue';
 
 const Plugin = {
     install(Vue) {
-        console.log('installing view components');
         Vue.component('CActionBar', CActionBar);
         Vue.component('ListItem', ListItem);
         Vue.use(ActivityIndicatorPlugin);

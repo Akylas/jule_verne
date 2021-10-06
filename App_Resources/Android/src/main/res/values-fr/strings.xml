@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <string name="map">"carte"</string>
   <string name="tap_to_open">"appuyez pour ouvrir"</string>
   <string name="leaving_feature">"vous quittez %1$s"</string>
   <string name="entering_feature">"vous entrez dans %1$s"</string>
-  <string name="app_name">"Jule Verne"</string>
-  <string name="title_activity_kimera">"Jule Verne"</string>
+  <string name="app_name">"Jules Verne"</string>
+  <string name="title_activity_kimera">"Jules Verne"</string>
 </resources>

@@ -5,6 +5,17 @@ export function numberToUint8Array(n: number) {
     return [(n >> 8) & 0xff, n & 0xff];
 }
 
+export function intFromBytes(x) {
+    let val = 0;
+    const length = x.length;
+    for (let i = 0; i < length; ++i) {
+        val += x[i];
+        if (i < length - 1) {
+            val = val << 8;
+        }
+    }
+    return val;
+}
 export function toUTF8Array(str: string) {
     str = str.normalize('NFKD').replace(/[\u0300-\u036F]/g, '');
     const utf8 = [];
@@ -163,20 +174,26 @@ export interface ProgressData {
 function parseMessagePayload(commandType: CommandType, data: Buffer) {
     // console.log('parseMessagePayload', commandType, data);
     switch (commandType) {
+        case CommandType.Rconfig:
+            // 8bytes
+            return {
+                version: data ? intFromBytes(data.slice(1, 5)) : -1
+            };
         case CommandType.Version:
             return {
                 version: `${data[0]}.${data[1]}.${data[2]}${String.fromCharCode(data[3])}`
             };
         case CommandType.Settings:
-            const mask = 1 << 7; // gets the 6th bit
+            const mask0 = data[0] >> 7; // gets the 6th bit
+            const mask1 = data[1] >> 7; // gets the 6th bit
             return {
                 shift: {
-                    x: (data[0] & ~mask) * (data[0] & mask ? -1 : 1),
-                    y: (data[1] & ~mask) * (data[1] & mask ? -1 : 1)
+                    x: mask0 ? data[0] - 256 : data[0],
+                    y: mask1 ? data[1] - 256 : data[1]
                 },
                 luma: data[2],
                 als: !!data[3],
-                gesture: !!data[3]
+                gesture: !!data[4]
             };
             break;
 
@@ -187,7 +204,7 @@ function parseMessagePayload(commandType: CommandType, data: Buffer) {
 }
 
 export type ByteArray = number[];
-export type MessageBuffer = Buffer | ByteArray;
+export type MessageBuffer = ByteArray | Uint8Array;
 export class MessageParser {
     currentPayload?: Buffer;
     private currentMessageType: CommandType;

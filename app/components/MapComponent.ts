@@ -1,56 +1,65 @@
 import { request } from '@nativescript-community/perms';
 import { TWEEN } from '@nativescript-community/tween';
-import { MapPosVector, fromNativeMapPos } from '@nativescript-community/ui-carto/core';
-import { LineGeometry } from '@nativescript-community/ui-carto/geometry';
-import { MergedMBVTTileDataSource } from '@nativescript-community/ui-carto/datasources';
+import { MapPosVector } from '@nativescript-community/ui-carto/core';
+import { GeoJSONVectorTileDataSource, MergedMBVTTileDataSource } from '@nativescript-community/ui-carto/datasources';
 import { PersistentCacheTileDataSource } from '@nativescript-community/ui-carto/datasources/cache';
 import { HTTPTileDataSource } from '@nativescript-community/ui-carto/datasources/http';
 import { MBTilesTileDataSource } from '@nativescript-community/ui-carto/datasources/mbtiles';
 import { LocalVectorDataSource } from '@nativescript-community/ui-carto/datasources/vector';
-import { HillshadeRasterTileLayer, RasterTileLayer } from '@nativescript-community/ui-carto/layers/raster';
+import { LineGeometry } from '@nativescript-community/ui-carto/geometry';
+import { GeoJSONGeometryReader } from '@nativescript-community/ui-carto/geometry/reader';
+import { RasterTileLayer } from '@nativescript-community/ui-carto/layers/raster';
 import { VectorElementEventData, VectorLayer, VectorTileLayer, VectorTileRenderOrder } from '@nativescript-community/ui-carto/layers/vector';
 import { Projection } from '@nativescript-community/ui-carto/projections';
 import { CartoMap } from '@nativescript-community/ui-carto/ui';
+import { VectorElement } from '@nativescript-community/ui-carto/vectorelements';
+import { Group } from '@nativescript-community/ui-carto/vectorelements/group';
 import { Line, LineEndType, LineJointType } from '@nativescript-community/ui-carto/vectorelements/line';
 import { Marker } from '@nativescript-community/ui-carto/vectorelements/marker';
 import { Point } from '@nativescript-community/ui-carto/vectorelements/point';
 import { Polygon } from '@nativescript-community/ui-carto/vectorelements/polygon';
-import { Group } from '@nativescript-community/ui-carto/vectorelements/group';
 import { Text } from '@nativescript-community/ui-carto/vectorelements/text';
 import { MBVectorTileDecoder } from '@nativescript-community/ui-carto/vectortiles';
-import { Application } from '@nativescript/core';
-import { getNumber, getString } from '@nativescript/core/application-settings';
-import { Color } from '@nativescript/core/color';
-import { EventData, Observable } from '@nativescript/core/data/observable';
-import { ChangeType, ChangedData, ObservableArray } from '@nativescript/core/data/observable-array';
-import { Folder, knownFolders, path } from '@nativescript/core/file-system';
-import { addWeakEventListener, removeWeakEventListener } from '@nativescript/core/ui';
+import {
+    Application,
+    ApplicationSettings,
+    ChangedData,
+    Color,
+    EventData,
+    Folder,
+    Observable,
+    ObservableArray,
+    addWeakEventListener,
+    knownFolders,
+    path,
+    removeWeakEventListener
+} from '@nativescript/core';
 import dayjs from 'dayjs';
+import { BBox } from 'geojson';
 import { Component, Prop, Watch } from 'vue-property-decorator';
-import { GeoHandler, GeoLocation, PositionStateEvent, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
-import Track, { GeometryProperties, TrackFeature, TrackGeometry } from '~/models/Track';
+import { GeoLocation, PositionStateEvent, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
+import Track, { TrackFeature } from '~/models/Track';
 import { getDataFolder } from '~/utils/utils';
-import { computeAngleBetween } from '~/utils/geo';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
-import { GeoJSONGeometryReader } from '@nativescript-community/ui-carto/geometry/reader';
-import { BBox, Feature } from 'geojson';
-import { VectorElement } from '@nativescript-community/ui-carto/vectorelements';
+import { setShowDebug, setShowError, setShowInfo, setShowWarn } from '@nativescript-community/ui-carto/utils';
 
 const LOCATION_ANIMATION_DURATION = 300;
 const production = TNS_ENV === 'production';
 
 @Component({})
 export default class MapComponent extends BgServiceComponent {
-    _cartoMap: CartoMap<LatLonKeys> = null;
-    mapProjection: Projection = null;
-    rasterLayer: RasterTileLayer = null;
-    lastUserLocation: GeoLocation = null;
-    _localVectorDataSource: LocalVectorDataSource;
-    localVectorLayer: VectorLayer;
-    userBackMarker: Point<LatLonKeys>;
-    userMarker: Point<LatLonKeys>;
-    accuracyMarker: Polygon<LatLonKeys>;
-    aimingLine: Line<LatLonKeys>;
+    mCartoMap: CartoMap<LatLonKeys> = null;
+    mMapProjection: Projection = null;
+    mRasterLayer: RasterTileLayer = null;
+    mLastUserLocation: GeoLocation = null;
+    mLocalVectorDataSource: LocalVectorDataSource;
+    mLocalVectorLayer: VectorLayer;
+    mGeoJSONVectorDataSource: GeoJSONVectorTileDataSource;
+    mGeoJSONLayer: VectorTileLayer;
+    mUserBackMarker: Point<LatLonKeys>;
+    mUserMarker: Point<LatLonKeys>;
+    mAccuracyMarker: Polygon<LatLonKeys>;
+    mAimingLine: Line<LatLonKeys>;
     @Prop({ default: true, type: Boolean }) locationEnabled: boolean;
     isUserFollow: boolean;
     @Prop({ default: null }) tracks: Track[] | ObservableArray<Track>;
@@ -58,11 +67,10 @@ export default class MapComponent extends BgServiceComponent {
     @Prop({ default: false, type: Boolean }) readonly showLocationButton!: boolean;
 
     realTimeShowUnfiltered = true;
-    hillshadeLayer: HillshadeRasterTileLayer;
     vectorLayer: VectorTileLayer;
 
     get cartoMap() {
-        return this._cartoMap;
+        return this.mCartoMap;
     }
     get userFollow() {
         return this.isUserFollow;
@@ -84,12 +92,12 @@ export default class MapComponent extends BgServiceComponent {
 
     get lastLocationDetails() {
         return `
-position:               ${this.lastUserLocation.lat.toFixed(4)},${this.lastUserLocation.lon.toFixed(4)}
-horizontalAccuracy:     ${this.lastUserLocation.horizontalAccuracy.toFixed()}m
-provider:               ${this.lastUserLocation.provider} 
-speed:                  ${this.lastUserLocation.hasOwnProperty('speed') ? this.lastUserLocation.speed.toFixed() : '-'}m/s
-altitude:               ${this.lastUserLocation.hasOwnProperty('altitude') ? this.lastUserLocation.altitude.toFixed() : '-'}m
-time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
+position:               ${this.mLastUserLocation.lat.toFixed(4)},${this.mLastUserLocation.lon.toFixed(4)}
+horizontalAccuracy:     ${this.mLastUserLocation.horizontalAccuracy.toFixed()}m
+provider:               ${this.mLastUserLocation.provider} 
+speed:                  ${this.mLastUserLocation.hasOwnProperty('speed') ? this.mLastUserLocation.speed.toFixed() : '-'}m/s
+altitude:               ${this.mLastUserLocation.hasOwnProperty('altitude') ? this.mLastUserLocation.altitude.toFixed() : '-'}m
+time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
     }
     destroyed() {
         super.destroyed();
@@ -98,7 +106,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         super.mounted();
     }
     getDefaultMBTilesDir() {
-        let localMbtilesSource = getString('local_mbtiles_directory');
+        let localMbtilesSource = ApplicationSettings.getString('local_mbtiles_directory');
         if (!localMbtilesSource) {
             let defaultPath = path.join(getDataFolder(), 'alpimaps_mbtiles');
             if (global.isAndroid) {
@@ -106,14 +114,18 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                 const sdcardFolder = dirs[dirs.length - 1].getAbsolutePath();
                 defaultPath = path.join(sdcardFolder, '../../../..', 'alpimaps_mbtiles');
             }
-            localMbtilesSource = getString('local_mbtiles_directory', defaultPath);
+            localMbtilesSource = ApplicationSettings.getString('local_mbtiles_directory', defaultPath);
         }
         return localMbtilesSource;
     }
     async onMapReady(e) {
-        const cartoMap = (this._cartoMap = e.object as CartoMap<LatLonKeys>);
+        const cartoMap = (this.mCartoMap = e.object as CartoMap<LatLonKeys>);
 
-        this.mapProjection = cartoMap.projection;
+        setShowDebug(true);
+        setShowInfo(true);
+        setShowWarn(true);
+        setShowError(true);
+        this.mMapProjection = cartoMap.projection;
         const options = cartoMap.getOptions();
         options.setWatermarkScale(0.5);
         options.setRestrictedPanning(true);
@@ -121,8 +133,8 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         options.setEnvelopeThreadPoolSize(2);
         options.setTileThreadPoolSize(2);
         options.setZoomGestures(true);
-        options.setRotatable(true);
-        cartoMap.setZoom(getNumber('mapZoom', 16), 0);
+        options.setRotatable(false);
+        cartoMap.setZoom(ApplicationSettings.getNumber('mapZoom', 16), 0);
 
         cartoMap.setFocusPos(this.lastKnownLocation);
 
@@ -130,23 +142,25 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         const dataSource = new PersistentCacheTileDataSource({
             dataSource: new HTTPTileDataSource({
                 minZoom: 2,
-                subdomains: 'abc',
-                maxZoom: 18,
-                url: 'http://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'
+                maxZoom: 19,
+                httpHeaders: {
+                    'User-Agent': 'JulesVerne'
+                },
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
             }),
-            databasePath: cacheFolder.path
+            databasePath: path.join(cacheFolder.path, 'osm.db')
         });
         const folderPath = this.getDefaultMBTilesDir();
         // console.log('localMbtilesSource', folderPath);
         if (folderPath) {
-            await this.loadLocalMbtiles(folderPath);
+            // await this.loadLocalMbtiles(folderPath);
         }
         if (!this.vectorLayer) {
-            this.rasterLayer = new RasterTileLayer({
+            this.mRasterLayer = new RasterTileLayer({
                 zoomLevelBias: 1,
                 dataSource
             });
-            cartoMap.addLayer(this.rasterLayer);
+            cartoMap.addLayer(this.mRasterLayer);
         }
 
         this.updateTrack(this.tracks);
@@ -168,18 +182,14 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                 )
             });
         }
-        const vectorTileDecoder = new MBVectorTileDecoder({
-            style: 'voyager',
-            liveReload: !PRODUCTION,
-            dirPath: '~/assets/styles/osmxml'
-        });
         const layer = new VectorTileLayer({
             dataSource,
-            decoder: vectorTileDecoder
+            decoder: new MBVectorTileDecoder({
+                style: 'streets',
+                zipPath: '~/assets/styles/osm.zip'
+            }),
+            labelRenderOrder: VectorTileRenderOrder.LAST
         });
-        layer.setLabelRenderOrder(VectorTileRenderOrder.LAST);
-        // layer.setBuildingRenderOrder(VectorTileRenderOrder.LAYER);
-        // layer.setVectorTileEventListener(this, mapComp.mapProjection);
         return layer;
     }
     async loadLocalMbtiles(directory: string) {
@@ -191,7 +201,6 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
             const folder = Folder.fromPath(directory);
             const entities = await folder.getEntities();
             const folders = entities.filter((e) => Folder.exists(e.path));
-            console.log('folders', folders);
             for (let i = 0; i < folders.length; i++) {
                 const f = folders[i];
                 const subentities = await Folder.fromPath(f.path).getEntities();
@@ -200,50 +209,8 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                     name: f.name,
                     sources: subentities.map((e2) => e2.path).filter((s) => s.endsWith('.mbtiles'))
                 }));
-                this._cartoMap.addLayer(layer);
+                this.mCartoMap.addLayer(layer);
             }
-            // const etiles = entities.filter((e) => e.name.endsWith('.etiles')).slice(-1);
-            // etiles.forEach((e) => {
-            //     // this.log('loading etiles', e.name);
-            //     const dataSource = new MBTilesTileDataSource({
-            //         // minZoom: 5,
-            //         // maxZoom: 12,
-            //         databasePath: e.path,
-            //     });
-            //     const name = e.name;
-            //     const contrast = getNumber(`${name}_contrast`, 0.39);
-            //     const heightScale = getNumber(`${name}_heightScale`, 0.29);
-            //     const illuminationDirection = getNumber(`${name}_illuminationDirection`, 207);
-            //     const opacity = getNumber(`${name}_opacity`, 1);
-            //     const decoder = new MapBoxElevationDataDecoder();
-            //     const layer = this.hillshadeLayer = new HillshadeRasterTileLayer({
-            //         decoder,
-            //         tileFilterMode: RasterTileFilterMode.RASTER_TILE_FILTER_MODE_NEAREST,
-            //         visibleZoomRange: [5, 16],
-            //         contrast,
-            //         illuminationDirection,
-            //         highlightColor: new Color(255, 141, 141, 141),
-            //         heightScale,
-            //         dataSource,
-            //         opacity,
-            //         visible: opacity !== 0,
-            //     });
-            //     const tileFilterMode = getString(`${name}_tileFilterMode`, 'bilinear');
-            //     switch (tileFilterMode) {
-            //         case 'bicubic':
-            //             layer.getNative().setTileFilterMode(RasterTileFilterMode.RASTER_TILE_FILTER_MODE_BICUBIC);
-            //             break;
-            //         case 'bilinear':
-            //             layer.getNative().setTileFilterMode(RasterTileFilterMode.RASTER_TILE_FILTER_MODE_BILINEAR);
-            //             break;
-            //         case 'nearest':
-            //             layer.getNative().setTileFilterMode(RasterTileFilterMode.RASTER_TILE_FILTER_MODE_NEAREST);
-            //             break;
-            //     }
-
-            //     this._cartoMap.addLayer(layer);
-            // });
-            // return Promise.all(
         } catch (err) {
             console.error(err);
             setTimeout(() => {
@@ -280,18 +247,38 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
     }
 
     get localVectorDataSource() {
-        if (!this._localVectorDataSource && this._cartoMap) {
-            this._localVectorDataSource = new LocalVectorDataSource({ projection: this.mapProjection });
+        if (!this.mLocalVectorDataSource && this.mCartoMap) {
+            this.mLocalVectorDataSource = new LocalVectorDataSource({ projection: this.mMapProjection });
         }
-        return this._localVectorDataSource;
+        return this.mLocalVectorDataSource;
     }
     getOrCreateLocalVectorLayer() {
-        if (!this.localVectorLayer && this._cartoMap) {
-            this.localVectorLayer = new VectorLayer({ visibleZoomRange: [0, 24], dataSource: this.localVectorDataSource });
-            this.localVectorLayer.setVectorElementEventListener(this);
+        if (!this.mLocalVectorLayer && this.mCartoMap) {
+            this.mLocalVectorLayer = new VectorLayer({ visibleZoomRange: [0, 24], dataSource: this.localVectorDataSource });
+            this.mLocalVectorLayer.setVectorElementEventListener(this);
 
             // always add it at 1 to respect local order
-            this._cartoMap.addLayer(this.localVectorLayer);
+            this.mCartoMap.addLayer(this.mLocalVectorLayer);
+        }
+    }
+    get geoJSONVectorDataSource() {
+        if (!this.mGeoJSONVectorDataSource && this.mCartoMap) {
+            this.mGeoJSONVectorDataSource = new GeoJSONVectorTileDataSource({ simplifyTolerance: 0, minZoom: 0, maxZoom: 24 });
+            this.mGeoJSONVectorDataSource.createLayer('items');
+        }
+        return this.mGeoJSONVectorDataSource;
+    }
+    getOrCreateGeoJSONVectorLayer() {
+        if (!this.mGeoJSONLayer && this.mCartoMap) {
+            this.mGeoJSONLayer = new VectorTileLayer({
+                decoder: new MBVectorTileDecoder({
+                    style: 'voyager',
+                    liveReload: !PRODUCTION,
+                    dirPath: '~/assets/styles/jule_verne'
+                }),
+                dataSource: this.geoJSONVectorDataSource
+            });
+            this.mCartoMap.addLayer(this.mGeoJSONLayer);
         }
     }
     updateUserLocation(geoPos: GeoLocation) {
@@ -299,10 +286,13 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
             return;
         }
         if (
-            !this._cartoMap ||
-            (this.lastUserLocation && this.lastUserLocation.lat === geoPos.lat && this.lastUserLocation.lon === geoPos.lon && this.lastUserLocation.horizontalAccuracy === geoPos.horizontalAccuracy)
+            !this.mCartoMap ||
+            (this.mLastUserLocation &&
+                this.mLastUserLocation.lat === geoPos.lat &&
+                this.mLastUserLocation.lon === geoPos.lon &&
+                this.mLastUserLocation.horizontalAccuracy === geoPos.horizontalAccuracy)
         ) {
-            this.lastUserLocation = geoPos;
+            this.mLastUserLocation = geoPos;
             return;
         }
 
@@ -321,24 +311,24 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
 
         const position = { lat: geoPos.lat, lon: geoPos.lon, horizontalAccuracy: geoPos.horizontalAccuracy };
         // console.log('updateUserLocation', position, this.userFollow, accuracyColor);
-        if (this.userMarker) {
-            const currentLocation = { lat: this.lastUserLocation.lat, lon: this.lastUserLocation.lon, horizontalAccuracy: this.lastUserLocation.horizontalAccuracy };
-            const styleBuilder = this.userMarker.styleBuilder;
+        if (this.mUserMarker) {
+            const currentLocation = { lat: this.mLastUserLocation.lat, lon: this.mLastUserLocation.lon, horizontalAccuracy: this.mLastUserLocation.horizontalAccuracy };
+            const styleBuilder = this.mUserMarker.styleBuilder;
             styleBuilder.color = accuracyColor;
-            this.userMarker.styleBuilder = styleBuilder;
-            if (this.accuracyMarker) {
-                this.accuracyMarker.visible = accuracy > 10;
+            this.mUserMarker.styleBuilder = styleBuilder;
+            if (this.mAccuracyMarker) {
+                this.mAccuracyMarker.visible = accuracy > 10;
             }
             new TWEEN.Tween(currentLocation)
                 .to(position, LOCATION_ANIMATION_DURATION)
                 .easing(TWEEN.Easing.Quadratic.Out)
                 .onUpdate((newPos) => {
-                    if (this.userBackMarker) {
-                        this.userBackMarker.position = newPos;
-                        this.userMarker.position = newPos;
+                    if (this.mUserBackMarker) {
+                        this.mUserBackMarker.position = newPos;
+                        this.mUserMarker.position = newPos;
                     }
-                    if (this.accuracyMarker) {
-                        this.accuracyMarker.positions = this.getCirclePoints(newPos);
+                    if (this.mAccuracyMarker) {
+                        this.mAccuracyMarker.positions = this.getCirclePoints(newPos);
                     }
                 })
                 .start(0);
@@ -346,7 +336,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
             this.getOrCreateLocalVectorLayer();
             // const projection = this.mapView.projection;
 
-            this.accuracyMarker = new Polygon<LatLonKeys>({
+            this.mAccuracyMarker = new Polygon<LatLonKeys>({
                 positions: this.getCirclePoints(geoPos),
                 styleBuilder: {
                     size: 16,
@@ -357,33 +347,33 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
                     }
                 }
             });
-            this.localVectorDataSource.add(this.accuracyMarker);
+            this.localVectorDataSource.add(this.mAccuracyMarker);
 
-            this.userBackMarker = new Point<LatLonKeys>({
+            this.mUserBackMarker = new Point<LatLonKeys>({
                 position,
                 styleBuilder: {
                     size: 17,
                     color: '#ffffff'
                 }
             });
-            this.localVectorDataSource.add(this.userBackMarker);
-            this.userMarker = new Point<LatLonKeys>({
+            this.localVectorDataSource.add(this.mUserBackMarker);
+            this.mUserMarker = new Point<LatLonKeys>({
                 position,
                 styleBuilder: {
                     size: 14,
                     color: accuracyColor
                 }
             });
-            this.localVectorDataSource.add(this.userMarker);
+            this.localVectorDataSource.add(this.mUserMarker);
             // this.userBackMarker.position = position;
             // this.userMarker.position = position;
         }
         if (this.userFollow) {
-            this._cartoMap.setZoom(Math.max(this._cartoMap.zoom, 16), position, LOCATION_ANIMATION_DURATION);
-            this._cartoMap.setFocusPos(position, LOCATION_ANIMATION_DURATION);
+            this.mCartoMap.setZoom(Math.max(this.mCartoMap.zoom, 16), position, LOCATION_ANIMATION_DURATION);
+            this.mCartoMap.setFocusPos(position, LOCATION_ANIMATION_DURATION);
         }
 
-        this.lastUserLocation = geoPos;
+        this.mLastUserLocation = geoPos;
     }
     onLocation(data: UserLocationdEventData) {
         this.searchingForUserLocation = false;
@@ -398,23 +388,23 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         const feature = data.aimingFeature;
         if (feature) {
             const center = feature.geometry.center;
-            if (!this.aimingLine) {
+            if (!this.mAimingLine) {
                 const centerPos = { lat: center[1], lon: center[0] };
-                this.aimingLine = new Line<LatLonKeys>({
+                this.mAimingLine = new Line<LatLonKeys>({
                     positions: [loc, centerPos],
                     styleBuilder: {
                         color: 'black',
                         width: 2
                     }
                 });
-                this.localVectorDataSource.add(this.aimingLine);
-            } else if (this.aimingLine) {
-                this.aimingLine.positions = [loc, { lat: center[1], lon: center[0] }];
-                this.aimingLine.visible = true;
+                this.localVectorDataSource.add(this.mAimingLine);
+            } else if (this.mAimingLine) {
+                this.mAimingLine.positions = [loc, { lat: center[1], lon: center[0] }];
+                this.mAimingLine.visible = true;
             }
         } else {
-            if (this.aimingLine) {
-                this.aimingLine.visible = false;
+            if (this.mAimingLine) {
+                this.mAimingLine.visible = false;
             }
         }
     }
@@ -544,130 +534,12 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
         if (!track) {
             return;
         }
-        console.log('addTrack', track.id);
         const featureCollection = track.geometry;
-        const count = featureCollection.features.length;
-        const objects = (this.mappedTracks[track.id] = {});
-        const reader = new GeoJSONGeometryReader({});
-
-        // const bboxpolygon = new Polygon<LatLonKeys>({
-        //     positions: this.bboxToPolygon(featureCollection.bbox),
-        //     styleBuilder: {
-        //         color: 'transparent',
-        //         lineStyleBuilder: {
-        //             color: 'white',
-        //             width: 2
-        //         }
-        //     }
-        // });
-        // this.localVectorDataSource.add(bboxpolygon);
-        for (let index = 0; index < count; index++) {
-            const feature = featureCollection.features[index];
-            // console.log('test', JSON.stringify(feature.geometry));
-            const geometry = reader.readGeometry(JSON.stringify(feature.geometry));
-            const properties = feature.properties;
-
-            const bboxpolygon = new Polygon<LatLonKeys>({
-                positions: this.bboxToPolygon(feature.bbox),
-                styleBuilder: {
-                    color: 'transparent',
-                    lineStyleBuilder: {
-                        color: 'white',
-                        width: 2
-                    }
-                }
-            });
-            this.localVectorDataSource.add(bboxpolygon);
-            const name = ('index' in properties ? properties.index : properties.name) + '';
-            let color = properties.color || properties.stroke || this.accentColor;
-            switch ((properties.shape || properties.type).toLowerCase()) {
-                case 'line': {
-                    const line = new Line<LatLonKeys>({
-                        geometry: geometry as LineGeometry<LatLonKeys>,
-                        styleBuilder: {
-                            color,
-                            joinType: LineJointType.ROUND,
-                            endType: LineEndType.ROUND,
-                            clickWidth: 20,
-                            width: 3
-                        }
-                    });
-                    this.localVectorDataSource.add(line);
-                    objects[feature.id] = line;
-                    break;
-                }
-                case 'circle': {
-                    if (!(color instanceof Color)) {
-                        color = new Color(color);
-                    }
-                    const circle = new Polygon<LatLonKeys>({
-                        positions: this.getCirclePoints(geometry.getCenterPos(), properties.radius),
-                        styleBuilder: {
-                            color: new Color(color.a / 2, color.r, color.g, color.b),
-                            lineStyleBuilder: {
-                                color,
-                                width: 1
-                            }
-                        }
-                    });
-                    this.localVectorDataSource.add(circle);
-                    objects[feature.id] = circle;
-                    break;
-                }
-                case 'marker': {
-                    if (!(color instanceof Color)) {
-                        color = new Color(color);
-                    }
-                    const marker = new Marker<LatLonKeys>({
-                        geometry,
-                        styleBuilder: {
-                            color: new Color(color.a / 2, color.r, color.g, color.b)
-                        }
-                    });
-                    this.localVectorDataSource.add(marker);
-                    objects[feature.id] = marker;
-                    break;
-                }
-                case 'polygon': {
-                    if (name === 'outer_ring') {
-                        color = this.geoHandler.isInTrackBounds ? 'black' : 'red';
-                    }
-                    if (!(color instanceof Color)) {
-                        color = new Color(color);
-                    }
-                    const group = new Group();
-                    group.elements = [
-                        new Polygon<LatLonKeys>({
-                            geometry,
-                            styleBuilder: {
-                                color: new Color(0, color.r, color.g, color.b),
-                                lineStyleBuilder: {
-                                    color,
-                                    width: 2
-                                }
-                            }
-                        }),
-
-                        new Text({
-                            position: { lat: feature.geometry.center[1], lon: feature.geometry.center[0] },
-                            text: name,
-                            visible: name !== 'outer_ring',
-                            styleBuilder: {
-                                fontSize: 15,
-                                anchorPointX: 0.5,
-                                anchorPointY: 0.5,
-                                hideIfOverlapped: false,
-                                // scaleWithDPI: true,
-                                color
-                            }
-                        })
-                    ];
-                    this.localVectorDataSource.add(group);
-                    objects[feature.id] = group;
-                    break;
-                }
-            }
-        }
+        // console.log('track', track);
+        this.getOrCreateGeoJSONVectorLayer();
+        this.geoJSONVectorDataSource.setLayerGeoJSONString(1, JSON.stringify(featureCollection));
+        return;
+        
         // const line = new Line<LatLonKeys>({
         //     positions: track.positions,
         //     styleBuilder: {
@@ -695,7 +567,7 @@ time:                   ${this.formatDate(this.lastUserLocation.timestamp)}`;
 
     @Watch('tracks')
     updateTrack(newValue, oldValue?) {
-        if (!this._cartoMap) {
+        if (!this.mCartoMap) {
             return;
         }
         if (oldValue instanceof Observable) {

@@ -756,7 +756,7 @@ export class BluetoothHandler extends Observable {
         return this.sendCommand({ command: CommandType.Color, params: [color] });
     }
 
-    sendBitmap(name: string, x: number, y: number) {
+    sendBitmap(name: number, x: number = 0, y: number = 0) {
         this.sendCommand({ command: CommandType.Bitmap, params: [name, 0, 0, x, y] });
     }
     async switchSensor() {
@@ -766,11 +766,12 @@ export class BluetoothHandler extends Observable {
         return this.activateGesture(!this.isGestureOn);
     }
     async askSettings() {
-        // console.log(TAG, 'askSettings');
+        console.log(TAG, 'askSettings');
         return this.sendCommand({ command: CommandType.Settings });
     }
     async setGlassesName(name: string) {
         return new Promise((resolve, reject) => {
+            name = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             this.sendCommand({
                 command: CommandType.SetName,
                 params: [name],
@@ -948,12 +949,29 @@ export class BluetoothHandler extends Observable {
     }
     currentLoop: string = null;
     isPlaying = false;
+    isPlayingStory = false;
+    isPlayingMusic = false;
+    isPlayingNavigationInstruction = false;
     toPlayNext: Function = null;
-    async stopPlayingLoop(fade = true) {
-        console.log('stopPlayingLoop');
-        if (!this.isPlaying) {
-            return;
+
+    async stopPlayingInstruction(fade = true) {
+        if (this.isPlaying && !this.isPlayingMusic && !this.isPlayingStory) {
+            return this.stopPlayingLoop(fade);
         }
+    }
+
+    async stopNavigationInstruction(fade = true) {
+        if (this.isPlayingNavigationInstruction) {
+            return this.stopPlayingLoop(fade);
+        }
+    }
+
+    async stopPlayingLoop(fade = true) {
+        console.log('stopPlayingLoop', new Error().stack);
+        // if (!this.isPlaying) {
+        //     return;
+        // }
+        this.isPlaying = false;
         if (this.lyric) {
             this.lyric.pause();
             this.lyric = null;
@@ -964,7 +982,6 @@ export class BluetoothHandler extends Observable {
         }
         if (this._player.isAudioPlaying()) {
             const onDone = async () => {
-                this.isPlaying = false;
                 this._player.pause();
                 this._player['_options']?.errorCallback();
                 try {
@@ -1025,7 +1042,7 @@ export class BluetoothHandler extends Observable {
     }
     async playOfImages(images: string[], imagesFolder, options?: { frameDuration?; randomize?; iterations? }) {
         const myLoop = images.join('');
-        if (this.currentLoop === myLoop) {
+        if (images.length === 0 || this.currentLoop === myLoop) {
             return;
         }
         this.currentLoop = myLoop;
@@ -1035,6 +1052,7 @@ export class BluetoothHandler extends Observable {
         let loopIndex = 0;
         const iterations = options?.iterations || 0;
         const imageMap = this.imageMap;
+        // console.log('playOfImages', images, myLoop, this.currentLoop, iterations, loopIndex);
         while (this.currentLoop === myLoop && !this.isFaded && (!iterations || loopIndex < iterations)) {
             if (options?.randomize === true) {
                 images = shuffleArray(images);
@@ -1043,10 +1061,11 @@ export class BluetoothHandler extends Observable {
                 if (this.isFaded) {
                     break;
                 }
+                // console.log('playing image', images[index], imageMap[images[index]]);
                 this.notify({ eventName: 'drawBitmap', bitmap: path.join(imagesFolder, images[index]) });
                 if (this.glasses) {
                     // console.log('playing image', images[index], imageMap[images[index]]);
-                    await this.glasses.sendCommand(CommandType.Bitmap, { params: [imageMap[images[index]], 0, 0] });
+                    await this.glasses.sendCommand(CommandType.Bitmap, { params: [imageMap[images[index].slice(0, -4)], 0, 0] });
                     // await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
                 }
                 await timeout(options?.frameDuration || 200);
@@ -1055,7 +1074,7 @@ export class BluetoothHandler extends Observable {
             loopIndex++;
         }
         this.notify({ eventName: 'drawBitmap', bitmap: null });
-        // await this.fadeout();
+        await this.fadeout();
     }
 
     // async playGoLeftLoop(loop = true) {
@@ -1180,66 +1199,93 @@ export class BluetoothHandler extends Observable {
         return this._imagesMap;
     }
 
+    async playAudio(audio: string, loop = false) {
+        return new Promise<void>(async (resolve, reject) => {
+            await this._player.playFromFile({
+                audioFile: audio, // ~ = app directory
+                loop,
+                completeCallback: () => {
+                    resolve();
+                },
+                errorCallback: () => {
+                    reject();
+                }
+            });
+        });
+    }
+
     async playAudios(audios: string[]) {
         for (let index = 0; index < audios.length; index++) {
             const audio = audios[index];
-            await new Promise<void>(async (resolve, reject) => {
-                await this._player.playFromFile({
-                    audioFile: audio, // ~ = app directory
-                    loop: false,
-                    completeCallback: () => {
-                        resolve();
-                    },
-                    errorCallback: () => {
-                        reject();
-                    }
-                });
-            });
+            await this.playAudio(audio);
         }
     }
-    async playInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay? }) {
+    async playNavigationInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
+        this.isPlayingNavigationInstruction = true;
+        await this.playInstruction(instruction, {});
+        this.isPlayingNavigationInstruction = false;
+    }
+    async playInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
+        console.log('playInstruction1', instruction, this.isPlaying, !!options?.noAudio, !!options?.force);
         if (this.isPlaying) {
-            return new Promise<void>((resolve) => {
-                this.toPlayNext = async () => {
-                    await this.playInstruction(instruction, options);
-                    resolve();
-                };
-            });
+            if (options?.force === true) {
+                this.stopPlayingLoop();
+            } else if (options?.queue === true) {
+                return new Promise<void>((resolve) => {
+                    this.toPlayNext = async () => {
+                        await this.playInstruction(instruction, options);
+                        resolve();
+                    };
+                });
+            }
+            if (options?.noAudio === true && (this.isPlayingStory || this.isPlayingMusic)) {
+                // we can still play the instruction
+            } else {
+                return;
+            }
         }
         this.isPlaying = true;
-        console.log('playInstruction', instruction);
 
-        const instFolder = path.join(knownFolders.currentApp().path, `/assets/data/glasses_images/navigation/${instruction}`);
+        const instFolder = path.join(knownFolders.currentApp().path, `assets/data/glasses_images/navigation/${instruction}`);
         const files = await Folder.fromPath(instFolder).getEntities();
         const images = files
-            .filter((f) => f.name.endsWith('.png') || f.name.endsWith('.bmp'))
+            .filter((f) => f.name.endsWith('.png') || f.name.endsWith('.jpg') || f.name.endsWith('.bmp'))
             .map((f) => f.name)
             .sort();
-        const audios = files
-            .filter((f) => f.name.endsWith('.mp3'))
-            .map((f) => f.path)
-            .sort();
-        // console.log('images', images);
-        // console.log('audios', audios);
-        return new Promise<void>((resolve, reject) => {
-            this.playAudios(audios)
-                .then(() => {
-                    resolve();
-                    this.stopPlayingLoop();
-                })
-                .catch(reject);
-            if (options?.delay) {
-                setTimeout(() => {
+        const audios = !!options?.noAudio
+            ? []
+            : files
+                  .filter((f) => f.name.endsWith('.mp3'))
+                  .map((f) => f.path)
+                  .sort();
+        console.log('images', images);
+        console.log('audios', audios);
+        if (audios && audios.length) {
+            await new Promise<void>((resolve, reject) => {
+                this.playAudios(audios)
+                    .then(() => {
+                        resolve();
+                        console.log('instruction played done');
+                    })
+                    .catch(reject);
+                if (options?.delay) {
+                    setTimeout(() => {
+                        this.playOfImages(images, instFolder, options);
+                    }, options?.delay);
+                } else {
                     this.playOfImages(images, instFolder, options);
-                }, options?.delay);
-            } else {
-                this.playOfImages(images, instFolder, options);
-            }
-        });
+                }
+            });
+        } else {
+            await this.playOfImages(images, instFolder, options);
+        }
+        this.isPlaying = false;
+        this.stopPlayingLoop();
     }
     lyric: Lyric = null;
 
-    async playRideauAndStory() {
+    async playRideauAndStory(storyIndex = 1) {
+        console.log('playRideauAndStory', this.isPlaying);
         if (this.isPlaying) {
             return new Promise<void>((resolve) => {
                 this.toPlayNext = async () => {
@@ -1248,10 +1294,10 @@ export class BluetoothHandler extends Observable {
                 };
             });
         }
-        this.isPlaying = true;
-        await this.playInstruction('rideau');
+        await this.playInstruction('rideau', { iterations: 1, delay: 1500 });
         await timeout(1000);
-        this.playStory(1);
+        this.stopPlayingLoop();
+        this.playStory(storyIndex);
     }
     async playStory(index = 1) {
         if (this.isPlaying) {
@@ -1264,6 +1310,7 @@ export class BluetoothHandler extends Observable {
         }
         try {
             this.isPlaying = true;
+            this.isPlayingStory = true;
             const storyFolder = path.join(knownFolders.currentApp().path, `/assets/data/glasses_images/stories/${index}`);
             const data = await File.fromPath(path.join(storyFolder, 'composition.json')).readText();
             const imagesMap = this.imageMap;
@@ -1285,8 +1332,8 @@ export class BluetoothHandler extends Observable {
                         // console.log('playing image', imageId);
                         this.clearFadeout();
 
-                        console.log('playing image', text, imageId);
-                        this.notify({ eventName: 'drawBitmap', bitmap: path.join(storyFolder, 'images', text) });
+                        console.log('playing image', text, cleaned, imageId);
+                        this.notify({ eventName: 'drawBitmap', bitmap: path.join(storyFolder, 'images', cleaned + '.bmp') });
                         if (this.glasses) {
                             this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, 0, 0] });
                             this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, 0, 0] });
@@ -1298,25 +1345,18 @@ export class BluetoothHandler extends Observable {
                 }
             });
             this.clearFadeout();
-            await new Promise<void>(async (resolve, reject) => {
-                await this._player.playFromFile({
-                    audioFile: path.join(storyFolder, 'audio.mp3'), // ~ = app directory
-                    loop: false,
-                    completeCallback: () => {
-                        this.stopPlayingLoop();
-                        resolve();
-                    },
-                    errorCallback: () => {
-                        this.stopPlayingLoop();
-                        reject();
-                    }
-                });
-                this.lyric.play();
-            });
+            // await new Promise<void>(async (resolve, reject) => {
+            this.lyric.play();
+            await this.playAudio(path.join(storyFolder, 'audio.mp3'));
+            this.stopPlayingLoop();
+            // });
+            this.geoHandler.playedStory(index + '');
             // console.log('done');
         } catch (error) {
-            this.isPlaying = false;
             console.error(error);
+        } finally {
+            this.isPlaying = false;
+            this.isPlayingStory = false;
         }
     }
 

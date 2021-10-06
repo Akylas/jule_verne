@@ -132,7 +132,6 @@ export default class BaseVueComponent extends Vue {
         return this.isRounded;
     }
     mounted() {
-        console.log('mounted');
         if (this.nativeView && this['navigateUrl']) {
             this.nativeView['navigateUrl'] = this['navigateUrl'];
         }

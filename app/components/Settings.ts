@@ -55,6 +55,9 @@ export default class Settings extends BgServiceComponent {
         super.mounted();
     }
     destroyed() {
+        if (this.showingTestImage) {
+            this.bluetoothHandler.clearFullScreen();
+        }
         super.destroyed();
     }
     shift(deltaX, deltaY) {
@@ -90,6 +93,9 @@ export default class Settings extends BgServiceComponent {
     @debounce(300)
     updateGlassesShift() {
         this.bluetoothHandler.shiftImage(this.currentShift.x, this.currentShift.y);
+        if (this.showingTestImage) {
+            this.showTestImage();
+        }
     }
 
     @debounce(300)
@@ -207,8 +213,14 @@ export default class Settings extends BgServiceComponent {
             }
         }
     }
+
+    showingTestImage = false;
+    showTestImage() {
+        this.showingTestImage = true;
+        this.bluetoothHandler.clearFullScreen();
+        this.bluetoothHandler.sendBitmap(40);
+    }
     async onTap(command: string, event?) {
-        console.log('onTap', command);
         switch (command) {
             case 'checkBetaFirmware':
                 this.$getAppComponent().checkFirmwareUpdateOnline(this.devMode);
@@ -220,6 +232,9 @@ export default class Settings extends BgServiceComponent {
                 if (pickedFile) {
                     this.$getAppComponent().navigateTo(FirmwareUpdate, { props: { firmwareFile: File.fromPath(pickedFile) } });
                 }
+                break;
+            case 'drawTestImage':
+                this.showTestImage();
                 break;
         }
     }

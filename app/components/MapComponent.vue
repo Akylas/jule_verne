@@ -2,7 +2,7 @@
     <GridLayout width="100%" height="100%">
         <CartoMap ref="mapView" zoom="16" @mapReady="onMapReady" @mapMoved="onMapMove" />
         <Label
-            v-if="devMode && lastUserLocation"
+            v-if="devMode && mLastUserLocation"
             backgroundColor="rgba(0, 0, 0, 0.533)"
             borderRadius="10"
             marginTop="4"
@@ -15,7 +15,7 @@
             :text="lastLocationDetails"
         />
 
-        <MDCardView v-if="locationEnabled && showLocationButton" class="floating-btn" margin="8" horizontalAlignment="right" verticalAlignment="bottom" @tap="askUserLocation">
+        <MDCardView v-if="locationEnabled && showLocationButton" class="small-floating-btn" margin="8" horizontalAlignment="right" verticalAlignment="bottom" @tap="askUserLocation" marginBottom="8">
             <Label textAlignment="center" verticalAlignment="middle" class="mdi" :class="locationButtonLabelClass" :text="'mdi-crosshairs-gps'" :color="accentColor" />
         </MDCardView>
     </GridLayout>

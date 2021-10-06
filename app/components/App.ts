@@ -184,6 +184,7 @@ export default class App extends BgServiceComponent {
 
     needsImportOldSessionsOnLoaded = false;
     onServiceStarted() {
+        console.log('onServiceStarted')
         if (this.needsImportOldSessionsOnLoaded) {
             this.needsImportOldSessionsOnLoaded = false;
             this.importDevSessions();
@@ -198,7 +199,6 @@ export default class App extends BgServiceComponent {
         }
     }
     async importDevSessions() {
-        if (DEV_LOG) {
             const devDataImported = appSettings.getBoolean('devDataImported', false);
             // if (devDataImported) {
             //     return;
@@ -225,7 +225,6 @@ export default class App extends BgServiceComponent {
             } finally {
                 // this.hideLoading();
             }
-        }
     }
 
     quitApp() {

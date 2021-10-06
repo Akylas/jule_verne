@@ -41,7 +41,7 @@ export abstract class BgServiceCommon extends Observable {
     stop() {
         this.log('stop');
         this._started = false;
-        return Promise.all([this.geoHandler.stop()]) as Promise<any>;
+        return Promise.all([this.geoHandler.stop(), this.bluetoothHandler.stop()]) as Promise<any>;
     }
     start() {
         this.log(' start');

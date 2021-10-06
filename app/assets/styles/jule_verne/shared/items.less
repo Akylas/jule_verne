@@ -1,0 +1,14 @@
+#items {
+    line-color: [fill];
+    line-width: 2;
+    polygon-opacity: [fill-opacity];
+    polygon-fill: [fill];
+    text-name: [name];
+    text-face-name: @mont_md;
+    text-placement: line;
+
+    when ([nuti::selected_id] == [name]) {
+        line-color: [fill];
+        line-width: 3;
+    }
+}

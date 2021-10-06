@@ -1,0 +1,49 @@
+{
+    "layers": [
+        "items"
+    ],
+    "styles": [
+        "voyager/style.less",
+        "shared/items.less"
+    ],
+    "nutiparameters": {
+        "lang": {
+            "default": "en"
+        },
+        "fallback_lang": {
+            "default": "en"
+        },
+        "selected_id": {
+            "default": ""
+        },
+        "texts3d": {
+            "default": "nutibillboard",
+            "values": {
+                "1": "nutibillboard",
+                "0": "point"
+            }
+        },
+        "markers3d": {
+            "default": "nutibillboard",
+            "values": {
+                "1": "nutibillboard",
+                "0": "point"
+            }
+        },
+        "shields3d": {
+            "default": "nutibillboard",
+            "values": {
+                "1": "nutibillboard",
+                "0": "point"
+            }
+        },
+        "routes": {
+            "default": 0,
+            "values": {
+                "1": 1,
+                "0": 0
+            }
+        }
+    },
+    "name": "voyager"
+}

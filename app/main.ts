@@ -49,7 +49,6 @@ Vue.config.warnHandler = function (msg, vm, trace) {
     console.warn('[Vue][Warn]', `[${msg}]`);
     // cwarn(msg, trace);
 };
-console.log('primaryColor', primaryColor);
 if (global.isIOS) {
     themer.setPrimaryColor(primaryColor);
     themer.setAccentColor(primaryColor);

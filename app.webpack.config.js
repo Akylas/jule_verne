@@ -32,8 +32,17 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const SentryCliPlugin = require('@sentry/webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
-const Fontmin = require('fontmin');
+const Fontmin = require('@akylas/fontmin');
 const IgnoreNotFoundExportPlugin = require('./IgnoreNotFoundExportPlugin');
+
+function fixedFromCharCode(codePt) {
+    if (codePt > 0xffff) {
+        codePt -= 0x10000;
+        return String.fromCharCode(0xd800 + (codePt >> 10), 0xdc00 + (codePt & 0x3ff));
+    } else {
+        return String.fromCharCode(codePt);
+    }
+}
 
 module.exports = (env, params = {}) => {
     if (env.adhoc) {
@@ -41,9 +50,9 @@ module.exports = (env, params = {}) => {
             {},
             {
                 production: true,
-                sentry: true,
-                uploadSentry: true,
-                sourceMap: true,
+                sentry: false,
+                uploadSentry: false,
+                sourceMap: false,
                 uglify: true
             },
             env
@@ -162,13 +171,15 @@ module.exports = (env, params = {}) => {
         'global.TNS_WEBPACK': 'true',
         'global.isIOS': platform === 'ios',
         'global.isAndroid': platform === 'android',
+        'global.autoLoadPolyfills': false,
+        __UI_USE_EXTERNAL_RENDERER__: true,
+        __UI_USE_XML_PARSER__: false,
+        'global.__AUTO_REGISTER_UI_MODULES__': false,
         TNS_ENV: JSON.stringify(mode),
         'gVars.sentry': !!sentry,
         SENTRY_DSN: `"${process.env.SENTRY_DSN}"`,
         SENTRY_PREFIX: `"${!!sentry ? process.env.SENTRY_PREFIX : ''}"`,
-        LOG_LEVEL: devlog ? '"full"' : '""',
         NO_CONSOLE: noconsole,
-        TEST_LOGS: adhoc || !production,
         DEV_LOG: !!devlog,
         TEST_LOGS: !!adhoc || !production
     };
@@ -241,9 +252,11 @@ module.exports = (env, params = {}) => {
                     search: 'mdi-([a-z-]+)',
                     replace: (match, p1, offset, str) => {
                         if (mdiIcons[p1]) {
-                            const res = String.fromCharCode(parseInt(mdiIcons[p1], 16));
-                            usedMDIICons.push(res);
-                            return res;
+                            const unicodeHex = mdiIcons[p1];
+                            const numericValue = parseInt(unicodeHex, 16);
+                            const character = fixedFromCharCode(numericValue);
+                            usedMDIICons.push(numericValue);
+                            return character;
                         }
                         return match;
                     },
@@ -262,7 +275,7 @@ module.exports = (env, params = {}) => {
                     loader: 'string-replace-loader',
                     options: {
                         search: '__decorate\\(\\[((.|\n)*?)profile,((.|\n)*?)\\],.*?,.*?,.*?\\);?',
-                        replace: (match, p1, offset, str) => '',
+                        replace: (match, p1, offset, string) => '',
                         flags: 'g'
                     }
                 }
@@ -320,12 +333,11 @@ module.exports = (env, params = {}) => {
             to: 'fonts',
             globOptions,
             transform: {
-                cache: { keys: { key: usedMDIICons.join('') } },
                 transformer(content, path) {
                     return new Promise((resolve, reject) => {
                         new Fontmin()
                             .src(content)
-                            .use(Fontmin.glyph({ text: usedMDIICons.join('') }))
+                            .use(Fontmin.glyph({ subset: usedMDIICons }))
                             .run(function (err, files) {
                                 if (err) {
                                     reject(err);
@@ -339,18 +351,29 @@ module.exports = (env, params = {}) => {
         }
     ];
     copyPatterns.push({ from: 'test_assets/**/*', to: 'assets/[name][ext]', noErrorOnMissing: false, globOptions });
-    // if (importDevData) {
-    //     copyPatterns.push({ from: 'testassets/**/*', to: 'assets/[name][ext]', noErrorOnMissing: true, globOptions });
-    // }
-    // we add our rules
+
+
+    Object.assign(config.plugins.find((p) => p.constructor.name === 'DefinePlugin').definitions, defines);
+
     config.plugins.unshift(new CopyWebpackPlugin({ patterns: copyPatterns }));
     config.plugins.push(new IgnoreNotFoundExportPlugin());
-    Object.assign(config.plugins.find((p) => p.constructor.name === 'DefinePlugin').definitions, defines);
     config.plugins.push(new webpack.ContextReplacementPlugin(/dayjs[\/\\]locale$/, new RegExp(`(${locales.join('|')})$`)));
+    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /reduce-css-calc$/ }));
+    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /punnycode$/ }));
+    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^url$/ }));
 
-    if (nconfig.cssParser !== 'css-tree') {
-        config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /css-tree$/ }));
-    }
+    config.plugins.unshift(
+        new webpack.ProvidePlugin({
+            setTimeout: [require.resolve(coreModulesPackageName + '/timer/index.' + platform), 'setTimeout'],
+            clearTimeout: [require.resolve(coreModulesPackageName + '/timer/index.' + platform), 'clearTimeout'],
+            setImmediate: [require.resolve(coreModulesPackageName + '/timer/index.' + platform), 'setImmediate'],
+            setInterval: [require.resolve(coreModulesPackageName + '/timer/index.' + platform), 'setInterval'],
+            clearInterval: [require.resolve(coreModulesPackageName + '/timer/index.' + platform), 'clearInterval'],
+            FormData: [require.resolve(coreModulesPackageName + '/polyfills/formdata'), 'FormData'],
+            requestAnimationFrame: [require.resolve(coreModulesPackageName + '/animation-frame'), 'requestAnimationFrame'],
+            cancelAnimationFrame: [require.resolve(coreModulesPackageName + '/animation-frame'), 'cancelAnimationFrame']
+        })
+    );
     // config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /sha.js$/ }));
 
     if (hiddenSourceMap || sourceMap) {
@@ -390,39 +413,47 @@ module.exports = (env, params = {}) => {
         config.devtool = false;
     }
 
-    if (!!production) {
-        config.plugins.push(
-            new ForkTsCheckerWebpackPlugin({
-                async: false,
-                typescript: {
-                    configFile: resolve(tsconfig)
-                }
-            })
-        );
-    }
+    // if (!!production) {
+    //     config.plugins.push(
+    //         new ForkTsCheckerWebpackPlugin({
+    //             async: false,
+    //             typescript: {
+    //                 configFile: resolve(tsconfig)
+    //             }
+    //         })
+    //     );
+    // }
+    config.optimization.splitChunks.cacheGroups.defaultVendor.test = /[\\/](node_modules|nativescript-carto|NativeScript[\\/]dist[\\/]packages[\\/]core)[\\/]/;
     config.optimization.minimize = uglify !== undefined ? uglify : production;
     const isAnySourceMapEnabled = !!sourceMap || !!hiddenSourceMap || !!inlineSourceMap;
     config.optimization.minimizer = [
         new TerserPlugin({
             parallel: true,
-            // cache: true,
-            // sourceMap: isAnySourceMapEnabled,
             terserOptions: {
-                ecma: 2017,
-                module: true,
+                ecma: 2020,
+                module: false,
+                toplevel: false,
+                keep_classnames: false,
+                keep_fnames: false,
                 output: {
                     comments: false,
                     semicolons: !isAnySourceMapEnabled
                 },
+                mangle: {
+                    properties: {
+                        reserved:['__metadata'],
+                        regex: /^(m[A-Z])/
+                    }
+                },
                 compress: {
+                    booleans_as_integers: false,
                     // The Android SBG has problems parsing the output
                     // when these options are enabled
                     collapse_vars: platform !== 'android',
                     sequences: platform !== 'android',
-                    passes: 2,
-                    drop_console: production && adhoc !== true
-                },
-                keep_fnames: true
+                    passes: 5,
+                    drop_console: production && noconsole
+                }
             }
         })
     ];

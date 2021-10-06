@@ -54,6 +54,7 @@ export class GlassesDevice extends Device {
     set gestureOn(value: boolean) {
         if (this._gestureOn !== value) {
             this._gestureOn = value;
+            console.log('gestureOn', value);
             if (this.binaryFormat) {
                 if (value) {
                     Characteristic.startNotifying(this.UUID, SERVER_SERVICE_UUID, GESTURE_CHAR_UUID, this.onGesture.bind(this));
@@ -189,11 +190,12 @@ export class GlassesDevice extends Device {
             let message: Message;
             const arr = new Uint8Array(value);
             const str = String.fromCharCode.apply(String, arr) as string;
-            if (str === 'power down') {
-                message = {
-                    commandType: CommandType.PowerDown
-                };
-            } else if (str === 'TAP') {
+            // if (str === 'power down') {
+            //     message = {
+            //         commandType: CommandType.PowerDown
+            //     };
+            // } else
+            if (str === 'TAP') {
                 this.onTap();
             } else if (str === 'SWIPE') {
                 this.onGesture();

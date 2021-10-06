@@ -1,31 +1,33 @@
 {
-  "compilerOptions": {
-    "target": "es2017",
-    "module": "esnext",
-    "moduleResolution": "node",
-    "removeComments": false,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "sourceMap": true,
-    "skipLibCheck": true,
-    "importHelpers": true,
-    "noEmitHelpers": true,
-    "noEmitOnError": true,
-    "preserveSymlinks": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "noImplicitUseStrict": true,
-    "lib": ["es6", "dom", "es2015.iterable"],
-    "baseUrl": ".",
-    "types": ["vue", "geojson"],
-    "paths": {
-      "~/*": ["app/*"],
-      "@nativescript/core": ["./node_modules/@akylas/nativescript"],
-      "tns-core-modules": ["./node_modules/@akylas/nativescript"],
-      "tns-core-modules/*": ["./node_modules/@akylas/nativescript/*"],
-      "*": ["./node_modules/*"]
-    }
-  },
-  "include": ["app/**/*", "references.d.ts"],
-  "exclude": ["node_modules", "platforms"]
+    "compilerOptions": {
+        "target": "es2017",
+        "module": "esnext",
+        "moduleResolution": "node",
+        "declaration": false,
+        "removeComments": false,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "sourceMap": true,
+        "skipLibCheck": true,
+        "skipDefaultLibCheck": true,
+        "allowUnreachableCode": false,
+        "allowSyntheticDefaultImports": true,
+        "allowUnusedLabels": false,
+        "noEmitHelpers": true,
+        "noEmitOnError": false,
+        "noImplicitAny": false,
+        "noImplicitReturns": false,
+        "noImplicitUseStrict": false,
+        "noFallthroughCasesInSwitch": true,
+        "types": ["vue", "geojson"],
+        "baseUrl": ".",
+        "paths": {
+            "~/*": ["app/*"],
+            "@nativescript/core": ["./node_modules/@akylas/nativescript"],
+            "tns-core-modules": ["./node_modules/@akylas/nativescript"],
+            "tns-core-modules/*": ["./node_modules/@akylas/nativescript/*"]
+        }
+    },
+    "include": ["app/**/*", "references.d.ts"],
+    "exclude": ["node_modules", "platforms"]
 }

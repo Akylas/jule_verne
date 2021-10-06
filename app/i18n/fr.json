@@ -10,9 +10,10 @@
     }
   },
   "app": {
-    "name": "Jule Verne"
+    "name": "Jules Verne"
   },
   "entering_feature": "vous entrez dans %s",
   "leaving_feature": "vous quittez %s",
-  "tap_to_open": "appuyez pour ouvrir"
+  "tap_to_open": "appuyez pour ouvrir",
+  "map": "carte"
 }
