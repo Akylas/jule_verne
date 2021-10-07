@@ -33,3 +33,4 @@ typings/
 !.vscode/launch.json
 !.vscode/extensions.json
 /.sentryclirc
+.history
