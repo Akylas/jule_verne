@@ -535,7 +535,7 @@ export default class Home extends BgServiceComponent {
     }
 
     onDrawImage(event) {
-        console.log('onDrawImage', event.bitmap);
+        // console.log('onDrawImage', event.bitmap);
         this.$refs.imageView.nativeView.src = event.bitmap;
         // this.currentDrawImage = event.bitmap;
     }

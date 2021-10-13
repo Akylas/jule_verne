@@ -569,8 +569,8 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
     @Watch('viewedFeature')
     onViewedFeature(newValue, oldValue?) {
         const decoder = this.mGeoJSONLayer?.options?.decoder as MBVectorTileDecoder;
-        const param = this.viewedFeature?.map((s) => '#' + s).join(',') || '';
-        console.log('onViewedFeature', param);
+        const param = this.viewedFeature ? '^(' + this.viewedFeature.map((s) => '' + s).join('|') + ')$' : '';
+        // console.log('onViewedFeature', param);
         decoder.setStyleParameter('viewed', param);
     }
     @Watch('tracks')

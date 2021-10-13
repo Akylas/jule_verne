@@ -21,7 +21,7 @@
                     <MDButton variant="text" v-show="!!insideFeature" :text="insideFeature ? `play ${insideFeatureName}` : ''" @tap="playCurrentStory" />
                 </StackLayout> -->
 
-                <NSImg ref="imageView" width="100" height="100" horizontalAlignment="left" verticalAlignment="bottom" row="1" />
+                <Image ref="imageView" width="100" height="100" horizontalAlignment="left" verticalAlignment="bottom" row="1" />
                 <StackLayout orientation="horizontal" horizontalAlignment="center" verticalAlignment="bottom" row="1">
                     <MDButton class="floating-btn" :text="sessionRunning ? 'mdi-pause' : 'mdi-play'" @tap="onTap('startSession', $event)" />
                     <MDButton class="floating-btn" v-show="sessionPaused" :text="'mdi-stop'" @tap="onTap('stopSession', $event)" />

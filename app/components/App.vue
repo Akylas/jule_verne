@@ -14,10 +14,6 @@
                     </v-template>
                 </CollectionView>
                 <StackLayout row="2" width="100%" padding="10">
-                    <StackLayout class="menuButtons" orientation="horizontal">
-                        <MDButton col="0" variant="text" :text="'mdi-email'" @tap="onTap('sendFeedback')" />
-                        <MDButton col="1" variant="text" :text="'mdi-bug'" @tap="onTap('sendBugReport')" v-if="$crashReportService.sentryEnabled" />
-                    </StackLayout>
                     <StackLayout class="menuInfos">
                         <Label :text="'App version: ' + (appVersion || '')" @longPress="switchDevMode" />
                     </StackLayout>

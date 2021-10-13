@@ -1,23 +1,22 @@
 import { File } from '@akylas/nativescript';
 import { Bluetooth, StartScanningOptions as IStartScanningOptions, Peripheral, ReadResult, StartNotifyingOptions } from '@nativescript-community/ble';
 import { isSimulator } from '@nativescript-community/extendedinfo';
+import { TWEEN } from '@nativescript-community/tween';
 import * as appSettings from '@nativescript/core/application-settings';
 import { EventData, Observable } from '@nativescript/core/data/observable';
 import { Folder, knownFolders, path } from '@nativescript/core/file-system';
+import { TNSPlayer } from 'nativescript-audio';
 import { GeoHandler, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
 import { $t, $tc } from '~/helpers/locale';
 import { MessageError } from '~/services/CrashReportService';
 import { versionCompare } from '~/utils';
 import { alert, confirm } from '~/utils/dialogs';
-
 import { Characteristic } from './bluetooth/Characteristic';
 import { GlassesDevice } from './bluetooth/GlassesDevice';
+import Lyric from './Lyric';
 import { CommandType, Message } from './Message';
 
 export { Peripheral };
-import { TNSPlayer } from 'nativescript-audio';
-import Lyric from './Lyric';
-import { TWEEN } from '@nativescript-community/tween';
 
 export const MICROOLED_MANUFACTURER_ID = 0x08f2;
 export const MICROOLED_MANUFACTURER_NAME = 'Microoled';
@@ -672,6 +671,10 @@ export class BluetoothHandler extends Observable {
     isGestureOn = true;
     levelLuminance = 10;
     _player = new TNSPlayer();
+
+    createPlayer() {
+        this._player = new TNSPlayer();
+    }
     setScreenOn(value) {
         if (this.isScreenOn === value) {
             return false;
@@ -965,7 +968,9 @@ export class BluetoothHandler extends Observable {
             return this.stopPlayingLoop({ fade });
         }
     }
-
+    async stopSession() {
+        this.stopPlayingLoop({ fade: true, ignoreNext: true });
+    }
     async stopPlayingLoop({ fade = true, ignoreNext = false, instruction = false } = {}) {
         // if (!this.isPlaying) {
         //     return;
@@ -973,7 +978,7 @@ export class BluetoothHandler extends Observable {
         if (instruction && this.isPlayingNavigationInstruction && (this.isPlayingMusic || this.isPlayingStory)) {
             return;
         }
-        console.log('stopPlayingLoop', instruction, this._player.isAudioPlaying());
+        console.log('stopPlayingLoop', fade, ignoreNext, instruction, this._player.isAudioPlaying());
         this.isPlaying = false;
         if (this.lyric) {
             this.lyric.pause();

@@ -114,8 +114,22 @@ export class GeoHandler extends Observable {
     _featuresViewed: string[] = [];
     aimingAngle = 0;
     gpsEnabled = true;
+    _insideFeature: TrackFeature = null;
     isSessionPaused() {
         return this.sessionState === SessionState.PAUSED;
+    }
+
+    get featuresViewed() {
+        return this._featuresViewed;
+    }
+    set featuresViewed(value) {
+        this._featuresViewed = value;
+        this.notify({
+            eventName: FeatureViewedEvent,
+            data: {
+                featureViewed: this._featuresViewed
+            }
+        });
     }
 
     setSessionState(state: SessionState) {
@@ -456,7 +470,6 @@ export class GeoHandler extends Observable {
             this.isSpeaking = false;
         }
     }
-    _insideFeature: TrackFeature = null;
 
     set insideFeature(value) {
         if (value !== this._insideFeature) {
@@ -472,30 +485,26 @@ export class GeoHandler extends Observable {
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
                 const playing = this.bluetoothHandler.isPlayingStory || this.bluetoothHandler.isPlayingMusic;
                 if (!playing) {
+                    const featuresViewed = this.featuresViewed;
                     if (name.endsWith('_out')) {
                         // story will be queued after
 
-                        if (this._featuresViewed.indexOf(name) === -1) {
-                            this._featuresViewed.push(name);
+                        if (featuresViewed.indexOf(name) === -1) {
+                            featuresViewed.push(name);
                         }
                         this.bluetoothHandler.playMusic(nextStoryIndex);
                     }
 
                     // if (this.bluetoothHandler.isPlayingStory === nextStoryIndex) {
-                    if (this._featuresViewed.indexOf(nextStoryIndex + '') === -1) {
-                        this._featuresViewed.push(nextStoryIndex + '');
+                    if (featuresViewed.indexOf(nextStoryIndex + '') === -1) {
+                        featuresViewed.push(nextStoryIndex + '');
                     }
-                    if (this._featuresViewed.indexOf(nextStoryIndex + '_out') === -1) {
-                        this._featuresViewed.push(nextStoryIndex + '_out');
+                    if (featuresViewed.indexOf(nextStoryIndex + '_out') === -1) {
+                        featuresViewed.push(nextStoryIndex + '_out');
                     }
                     this.bluetoothHandler.playRideauAndStory(nextStoryIndex);
                     // }
-                    this.notify({
-                        eventName: FeatureViewedEvent,
-                        data: {
-                            featureViewed: this._featuresViewed
-                        }
-                    });
+                    this.featuresViewed = featuresViewed;
                 }
             } else {
                 // this.bluetoothHandler.stopPlayingLoop();
@@ -940,7 +949,12 @@ export class GeoHandler extends Observable {
 
     async stopSession() {
         this.actualSessionStop(true);
-        this.bluetoothHandler.stopPlayingLoop(true, true);
+        this.featuresViewed = [];
+        this.insideFeature = null;
+        this._playedHistory = [];
+        this._isInTrackBounds = false;
+        this.aimingAngle = 0;
+        this.bluetoothHandler.stopSession();
     }
     async pauseSession() {
         this.actualSessionStop();

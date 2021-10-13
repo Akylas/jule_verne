@@ -6,7 +6,6 @@ import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { Drawer } from '@nativescript-community/ui-drawer';
 import { confirm } from '@nativescript-community/ui-material-dialogs';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
-import { TextField } from '@nativescript-community/ui-material-textfield';
 import { Frame, NavigationEntry, Page, StackLayout, knownFolders } from '@nativescript/core';
 import * as app from '@nativescript/core/application';
 import * as appSettings from '@nativescript/core/application-settings';
@@ -35,6 +34,7 @@ import Home from './Home';
 import Leaflet from './Leaflet.vue';
 import Map from './Map';
 import Settings from './Settings';
+import Images from './Images.vue';
 
 function timeout(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -65,6 +65,7 @@ export enum ComponentIds {
     Activity = 'activity',
     Firmware = 'firmware',
     Settings = 'settings',
+    Images = 'images',
     Tracks = 'tracks',
     Map = 'map',
     Leaflet = 'leaflet'
@@ -98,6 +99,9 @@ export default class App extends BgServiceComponent {
         },
         [ComponentIds.Settings]: {
             component: Settings
+        },
+        [ComponentIds.Images]: {
+            component: Images as any
         },
         [ComponentIds.Tracks]: {
             component: Tracks
@@ -169,8 +173,14 @@ export default class App extends BgServiceComponent {
             // },
             {
                 title: this.$t('settings'),
-                icon: 'mdi-settings',
+                icon: 'mdi-cogs',
                 url: ComponentIds.Settings,
+                activated: false
+            },
+            {
+                title: this.$t('images'),
+                icon: 'mdi-image',
+                url: ComponentIds.Images,
                 activated: false
             }
         ];
@@ -375,67 +385,6 @@ export default class App extends BgServiceComponent {
                         }
                     ]
                 }).catch(this.showError);
-                break;
-            case 'sendBugReport':
-                login({
-                    title: this.$tc('send_bug_report'),
-                    message: this.$tc('send_bug_report_desc'),
-                    okButtonText: this.$t('send'),
-                    cancelButtonText: this.$t('cancel'),
-                    autoFocus: true,
-                    usernameTextFieldProperties: {
-                        marginLeft: 10,
-                        marginRight: 10,
-                        autocapitalizationType: 'none',
-                        keyboardType: 'email',
-                        autocorrect: false,
-                        error: this.$tc('email_required'),
-                        hint: this.$tc('email')
-                    },
-                    passwordTextFieldProperties: {
-                        marginLeft: 10,
-                        marginRight: 10,
-                        error: this.$tc('please_describe_error'),
-                        secure: false,
-                        hint: this.$tc('description')
-                    },
-                    beforeShow: (options, usernameTextField: TextField, passwordTextField: TextField) => {
-                        usernameTextField.on('textChange', (e: any) => {
-                            const text = e.value;
-                            if (!text) {
-                                usernameTextField.error = this.$tc('email_required');
-                            } else if (!mailRegexp.test(text)) {
-                                usernameTextField.error = this.$tc('non_valid_email');
-                            } else {
-                                usernameTextField.error = null;
-                            }
-                        });
-                        passwordTextField.on('textChange', (e: any) => {
-                            const text = e.value;
-                            if (!text) {
-                                passwordTextField.error = this.$tc('description_required');
-                            } else {
-                                passwordTextField.error = null;
-                            }
-                        });
-                    }
-                }).then((result) => {
-                    if (result.result) {
-                        if (!result.userName || !mailRegexp.test(result.userName)) {
-                            this.showError(new Error(this.$tc('email_required')));
-                            return;
-                        }
-                        if (!result.password || result.password.length === 0) {
-                            this.showError(new Error(this.$tc('description_required')));
-                            return;
-                        }
-                        this.$crashReportService.withScope((scope) => {
-                            scope.setUser({ email: result.userName });
-                            this.$crashReportService.captureMessage(result.password);
-                            this.$alert(this.$t('bug_report_sent'));
-                        });
-                    }
-                });
                 break;
         }
     }
