@@ -63,6 +63,7 @@ export default class MapComponent extends BgServiceComponent {
     @Prop({ default: true, type: Boolean }) locationEnabled: boolean;
     isUserFollow: boolean;
     @Prop({ default: null }) tracks: Track[] | ObservableArray<Track>;
+    @Prop({ default: null }) viewedFeature: string[];
     @Prop({ default: false, type: Boolean }) readonly licenseRegistered!: boolean;
     @Prop({ default: false, type: Boolean }) readonly showLocationButton!: boolean;
 
@@ -280,6 +281,7 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
             });
             this.mCartoMap.addLayer(this.mGeoJSONLayer);
         }
+        return this.mGeoJSONLayer;
     }
     updateUserLocation(geoPos: GeoLocation) {
         if (!geoPos) {
@@ -301,12 +303,10 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         const deltaMinutes = dayjs(new Date()).diff(dayjs(geoPos.timestamp), 'minute', true);
         if (deltaMinutes > 2) {
             accuracyColor = 'gray';
-        } else {
-            if (accuracy > 1000) {
-                accuracyColor = 'red';
-            } else if (accuracy > 10) {
-                accuracyColor = 'orange';
-            }
+        } else if (accuracy > 1000) {
+            accuracyColor = 'red';
+        } else if (accuracy > 20) {
+            accuracyColor = 'orange';
         }
 
         const position = { lat: geoPos.lat, lon: geoPos.lon, horizontalAccuracy: geoPos.horizontalAccuracy };
@@ -424,35 +424,37 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         const events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[] = event['data'].events;
         events.forEach((e) => {
             const { feature, index, distance, state, trackId } = e;
-            const object = this.mappedTracks[trackId][feature.id];
-            console.log('MapComponent', 'onTrackPositionState', trackId, feature.id, !!object, state, object instanceof Group);
-            if (object) {
-                if (state === 'entering') {
-                    if (object instanceof Group) {
-                        object.elements.forEach((e) => {
-                            (e as any).offLineColor = (e as any).lineColor;
-                            (e as any).offColor = (e as any).color;
-                            (e as any).color = 'green';
-                            (e as any).lineColor = 'green';
-                        });
-                    } else {
-                        (object as any).offColor = (object as any).lineColor;
-                        (object as any).offLineColor = (object as any).lineColor;
-                        (object as any).color = 'green';
-                        (object as any).lineColor = 'green';
-                    }
-                } else if (state === 'leaving') {
-                    if (object instanceof Group) {
-                        object.elements.forEach((e) => {
-                            (e as any).lineColor = (e as any).offLineColor;
-                            (e as any).color = (e as any).offColor;
-                        });
-                    } else {
-                        (object as any).lineColor = (object as any).offLineColor;
-                        (object as any).color = (object as any).offColor;
-                    }
-                }
+            // const object = this.mappedTracks[trackId][feature.id];
+            // console.log('MapComponent', 'onTrackPositionState', trackId, feature.id, !!object, state, object instanceof Group);
+            // if (object) {
+            if (state === 'entering') {
+                (this.getOrCreateGeoJSONVectorLayer().options.decoder as MBVectorTileDecoder).setStyleParameter('selected_id', feature.properties.name + '');
+                // if (object instanceof Group) {
+                //     object.elements.forEach((e) => {
+                //         (e as any).offLineColor = (e as any).lineColor;
+                //         (e as any).offColor = (e as any).color;
+                //         (e as any).color = 'green';
+                //         (e as any).lineColor = 'green';
+                //     });
+                // } else {
+                //     (object as any).offColor = (object as any).lineColor;
+                //     (object as any).offLineColor = (object as any).lineColor;
+                //     (object as any).color = 'green';
+                //     (object as any).lineColor = 'green';
+                // }
+            } else if (state === 'leaving') {
+                (this.getOrCreateGeoJSONVectorLayer().options.decoder as MBVectorTileDecoder).setStyleParameter('selected_id', '');
+                // if (object instanceof Group) {
+                //     object.elements.forEach((e) => {
+                //         (e as any).lineColor = (e as any).offLineColor;
+                //         (e as any).color = (e as any).offColor;
+                //     });
+                // } else {
+                //     (object as any).lineColor = (object as any).offLineColor;
+                //     (object as any).color = (object as any).offColor;
+                // }
             }
+            // }
         });
     }
     searchingForUserLocation = false;
@@ -506,9 +508,9 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
             }
         }
     }
-    mappedTracks: {
-        [k: string]: { [k: string]: VectorElement<any, any> };
-    } = {};
+    // mappedTracks: {
+    //     [k: string]: { [k: string]: VectorElement<any, any> };
+    // } = {};
 
     bboxToPolygon(bbox: BBox) {
         return [
@@ -539,7 +541,7 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         this.getOrCreateGeoJSONVectorLayer();
         this.geoJSONVectorDataSource.setLayerGeoJSONString(1, JSON.stringify(featureCollection));
         return;
-        
+
         // const line = new Line<LatLonKeys>({
         //     positions: track.positions,
         //     styleBuilder: {
@@ -558,13 +560,19 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
             return;
         }
         // console.log('removeTrack', track.id, this.mappedTracks[track.id]);
-        const objects = this.mappedTracks[track.id];
-        if (objects) {
-            Object.values(objects).forEach((o) => this.localVectorDataSource.remove(o));
-            delete this.mappedTracks[track.id];
-        }
+        // const objects = this.mappedTracks[track.id];
+        // if (objects) {
+        //     Object.values(objects).forEach((o) => this.localVectorDataSource.remove(o));
+        //     delete this.mappedTracks[track.id];
+        // }
     }
-
+    @Watch('viewedFeature')
+    onViewedFeature(newValue, oldValue?) {
+        const decoder = this.mGeoJSONLayer?.options?.decoder as MBVectorTileDecoder;
+        const param = this.viewedFeature?.map((s) => '#' + s).join(',') || '';
+        console.log('onViewedFeature', param);
+        decoder.setStyleParameter('viewed', param);
+    }
     @Watch('tracks')
     updateTrack(newValue, oldValue?) {
         if (!this.mCartoMap) {

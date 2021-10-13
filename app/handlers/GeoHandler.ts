@@ -67,6 +67,7 @@ export const UserRawLocationEvent = 'userRawLocation';
 export const TrackSelecteEvent = 'trackSelected';
 export const PositionStateEvent = 'positionState';
 export const InsideFeatureEvent = 'insideFeature';
+export const FeatureViewedEvent = 'storyPlayed';
 export const OuterRingEvent = 'outer_ring';
 export const AimingFeatureEvent = 'aimingFeature';
 
@@ -110,6 +111,7 @@ export class GeoHandler extends Observable {
     _isInTrackBounds = false;
     _aimingFeature: Feature<TrackGeometry, GeometryProperties> = null;
     _playedHistory = [];
+    _featuresViewed: string[] = [];
     aimingAngle = 0;
     gpsEnabled = true;
     isSessionPaused() {
@@ -166,10 +168,10 @@ export class GeoHandler extends Observable {
             // console.log('isInTrackBounds', value);
             this._isInTrackBounds = value;
             if (!value) {
-                this.bluetoothHandler.playInstruction('uturn', { frameDuration: 400, queue: true });
+                this.bluetoothHandler.playNavigationInstruction('uturn', { frameDuration: 400, queue: true });
             } else {
                 // stop instruction
-                this.bluetoothHandler.stopPlayingLoop();
+                this.bluetoothHandler.stopNavigationInstruction();
             }
             this.notify({
                 eventName: OuterRingEvent,
@@ -459,19 +461,44 @@ export class GeoHandler extends Observable {
     set insideFeature(value) {
         if (value !== this._insideFeature) {
             this._insideFeature = value;
-            console.log('insideFeature', value);
+            console.log('insideFeature', value?.properties.name);
             if (value) {
+                let nextStoryIndex = Math.max(0, ...this._playedHistory) + 1;
+                for (let index = nextStoryIndex; index > 0; index--) {
+                    if (this._playedHistory.indexOf(index) === -1) {
+                        nextStoryIndex = index;
+                    }
+                }
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
-                console.log('insideFeature name ', name);
-                if (!name.endsWith('_out')) {
-                    this.bluetoothHandler.stopPlayingLoop();
-                    this.bluetoothHandler.playRideauAndStory(parseInt(name, 10));
-                } else {
-                    // this.bluetoothHandler.stopPlayingLoop();
-                    this.bluetoothHandler.playRideauAndStory();
+                const playing = this.bluetoothHandler.isPlayingStory || this.bluetoothHandler.isPlayingMusic;
+                if (!playing) {
+                    if (name.endsWith('_out')) {
+                        // story will be queued after
+
+                        if (this._featuresViewed.indexOf(name) === -1) {
+                            this._featuresViewed.push(name);
+                        }
+                        this.bluetoothHandler.playMusic(nextStoryIndex);
+                    }
+
+                    // if (this.bluetoothHandler.isPlayingStory === nextStoryIndex) {
+                    if (this._featuresViewed.indexOf(nextStoryIndex + '') === -1) {
+                        this._featuresViewed.push(nextStoryIndex + '');
+                    }
+                    if (this._featuresViewed.indexOf(nextStoryIndex + '_out') === -1) {
+                        this._featuresViewed.push(nextStoryIndex + '_out');
+                    }
+                    this.bluetoothHandler.playRideauAndStory(nextStoryIndex);
+                    // }
+                    this.notify({
+                        eventName: FeatureViewedEvent,
+                        data: {
+                            featureViewed: this._featuresViewed
+                        }
+                    });
                 }
             } else {
-                this.bluetoothHandler.stopPlayingLoop();
+                // this.bluetoothHandler.stopPlayingLoop();
             }
             this.notify({
                 eventName: InsideFeatureEvent,
@@ -489,7 +516,7 @@ export class GeoHandler extends Observable {
     async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {
         const insideFeatures = events.filter((e) => e.state !== 'leaving');
         // if (DEV_LOG) {
-        //     console.log('handleFeatureEvent', insideFeatures.length);
+        // console.log('handleFeatureEvent', events);
         // }
         if (insideFeatures.length > 1) {
             let minIndex = 0;
@@ -562,12 +589,19 @@ export class GeoHandler extends Observable {
         if (this._playedHistory.indexOf(rindex) === -1) {
             this._playedHistory.push(rindex);
         }
-        console.log('playedStory', index, rindex, this._playedHistory);
+        console.log('playedStory', index, rindex, this._playedHistory, !!this.insideFeature);
+        if (this.insideFeature) {
+            // we clear insideFeature as this feature is now played and thus
+            // we should ignore it and notify of next aiming feature
+            this.insideFeature = null;
+        }
     }
     mLastAimingDirection: string;
+    mLastPlayedAimingDirection: string;
+    mLastPlayedAimingDirectionTime: number;
     updateTrackWithLocation(loc: GeoLocation) {
         // if (DEV_LOG) {
-        //     console.log('updateTrackWithLocation', loc);
+        //     console.log('updateTrackWithLocation', JSON.stringify(loc));
         // }
         if (this.currentTrack) {
             const features = this.currentTrack.geometry.features;
@@ -599,7 +633,7 @@ export class GeoHandler extends Observable {
             features.forEach((feature) => {
                 const properties = feature.properties;
                 const name = 'index' in properties ? properties.index : properties.name;
-                if (name === 'outer_ring') {
+                if (name === 'outer_ring' || this._featuresViewed.indexOf(name + '') !== -1) {
                     return;
                 }
 
@@ -764,51 +798,76 @@ export class GeoHandler extends Observable {
             // if (DEV_LOG) {
             //     console.log('aimingFeature ', minDist, minFeature, nextPotentialIndex);
             // }
-            if (minDist < closestStoryStep) {
-                this.aimingFeature = minFeature;
-            } else {
-                this.aimingFeature = features.find((s) => {
-                    const name = 'index' in s.properties ? s.properties.index : s.properties.name;
-                    return name + '' === nextPotentialIndex + '';
-                });
-            }
-            this.aimingAngle = this.aimingFeature
-                ? (determineAngleDeviationFromNorth({ longitude: loc.lon, latitude: loc.lat }, { longitude: this.aimingFeature.geometry.center[0], latitude: this.aimingFeature.geometry.center[1] }) +
-                      360 -
-                      loc.computedBearing) %
-                  360
-                : 0;
-            // console.log('this.aimingAngle', this.aimingAngle);
-
-            //we are not inside any story feature
-            if (!this.insideFeature || (!isNumber(this.insideFeature.properties.name) && this.insideFeature.properties.name.endsWith('_out'))) {
-                let newAimingDirection;
-                if (Math.abs(this.aimingAngle) <= 18 || Math.abs(this.aimingAngle) >= 342) {
-                    newAimingDirection = 'forward';
-                    this.bluetoothHandler.playInstruction('forward');
-                } else if (this.aimingAngle >= 270 && this.aimingAngle <= 306) {
-                    newAimingDirection = 'left';
-                } else if (this.aimingAngle >= 54 && this.aimingAngle <= 90) {
-                    newAimingDirection = 'right';
-                } else if (this.aimingAngle >= 160 && this.aimingAngle <= 200) {
-                    newAimingDirection = 'uturn';
+            // if (minDist < closestStoryStep) {
+            this.aimingFeature = minFeature;
+            // } else {
+            //     this.aimingFeature = features.find((s) => {
+            //         const name = 'index' in s.properties ? s.properties.index : s.properties.name;
+            //         return name + '' === nextPotentialIndex + '';
+            //     });
+            // }
+            // console.log('computedBearing', loc.computedBearing, !!this.aimingFeature);
+            if (loc.hasOwnProperty('computedBearing')) {
+                if (this.aimingFeature) {
+                    this.aimingAngle =
+                        (determineAngleDeviationFromNorth(
+                            { longitude: loc.lon, latitude: loc.lat },
+                            { longitude: this.aimingFeature.geometry.center[0], latitude: this.aimingFeature.geometry.center[1] }
+                        ) +
+                            360 -
+                            loc.computedBearing) %
+                        360;
                 } else {
-                    // this.bluetoothHandler.stopNavigationInstruction();
+                    this.aimingAngle = Infinity;
                 }
-                if (newAimingDirection && this.mLastAimingDirection !== newAimingDirection) {
-                    this.mLastAimingDirection = newAimingDirection;
-                    this.bluetoothHandler.playNavigationInstruction(newAimingDirection);
+                //we are not inside any story feature
+                if ((this.aimingAngle !== Infinity && !this.insideFeature) || (!isNumber(this.insideFeature.properties.name) && this.insideFeature.properties.name.endsWith('_out'))) {
+                    let newAimingDirection;
+                    if (Math.abs(this.aimingAngle) <= 45 || Math.abs(this.aimingAngle) >= 315) {
+                        newAimingDirection = 'forward';
+                    } else if (this.aimingAngle >= 225 && this.aimingAngle <= 315) {
+                        newAimingDirection = 'left';
+                    } else if (this.aimingAngle >= 45 && this.aimingAngle <= 135) {
+                        newAimingDirection = 'right';
+                    } else if (this.aimingAngle >= 135 && this.aimingAngle <= 225) {
+                        newAimingDirection = 'uturn';
+                    } else {
+                        // this.bluetoothHandler.stopNavigationInstruction();
+                    }
+                    console.log('newAimingDirection', this.aimingAngle, newAimingDirection, this.mLastAimingDirection, this.mLastPlayedAimingDirection);
+                    if (this.mLastAimingDirection !== newAimingDirection) {
+                        this.mLastAimingDirection = newAimingDirection;
+                        this.mLastPlayedAimingDirection = null;
+                    } else if (
+                        (this.mLastPlayedAimingDirection !== newAimingDirection || !this.mLastPlayedAimingDirectionTime || Date.now() - this.mLastPlayedAimingDirectionTime > 40000) && // play instruction on second consecutive same instruction(prevents jumps)
+                        (!this.mLastPlayedAimingDirectionTime || Date.now() - this.mLastPlayedAimingDirectionTime > 20000) && // only play an instruction every 30s (prevent back / forth)
+                        (!this.bluetoothHandler.isPlaying || this.bluetoothHandler.isPlayingNavigationInstruction) // dont play if playing important thing
+                    ) {
+                        this.mLastPlayedAimingDirection = newAimingDirection;
+                        if (newAimingDirection) {
+                            this.mLastPlayedAimingDirectionTime = Date.now();
+                            this.bluetoothHandler.playNavigationInstruction(newAimingDirection);
+                        } else {
+                            // this.mLastPlayedAimingDirectionTime = null;
+                        }
+                    }
+                } else {
+                    this.mLastPlayedAimingDirectionTime = null;
+                    this.mLastPlayedAimingDirection = null;
+                    this.mLastAimingDirection = null;
                 }
-            } else {
-                this.mLastAimingDirection = null;
             }
+
+            // console.log('this.aimingAngle', this.aimingAngle);
         }
     }
 
     @bind
     onLocation(loc: GeoLocation, manager?: any) {
-        if (this.lastLocation) {
+        if (this.lastLocation && getDistance(this.lastLocation, loc) > 1) {
             loc.computedBearing = bearing(this.lastLocation, loc);
+        } else {
+            loc.computedBearing = this.lastLocation?.computedBearing;
         }
         this.lastLocation = loc;
         // ensure we update before notifying
@@ -881,7 +940,7 @@ export class GeoHandler extends Observable {
 
     async stopSession() {
         this.actualSessionStop(true);
-        this.bluetoothHandler.stopPlayingLoop();
+        this.bluetoothHandler.stopPlayingLoop(true, true);
     }
     async pauseSession() {
         this.actualSessionStop();
@@ -896,7 +955,7 @@ export class GeoHandler extends Observable {
     }
     async startSession() {
         this.actualSessionStart(true);
-        this.bluetoothHandler.playInstruction('start', { force: true });
+        // this.bluetoothHandler.playInstruction('start', { force: true });
     }
 
     async resumeSession() {

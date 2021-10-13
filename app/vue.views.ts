@@ -18,6 +18,7 @@ import CollectionViewPlugin from '@nativescript-community/ui-collectionview/vue'
 import CartoPlugin from '@nativescript-community/ui-carto/vue';
 import PagerPlugin from '@nativescript-community/ui-pager/vue';
 import DrawerPlugin from '@nativescript-community/ui-drawer/vue';
+import ImagePlugin from '@nativescript-community/ui-image/vue';
 
 const Plugin = {
     install(Vue) {
@@ -30,6 +31,7 @@ const Plugin = {
         Vue.use(TextFieldPlugin);
         Vue.use(BottomSheetPlugin);
         Vue.use(SliderPlugin);
+        Vue.use(ImagePlugin);
 
         Vue.use(CanvasPlugin);
         Vue.use(CanvasLabelPlugin);

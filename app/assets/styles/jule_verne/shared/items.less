@@ -1,3 +1,5 @@
+@viewedKey: '#' + [name];
+
 #items {
     line-color: [fill];
     line-width: 2;
@@ -7,8 +9,8 @@
     text-face-name: @mont_md;
     text-placement: line;
 
-    when ([nuti::selected_id] == [name]) {
-        line-color: [fill];
-        line-width: 3;
+    when ('#' + [name]=~ [nuti::viewed] ) {
+        line-opacity: 0.3;
+        polygon-opacity: 0;
     }
 }

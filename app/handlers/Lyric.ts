@@ -7,9 +7,7 @@ const tagRegMap = {
     by: 'by'
 };
 
-const requestAnimationFrameFn = 'requestAnimationFrame' in global ? requestAnimationFrame : setImmediate;
-const cancelAnimationFrameFn = 'cancelAnimationFrame' in global ? cancelAnimationFrame : () => {};
-const getNow = typeof performance == 'object' && performance.now ? performance.now.bind(performance) : Date.now.bind(Date);
+import { cancelAnimationFrame, getNow, requestAnimationFrame } from '~/animationFrame';
 
 const timeoutTools = {
     invokeTime: 0,
@@ -19,7 +17,7 @@ const timeoutTools = {
     thresholdTime: 200,
 
     run() {
-        this.animationFrameId = requestAnimationFrameFn(() => {
+        this.animationFrameId = requestAnimationFrame(() => {
             this.animationFrameId = null;
             const diff = this.invokeTime - getNow();
             if (diff > 0) {
@@ -41,7 +39,7 @@ const timeoutTools = {
     },
     clear() {
         if (this.animationFrameId) {
-            cancelAnimationFrameFn(this.animationFrameId);
+            cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
         if (this.timeoutId) {

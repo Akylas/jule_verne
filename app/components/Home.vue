@@ -12,7 +12,7 @@
                 >
                     <MDButton variant="text" v-show="!bluetoothEnabled" class="icon-btn" text="mdi-bluetooth-off" />
                 </CActionBar>
-                <MapComponent ref="mapComp" @mapReady="onMapReady" showLocationButton row="1" :tracks="selectedTracks" />
+                <MapComponent ref="mapComp" @mapReady="onMapReady" showLocationButton row="1" :tracks="selectedTracks" :viewedFeature="viewedFeatures" />
                 <Label row="1" horizontalAlignment="left" color="blue" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentBearing" padding="10" />
                 <Label row="1" horizontalAlignment="center" color="black" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="aimingAngle" padding="10" />
                 <Label row="1" horizontalAlignment="right" color="red" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentComputedBearing" padding="10" />
@@ -21,12 +21,12 @@
                     <MDButton variant="text" v-show="!!insideFeature" :text="insideFeature ? `play ${insideFeatureName}` : ''" @tap="playCurrentStory" />
                 </StackLayout> -->
 
-                <Image :src="currentDrawImage" width="100" height="100" horizontalAlignment="left" verticalAlignment="bottom" row="1" />
+                <NSImg ref="imageView" width="100" height="100" horizontalAlignment="left" verticalAlignment="bottom" row="1" />
                 <StackLayout orientation="horizontal" horizontalAlignment="center" verticalAlignment="bottom" row="1">
                     <MDButton class="floating-btn" :text="sessionRunning ? 'mdi-pause' : 'mdi-play'" @tap="onTap('startSession', $event)" />
                     <MDButton class="floating-btn" v-show="sessionPaused" :text="'mdi-stop'" @tap="onTap('stopSession', $event)" />
                 </StackLayout>
-                <MDButton
+                <!-- <MDButton
                     class="small-floating-btn"
                     v-show="connectedGlasses"
                     text="mdi-settings"
@@ -35,7 +35,7 @@
                     row="1"
                     horizontalAlignment="left"
                     marginBottom="8"
-                />
+                /> -->
             </GridLayout>
             <GridLayout ~rightDrawer rows="auto, *, auto" height="100%" backgroundColor="white" width="70%">
                 <GridLayout v-show="!!connectedGlasses" columns="auto,*,auto" rows="*,auto,auto,*,30" margin="15 15 30 15">

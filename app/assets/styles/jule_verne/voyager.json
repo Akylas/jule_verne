@@ -16,6 +16,9 @@
         "selected_id": {
             "default": ""
         },
+        "viewed": {
+            "default": ""
+        },
         "texts3d": {
             "default": "nutibillboard",
             "values": {

@@ -2,10 +2,8 @@ import { CartoMap } from '@nativescript-community/ui-carto/ui';
 import { prompt } from '@nativescript-community/ui-material-dialogs';
 import * as application from '@nativescript/core/application';
 import { EventData } from '@nativescript/core/data/observable';
-import { ObservableArray } from '@nativescript/core/data/observable-array';
 import { Frame } from '@nativescript/core/ui/frame';
 import { GestureEventData } from '@nativescript/core/ui/gestures';
-import { Feature } from 'geojson';
 import { bind } from 'helpful-decorators';
 import { Component } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
@@ -22,7 +20,7 @@ import {
     StatusChangedEvent
 } from '~/handlers/BluetoothHandler';
 import {
-    GeoHandler,
+    FeatureViewedEvent,
     GeoLocation,
     InsideFeatureEvent,
     PositionStateEvent,
@@ -34,7 +32,7 @@ import {
     UserRawLocationEvent
 } from '~/handlers/GeoHandler';
 import { $tc } from '~/helpers/locale';
-import Track, { GeometryProperties, TrackFeature, TrackGeometry } from '~/models/Track';
+import Track, { TrackFeature } from '~/models/Track';
 import { confirm } from '~/utils/dialogs';
 import { ComponentIds } from './App';
 import { BaseVueComponentRefs } from './BaseVueComponent';
@@ -81,7 +79,7 @@ export default class Home extends BgServiceComponent {
     selectedTracks: Track[] = null;
     insideFeature: TrackFeature = null;
 
-    currentDrawImage = null;
+    viewedFeatures = null;
 
     get map() {
         const mapComp = this.$refs.mapComp as MapComponent;
@@ -116,6 +114,10 @@ export default class Home extends BgServiceComponent {
     }
     onInsideFeature(event: EventData) {
         this.insideFeature = event['data'].feature;
+    }
+    onFeatureViewed(event: EventData) {
+        this.viewedFeatures = event['data'].featureViewed;
+        console.log('onFeatureViewed', this.viewedFeatures);
     }
     onTrackPositionState(event: EventData) {
         const events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[] = event['data'].events;
@@ -241,6 +243,7 @@ export default class Home extends BgServiceComponent {
             aimingAngle: handlers.geoHandler.aimingAngle,
             isInTrackBounds: handlers.geoHandler.isInTrackBounds
         } as any);
+        this.geoHandlerOn(FeatureViewedEvent, this.onFeatureViewed, this);
 
         this.bluetoothHandlerOn('drawBitmap', this.onDrawImage);
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
@@ -363,13 +366,14 @@ export default class Home extends BgServiceComponent {
                     await this.bluetoothHandler.playInstruction('start', { randomize: true });
                     break;
                 case 'rideau':
+                    console.log('rideau');
                     await this.bluetoothHandler.playRideauAndStory();
                     break;
                 case 'demitour':
                     await this.bluetoothHandler.playInstruction('uturn', { frameDuration: 400 });
                     break;
                 case 'stopPlaying':
-                    await this.bluetoothHandler.stopPlayingLoop();
+                    this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
                     break;
                 case 'changeDeviceName':
                     prompt({
@@ -531,7 +535,8 @@ export default class Home extends BgServiceComponent {
     }
 
     onDrawImage(event) {
-        // console.log('onDrawImage', event.bitmap);
-        this.currentDrawImage = event.bitmap;
+        console.log('onDrawImage', event.bitmap);
+        this.$refs.imageView.nativeView.src = event.bitmap;
+        // this.currentDrawImage = event.bitmap;
     }
 }

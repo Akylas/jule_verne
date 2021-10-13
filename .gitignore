@@ -34,3 +34,5 @@ typings/
 !.vscode/extensions.json
 /.sentryclirc
 .history
+pnpm-lock.yaml
+/report

@@ -72,7 +72,8 @@ export enum ComponentIds {
 
 export const navigateUrlProperty = 'navigateUrl';
 
-const mailRegexp = /(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])/;
+const mailRegexp =
+    /(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])/;
 
 const production = TNS_ENV === 'production';
 
@@ -184,7 +185,7 @@ export default class App extends BgServiceComponent {
 
     needsImportOldSessionsOnLoaded = false;
     onServiceStarted() {
-        console.log('onServiceStarted')
+        console.log('onServiceStarted');
         if (this.needsImportOldSessionsOnLoaded) {
             this.needsImportOldSessionsOnLoaded = false;
             this.importDevSessions();
@@ -199,32 +200,31 @@ export default class App extends BgServiceComponent {
         }
     }
     async importDevSessions() {
-            const devDataImported = appSettings.getBoolean('devDataImported', false);
-            // if (devDataImported) {
-            //     return;
-            // }
-            console.log('importDevSessions');
-            try {
-                // this.showLoading({ text: this.$t('importing_data'), progress: 0 });
-                const importData = knownFolders.currentApp().getFile('assets/data/map.geojson').readTextSync();
-                const data = JSON.parse(importData);
-                for (let index = 0; index < data.length; index++) {
-                    const d = data[index];
-                    const track = new Track(d.name || Date.now());
-                    Object.assign(track, d);
-                    const geojson = bboxify(track.geometry);
-                    track.geometry = geojson as any;
-                    console.log('geojson', geojson.bbox);
-                    // track.geometry = reader.readFeatureCollection(JSON.stringify(d.geometry));
-                    track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.bbox[3], lon: geojson.bbox[2] }, { lat: geojson.bbox[1], lon: geojson.bbox[0] });
-                    await track.save();
-                    appSettings.setBoolean('devDataImported', true);
-                }
-            } catch (err) {
-                this.showError(err);
-            } finally {
-                // this.hideLoading();
+        const devDataImported = appSettings.getBoolean('devDataImported', false);
+        // if (devDataImported) {
+        //     return;
+        // }
+        console.log('importDevSessions');
+        try {
+            // this.showLoading({ text: this.$t('importing_data'), progress: 0 });
+            const importData = knownFolders.currentApp().getFile('assets/data/map.geojson').readTextSync();
+            const data = JSON.parse(importData);
+            for (let index = 0; index < data.length; index++) {
+                const d = data[index];
+                const track = new Track(d.name || Date.now());
+                Object.assign(track, d);
+                const geojson = bboxify(track.geometry);
+                track.geometry = geojson as any;
+                // track.geometry = reader.readFeatureCollection(JSON.stringify(d.geometry));
+                track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.bbox[3], lon: geojson.bbox[2] }, { lat: geojson.bbox[1], lon: geojson.bbox[0] });
+                await track.save();
+                appSettings.setBoolean('devDataImported', true);
             }
+        } catch (err) {
+            this.showError(err);
+        } finally {
+            // this.hideLoading();
+        }
     }
 
     quitApp() {

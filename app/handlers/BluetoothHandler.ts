@@ -949,28 +949,31 @@ export class BluetoothHandler extends Observable {
     }
     currentLoop: string = null;
     isPlaying = false;
-    isPlayingStory = false;
+    isPlayingStory = 0;
     isPlayingMusic = false;
     isPlayingNavigationInstruction = false;
     toPlayNext: Function = null;
 
     async stopPlayingInstruction(fade = true) {
         if (this.isPlaying && !this.isPlayingMusic && !this.isPlayingStory) {
-            return this.stopPlayingLoop(fade);
+            return this.stopPlayingLoop({ fade });
         }
     }
 
     async stopNavigationInstruction(fade = true) {
         if (this.isPlayingNavigationInstruction) {
-            return this.stopPlayingLoop(fade);
+            return this.stopPlayingLoop({ fade });
         }
     }
 
-    async stopPlayingLoop(fade = true) {
-        console.log('stopPlayingLoop', new Error().stack);
+    async stopPlayingLoop({ fade = true, ignoreNext = false, instruction = false } = {}) {
         // if (!this.isPlaying) {
         //     return;
         // }
+        if (instruction && this.isPlayingNavigationInstruction && (this.isPlayingMusic || this.isPlayingStory)) {
+            return;
+        }
+        console.log('stopPlayingLoop', instruction, this._player.isAudioPlaying());
         this.isPlaying = false;
         if (this.lyric) {
             this.lyric.pause();
@@ -980,19 +983,21 @@ export class BluetoothHandler extends Observable {
             this.currentLoop = null;
             // await this.fadeout();
         }
+        const onDone = async () => {
+            this._player.pause();
+            this._player['_options']?.errorCallback();
+            try {
+                await this._player.dispose();
+            } catch (err) {
+                console.log('error disposing player', err);
+            }
+            this._player = new TNSPlayer();
+            if (!ignoreNext && this.toPlayNext) {
+                this.toPlayNext();
+            }
+            this.toPlayNext = null;
+        };
         if (this._player.isAudioPlaying()) {
-            const onDone = async () => {
-                this._player.pause();
-                this._player['_options']?.errorCallback();
-                try {
-                    await this._player.dispose();
-                } catch (err) {
-                    console.log('error disposing player', err);
-                }
-                this._player = new TNSPlayer();
-                this.toPlayNext && this.toPlayNext();
-                this.toPlayNext = null;
-            };
             if (fade) {
                 new TWEEN.Tween({ value: 1 })
                     .to({ value: 0 }, 500)
@@ -1005,7 +1010,11 @@ export class BluetoothHandler extends Observable {
             } else {
                 onDone();
             }
+        } else {
+            onDone();
         }
+        console.log('stopPlayingLoop done');
+        this.notify({ eventName: 'drawBitmap', bitmap: null });
         if (fade) {
             this.fadeout();
         } else {
@@ -1013,7 +1022,6 @@ export class BluetoothHandler extends Observable {
                 await this.glasses.sendCommand(CommandType.Clear);
             }
         }
-        this.notify({ eventName: 'drawBitmap', bitmap: null });
     }
     // async playLoop(index: number, count = 3) {
     //     const myLoop = index + '_' + count;
@@ -1050,7 +1058,7 @@ export class BluetoothHandler extends Observable {
         // await this.startLoop();
         // this.fadein();
         let loopIndex = 0;
-        const iterations = options?.iterations || 0;
+        const iterations = options?.iterations || 1;
         const imageMap = this.imageMap;
         // console.log('playOfImages', images, myLoop, this.currentLoop, iterations, loopIndex);
         while (this.currentLoop === myLoop && !this.isFaded && (!iterations || loopIndex < iterations)) {
@@ -1064,8 +1072,9 @@ export class BluetoothHandler extends Observable {
                 // console.log('playing image', images[index], imageMap[images[index]]);
                 this.notify({ eventName: 'drawBitmap', bitmap: path.join(imagesFolder, images[index]) });
                 if (this.glasses) {
+                    const [imageId, x, y] = imageMap[images[index].slice(0, -4)];
                     // console.log('playing image', images[index], imageMap[images[index]]);
-                    await this.glasses.sendCommand(CommandType.Bitmap, { params: [imageMap[images[index].slice(0, -4)], 0, 0] });
+                    await this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, x, y] });
                     // await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
                 }
                 await timeout(options?.frameDuration || 200);
@@ -1190,7 +1199,7 @@ export class BluetoothHandler extends Observable {
         return timeline;
     }
 
-    _imagesMap: { [k: string]: number };
+    _imagesMap: { [k: string]: [number, number, number, number, number] };
     get imageMap() {
         if (!this._imagesMap) {
             const filePath = path.join(knownFolders.currentApp().path, '/assets/data/glasses_images/image_map.json');
@@ -1221,15 +1230,13 @@ export class BluetoothHandler extends Observable {
         }
     }
     async playNavigationInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
-        this.isPlayingNavigationInstruction = true;
-        await this.playInstruction(instruction, {});
-        this.isPlayingNavigationInstruction = false;
+        return this.playInstruction(instruction, { iterations: 4, noAudio: true, frameDuration: 400, instruction: true });
     }
-    async playInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
-        console.log('playInstruction1', instruction, this.isPlaying, !!options?.noAudio, !!options?.force);
+    async playInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio?; instruction? }) {
+        console.log('playInstruction', instruction, this.isPlaying, !!options?.noAudio, !!options?.force);
         if (this.isPlaying) {
             if (options?.force === true) {
-                this.stopPlayingLoop();
+                this.stopPlayingLoop({ fade: false, ignoreNext: true });
             } else if (options?.queue === true) {
                 return new Promise<void>((resolve) => {
                     this.toPlayNext = async () => {
@@ -1238,14 +1245,18 @@ export class BluetoothHandler extends Observable {
                     };
                 });
             }
-            if (options?.noAudio === true && (this.isPlayingStory || this.isPlayingMusic)) {
+            if (options?.noAudio === true && this.isPlayingMusic) {
                 // we can still play the instruction
             } else {
                 return;
             }
         }
+        if (instruction) {
+            this.isPlayingNavigationInstruction = true;
+        }
         this.isPlaying = true;
 
+        console.log('playInstruction', instruction, this.isPlaying, !!options?.noAudio, !!options?.force);
         const instFolder = path.join(knownFolders.currentApp().path, `assets/data/glasses_images/navigation/${instruction}`);
         const files = await Folder.fromPath(instFolder).getEntities();
         const images = files
@@ -1259,7 +1270,7 @@ export class BluetoothHandler extends Observable {
                   .map((f) => f.path)
                   .sort();
         console.log('images', images);
-        console.log('audios', audios);
+        // console.log('audios', audios);
         if (audios && audios.length) {
             await new Promise<void>((resolve, reject) => {
                 this.playAudios(audios)
@@ -1279,27 +1290,34 @@ export class BluetoothHandler extends Observable {
         } else {
             await this.playOfImages(images, instFolder, options);
         }
-        this.isPlaying = false;
-        this.stopPlayingLoop();
+        await this.stopPlayingLoop({ instruction: options.instruction });
+        if (instruction) {
+            this.isPlayingNavigationInstruction = false;
+        }
     }
     lyric: Lyric = null;
 
     async playRideauAndStory(storyIndex = 1) {
-        console.log('playRideauAndStory', this.isPlaying);
+        if (this.isPlayingStory === storyIndex) {
+            return;
+        }
         if (this.isPlaying) {
             return new Promise<void>((resolve) => {
                 this.toPlayNext = async () => {
-                    await this.playRideauAndStory();
+                    await this.playRideauAndStory(storyIndex);
                     resolve();
                 };
             });
         }
-        await this.playInstruction('rideau', { iterations: 1, delay: 1500 });
-        await timeout(1000);
-        this.stopPlayingLoop();
+        // console.log('playRideauAndStory', this.isPlaying);
+        // set it now to make sure we dont play the same story twice
+        this.isPlayingStory = storyIndex;
+        // await this.playInstruction('rideau', { iterations: 1, delay: 1500 });
+        // await timeout(1000);
         this.playStory(storyIndex);
     }
     async playStory(index = 1) {
+        console.log('playStory', index, this.isPlaying);
         if (this.isPlaying) {
             return new Promise<void>((resolve) => {
                 this.toPlayNext = async () => {
@@ -1310,13 +1328,13 @@ export class BluetoothHandler extends Observable {
         }
         try {
             this.isPlaying = true;
-            this.isPlayingStory = true;
+            this.isPlayingStory = index;
             const storyFolder = path.join(knownFolders.currentApp().path, `/assets/data/glasses_images/stories/${index}`);
             const data = await File.fromPath(path.join(storyFolder, 'composition.json')).readText();
             const imagesMap = this.imageMap;
             const result = this.parseLottieFile(JSON.parse(data));
-            console.log('lines', result);
-            console.log('imagesMap', imagesMap);
+            // console.log('lines', result);
+            // console.log('imagesMap', imagesMap);
             if (this.glasses) {
                 this.glasses.sendCommand(CommandType.Dim, { params: [70] });
             }
@@ -1328,15 +1346,15 @@ export class BluetoothHandler extends Observable {
                 onPlay: async (line, text) => {
                     if (text && text.length > 0) {
                         const cleaned = text.split('.')[0].replace(/\s/g, '-');
-                        const imageId = imagesMap[cleaned];
+                        const [imageId, x, y] = imagesMap[cleaned];
                         // console.log('playing image', imageId);
                         this.clearFadeout();
 
-                        console.log('playing image', text, cleaned, imageId);
-                        this.notify({ eventName: 'drawBitmap', bitmap: path.join(storyFolder, 'images', cleaned + '.bmp') });
+                        // console.log('playing image', text, cleaned, imageId);
+                        this.notify({ eventName: 'drawBitmap', bitmap: path.join(storyFolder, 'images', cleaned + '.png') });
                         if (this.glasses) {
-                            this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, 0, 0] });
-                            this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, 0, 0] });
+                            this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, x, y] });
+                            // this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, 0, 0] });
                         }
                     } else {
                         this.notify({ eventName: 'drawBitmap', bitmap: null });
@@ -1345,18 +1363,30 @@ export class BluetoothHandler extends Observable {
                 }
             });
             this.clearFadeout();
-            // await new Promise<void>(async (resolve, reject) => {
             this.lyric.play();
             await this.playAudio(path.join(storyFolder, 'audio.mp3'));
-            this.stopPlayingLoop();
-            // });
+            console.log('playStory done ', index, this.isPlaying);
+            // mark story as played
             this.geoHandler.playedStory(index + '');
-            // console.log('done');
-        } catch (error) {
-            console.error(error);
         } finally {
-            this.isPlaying = false;
-            this.isPlayingStory = false;
+            this.isPlayingStory = 0;
+            this.stopPlayingLoop();
+        }
+    }
+
+    async playMusic(index) {
+        this.isPlaying = true;
+        this.isPlayingMusic = true;
+        // story will play right after so store the playing index
+        // so we know what s about to play
+        // this.isPlayingStory = index;
+        try {
+            const storyFolder = path.join(knownFolders.currentApp().path, `/assets/data/glasses_images/stories/${index}`);
+            console.log('playMusic', storyFolder);
+            await this.playAudio(path.join(storyFolder, 'musique.mp3'));
+        } finally {
+            this.isPlayingMusic = false;
+            this.stopPlayingLoop();
         }
     }
 
