@@ -4,7 +4,8 @@
     "readme": "NativeScript Application",
     "author": "Martin Guillon<martin.guillon@akylas.fr>",
     "scripts": {
-        "run.android.production": "tns run android --clean --bundle --release --keyStorePath certs/upload.keystore --keyStorePassword juleverne --keyStoreAlias juleverne --keyStoreAliasPassword juleverne --env.adhoc",
+        "run.android.production": "devns run android --clean --bundle --release --keyStorePath certs/upload.keystore --keyStorePassword juleverne --keyStoreAlias juleverne --keyStoreAliasPassword juleverne --env.adhoc --env.adhoc --env.sentry=0 --env.sourceMap=0",
+        "build.android.production": "devns build android --clean --bundle --release --keyStorePath certs/upload.keystore --keyStorePassword juleverne --keyStoreAlias juleverne --keyStoreAliasPassword juleverne --env.adhoc --env.adhoc --env.sentry=0 --env.sourceMap=0",
         "run.ios.device": "tns run ios --no-hmr --i-cloud-container-environment Development",
         "run.ios.device.production": "tns run ios --bundle --release --env.production --env.adhoc --provision 'match Development com.akylas.juleverne' --i-cloud-container-environment Development"
     },
@@ -75,7 +76,7 @@
         "@babel/core": "7.15.8",
         "@babel/plugin-transform-runtime": "^7.15.8",
         "@babel/preset-env": "^7.15.8",
-        "@nativescript/android": "8.2.0-alpha.2",
+        "@nativescript/android": "8.1.1",
         "@nativescript/core": "8.1.4",
         "@nativescript/ios": "8.1.0",
         "@nativescript/types-android": "8.1.0",

@@ -848,8 +848,8 @@ export class GeoHandler extends Observable {
                         this.mLastAimingDirection = newAimingDirection;
                         this.mLastPlayedAimingDirection = null;
                     } else if (
-                        (this.mLastPlayedAimingDirection !== newAimingDirection || !this.mLastPlayedAimingDirectionTime || Date.now() - this.mLastPlayedAimingDirectionTime > 40000) && // play instruction on second consecutive same instruction(prevents jumps)
-                        (!this.mLastPlayedAimingDirectionTime || Date.now() - this.mLastPlayedAimingDirectionTime > 20000) && // only play an instruction every 30s (prevent back / forth)
+                        this.mLastPlayedAimingDirection !== newAimingDirection && // play instruction on second consecutive same instruction(prevents jumps)
+                        (!this.mLastPlayedAimingDirectionTime || Date.now() - this.mLastPlayedAimingDirectionTime > 5000) && // only play an instruction every 5s (prevent back / forth)
                         (!this.bluetoothHandler.isPlaying || this.bluetoothHandler.isPlayingNavigationInstruction) // dont play if playing important thing
                     ) {
                         this.mLastPlayedAimingDirection = newAimingDirection;
@@ -969,7 +969,7 @@ export class GeoHandler extends Observable {
     }
     async startSession() {
         this.actualSessionStart(true);
-        // this.bluetoothHandler.playInstruction('start', { force: true });
+        this.bluetoothHandler.playInstruction('start', { force: true });
     }
 
     async resumeSession() {

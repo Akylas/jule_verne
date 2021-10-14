@@ -1317,8 +1317,8 @@ export class BluetoothHandler extends Observable {
         // console.log('playRideauAndStory', this.isPlaying);
         // set it now to make sure we dont play the same story twice
         this.isPlayingStory = storyIndex;
-        // await this.playInstruction('rideau', { iterations: 1, delay: 1500 });
-        // await timeout(1000);
+        await this.playInstruction('rideau', { iterations: 1, delay: 1500 });
+        await timeout(1000);
         this.playStory(storyIndex);
     }
     async playStory(index = 1) {
