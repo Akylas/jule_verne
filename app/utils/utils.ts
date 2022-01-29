@@ -1,10 +1,9 @@
-import { knownFolders, path } from '@nativescript/core/file-system';
+import { ApplicationSettings, Folder, knownFolders, path } from '@nativescript/core';
 import * as app from '@nativescript/core/application';
-
 
 export function getDataFolder() {
     let dataFolder;
-    if (global.isAndroid) {
+    if (__ANDROID__) {
         const checkExternalMedia = function () {
             let mExternalStorageAvailable = false;
             let mExternalStorageWriteable = false;
@@ -25,15 +24,39 @@ export function getDataFolder() {
         };
         if (checkExternalMedia()) {
             const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
-            dataFolder = dirs[dirs.length - 1].getAbsolutePath();
-        } else {
-            dataFolder = knownFolders.documents().path;
+            dataFolder = dirs[dirs.length - 1]?.getAbsolutePath();
         }
-    } else {
+    }
+    if (!dataFolder) {
         dataFolder = knownFolders.documents().path;
     }
-    if (!PRODUCTION) {
-        dataFolder = path.join(dataFolder, 'dev');
-    }
+    // if (!PRODUCTION) {
+    //     dataFolder = path.join(dataFolder, 'dev');
+    // }
     return dataFolder;
+}
+
+export function getWorkingDir() {
+    let localMbtilesSource = ApplicationSettings.getString('local_directory');
+    if (!localMbtilesSource) {
+        let defaultPath = path.join(getDataFolder(), 'jules_verne');
+        if (__ANDROID__) {
+            const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
+            const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();
+            if (sdcardFolder) {
+                defaultPath = path.join(sdcardFolder, '../../../..', 'jules_verne');
+            }
+        }
+        localMbtilesSource = ApplicationSettings.getString('loca_directory', defaultPath);
+    }
+    return localMbtilesSource;
+}
+
+export function getGlassesImagesFolder() {
+    const folderPath = path.join(getWorkingDir(), 'glasses_images');
+    console.log('getGlassesImagesFolder', getWorkingDir(), path.normalize(folderPath));
+    if (Folder.exists(folderPath)) {
+        return folderPath;
+    }
+    return path.join(knownFolders.currentApp().path, '/assets/data/glasses_images');
 }

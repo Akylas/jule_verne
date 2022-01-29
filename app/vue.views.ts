@@ -38,9 +38,9 @@ const Plugin = {
         Vue.use(PagerPlugin);
         Vue.use(DrawerPlugin);
 
-        Vue.registerElement('WebViewExt', () => require('@nota/nativescript-webview-ext').WebViewExt);
+        Vue.registerElement('AWebView', () => require('@nativescript-community/ui-webview').AWebView);
         Vue.registerElement('LineChart', () => require('@nativescript-community/ui-chart/charts/LineChart').LineChart);
-        Vue.registerElement('CheckBox', () => require('@nstudio/nativescript-checkbox').CheckBox, {
+        Vue.registerElement('CheckBox', () => require('@akylas/nativescript-checkbox').CheckBox, {
             model: {
                 prop: 'checked',
                 event: 'checkedChange'

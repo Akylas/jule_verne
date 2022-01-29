@@ -1,9 +1,12 @@
-@use "sass:color";
-@use "sass:math";
+@use 'sass:color';
+@use 'sass:math';
 @import './variables';
 // @import "./animations";
 
 Page {
+    status-bar-style: light;
+    navigation-bar-color: $background-color;
+    status-bar-color: $background-color;
     background-color: $background-color;
 }
 
@@ -29,7 +32,7 @@ TabViewItem {
     @extend .mdi;
     width: $actionbar-height;
     height: $actionbar-height;
-    color: black;
+    color: $text-color;
     font-size: 32;
     border-radius: math.div($actionbar-height, 2);
 }
@@ -38,12 +41,12 @@ TabViewItem {
     vertical-alignment: center;
     font-size: 18;
     font-weight: 500;
-    color: white;
+    color: $text-color;
 }
 
 .actionBarSubtitle {
     font-size: 13;
-    color: rgba(255, 255, 255, 0.533);
+    color: $text-color;
 }
 
 .icon-btn {
@@ -76,9 +79,6 @@ TabViewItem {
 .menu[active='true'] {
     background-color: color.adjust($accent-color, $alpha: -0.4);
 }
-.menuText[active='true'] {
-}
-
 .menuInfos {
     padding-left: 25;
     padding-right: 25;
@@ -107,7 +107,7 @@ TabViewItem {
 .floating-btn {
     @extend .mdi;
     color: $accent-color;
-    background-color: $primary-color;
+    background-color: white;
     ripple-color: $dark-color;
     font-size: 30;
     width: 64;
@@ -116,16 +116,20 @@ TabViewItem {
 .small-floating-btn {
     @extend .mdi;
     color: $primary-color;
-    font-size: 15;
-    width: 30;
-    height: 30;
+    font-size: 24;
+    width: 44;
+    height: 44;
 }
 
+.settings-header {
+    color: $text-color;
+    padding: 10;
+    font-size: 20;
+}
 .settings-section-title {
     color: $text-color;
     padding: 5 0 5 0;
     font-size: 17;
-    vertical-alignment: center;
 }
 .settings-section-desc {
     font-size: 13;
@@ -136,13 +140,14 @@ TabViewItem {
 .settings-section {
     margin: 8;
     padding: 10;
-    border-radius: 4;
-    background-color: #032332;
+    border-radius: 8;
+    border-color: darken($background-color, 10%);
+    border-width: 1;
     & .settings-section-title {
-        color: white;
+        color: $text-color;
     }
     & .settings-section-desc {
-        color: white;
+        color: opacify($text-color, 0.3);
     }
 }
 .settings-section-holder {

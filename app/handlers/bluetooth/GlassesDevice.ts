@@ -4,27 +4,27 @@ import { Characteristic } from './Characteristic';
 import { Device } from './Device';
 import { GlassesRXCharacteristic } from './GlassesRXCharacteristic';
 import { GlassesBinaryRXCharacteristic } from './GlassesBinaryRXCharacteristic';
-import { CommandType, Message, MessageParser, ParseResult } from '../Message';
+import { CommandType, InputCommandType, Message, MessageParser, ParseResult } from '../Message';
 
 export const GESTURE_CHAR_UUID = '0783b03e-8535-b5a0-7140-a304d2495cbb';
 export const BUTTON_CHAR_UUID = '0783b03e-8535-b5a0-7140-a304d2495cbc';
 
-const BinaryCmdToString = {
-    [CommandType.Version]: 'vers',
-    [CommandType.Power]: 'power',
-    [CommandType.Clear]: 'clear',
-    [CommandType.Color]: 'color',
-    [CommandType.Bitmap]: 'bitmap',
-    [CommandType.Battery]: 'battery',
-    [CommandType.Settings]: 'settings',
-    [CommandType.Als]: 'als',
-    [CommandType.Gesture]: 'gesture',
-    [CommandType.Rectf]: 'rectf',
-    [CommandType.Shift]: 'shift',
-    [CommandType.Luma]: 'luma',
-    [CommandType.Layout]: 'layout',
-    [CommandType.Txt]: 'txt'
-};
+// const BinaryCmdToString = {
+//     [CommandType.Version]: 'vers',
+//     [CommandType.Power]: 'power',
+//     [CommandType.Clear]: 'clear',
+//     [CommandType.Color]: 'color',
+//     [CommandType.Bitmap]: 'bitmap',
+//     [CommandType.Battery]: 'battery',
+//     [CommandType.Settings]: 'settings',
+//     [CommandType.Als]: 'als',
+//     [CommandType.Gesture]: 'gesture',
+//     [CommandType.Rectf]: 'rectf',
+//     [CommandType.Shift]: 'shift',
+//     [CommandType.Luma]: 'luma',
+//     [CommandType.Layout]: 'layout',
+//     [CommandType.Txt]: 'txt'
+// };
 
 export class GlassesDevice extends Device {
     firmwareVersion: string;
@@ -85,8 +85,8 @@ export class GlassesDevice extends Device {
 
         this.binaryFormat = chars.findIndex((c) => c.UUID.toLowerCase() === GESTURE_CHAR_UUID) !== -1;
         this.hasFlowControl = chars.findIndex((c) => c.UUID.toLowerCase() === FLOW_SERVER_UUID) !== -1;
-        // console.log('binaryFormat ', this.binaryFormat);
-        // console.log('hasFlowControl ', this.hasFlowControl);
+        DEV_LOG && console.log('binaryFormat ', this.binaryFormat);
+        DEV_LOG && console.log('hasFlowControl ', this.hasFlowControl);
 
         this.txChar = new Characteristic(this, SERVER_SERVICE_UUID, TX_SERVER_UUID);
         if (this.binaryFormat) {
@@ -104,33 +104,37 @@ export class GlassesDevice extends Device {
     set canSendData(value: boolean) {
         this.rxChar.canSendData = value;
     }
-    public sendCommand(commandType: CommandType, options: { params?: any[]; timestamp?: number; progressCallback?: ProgressCallback; timeout?: number } = {}): Promise<Message> {
-        if (this.binaryFormat) {
-            if (options.timestamp) {
-                const id = options.timestamp;
-                return new Promise((resolve, reject) => {
-                    this.messagePromises[id] = this.messagePromises[id] || [];
-                    let timeoutTimer;
-                    if (options.timeout > 0) {
-                        timeoutTimer = setTimeout(() => {
-                            // we need to try catch because the simple fact of creating a new Error actually throws.
-                            // so we will get an uncaughtException
-                            try {
-                                reject(new Error('timeout'));
-                            } catch {}
-                            delete this.messagePromises[id];
-                        }, options.timeout);
-                    }
-                    this.messagePromises[id].push({ resolve, reject, timeoutTimer });
-                    (this.rxChar as GlassesBinaryRXCharacteristic).sendBinaryCommand(commandType, options);
-                });
-            } else {
+    public sendCommand<T extends CommandType>(
+        commandType: T,
+        options: { params?: InputCommandType<T>; timestamp?: number; progressCallback?: ProgressCallback; timeout?: number } = {}
+    ): Promise<Message<T>> {
+        // if (this.binaryFormat) {
+        // console.log('sendCommand', CommandType[commandType], options);
+        if (options.timestamp) {
+            const id = options.timestamp;
+            return new Promise((resolve, reject) => {
+                this.messagePromises[id] = this.messagePromises[id] || [];
+                let timeoutTimer;
+                if (options.timeout > 0) {
+                    timeoutTimer = setTimeout(() => {
+                        // we need to try catch because the simple fact of creating a new Error actually throws.
+                        // so we will get an uncaughtException
+                        try {
+                            reject(new Error('timeout'));
+                        } catch {}
+                        delete this.messagePromises[id];
+                    }, options.timeout);
+                }
+                this.messagePromises[id].push({ resolve, reject, timeoutTimer });
                 (this.rxChar as GlassesBinaryRXCharacteristic).sendBinaryCommand(commandType, options);
-            }
+            });
         } else {
-            const stringToSend = BinaryCmdToString[commandType] + (options.params ? ' ' + options.params.join(' ') : '');
-            (this.rxChar as GlassesRXCharacteristic).sendCommand(stringToSend, options.progressCallback, true);
+            (this.rxChar as GlassesBinaryRXCharacteristic).sendBinaryCommand(commandType, options);
         }
+        // } else {
+        //     const stringToSend = BinaryCmdToString[commandType] + (options.params ? ' ' + options.params.join(' ') : '');
+        //     (this.rxChar as GlassesRXCharacteristic).sendCommand(stringToSend, options.progressCallback, true);
+        // }
     }
     // sendCommand(command: string, progressCallback?: ProgressCallback, withControlChar = true) {
     //     this.rxChar.sendCommand(command, progressCallback, withControlChar);
@@ -153,7 +157,7 @@ export class GlassesDevice extends Device {
         this.rxChar.mtu = value;
     }
 
-    onMessage(message: Message) {
+    onMessage(message: Message<any>) {
         const id = message.queryId;
         // console.log('onMessage', id, message);
         if (id && this.messagePromises.hasOwnProperty(id)) {
@@ -187,7 +191,7 @@ export class GlassesDevice extends Device {
         if (this.binaryFormat) {
             this.parser.parseData(new Uint8Array(value));
         } else {
-            let message: Message;
+            let message: Message<any>;
             const arr = new Uint8Array(value);
             const str = String.fromCharCode.apply(String, arr) as string;
             // if (str === 'power down') {

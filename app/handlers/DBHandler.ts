@@ -1,13 +1,8 @@
-import { EventData, Observable } from '@nativescript/core/data/observable';
-
-import { GeoLocation } from './GeoHandler';
-import { computeDistance, getBounds } from '~/helpers/geo';
-import { simplify } from '~/helpers/simplify';
-import { File, knownFolders, path } from '@nativescript/core/file-system';
 import { GenericGeoLocation } from '@nativescript-community/gps';
-
-const average = (arr) => arr.reduce((p, c) => p + c, 0) / arr.length;
-const PRESSURE_STANDARD_ATMOSPHERE = 1013.25;
+import { Observable } from '@nativescript/core/data/observable';
+import { knownFolders, path } from '@nativescript/core/file-system';
+import { TrackRepository } from '../models/Track';
+import NSQLDatabase from './NSQLDatabase';
 
 const TAG = '[DB]';
 
@@ -24,38 +19,28 @@ export interface OldStoredSession {
     locs: GenericGeoLocation[];
 }
 
-import { installMixins } from '@akylas/nativescript-sqlite/typeorm';
-
-import { Connection, createConnection } from '@nativescript-community/typeorm/browser';
-import Track from '../models/Track';
-
 export class DBHandler extends Observable {
-    connection: Connection;
     started = false;
+
+    db: NSQLDatabase;
+    trackRepository: TrackRepository;
     async start() {
         const filePath = path.join(knownFolders.documents().getFolder('db').path, 'db.sqlite');
-        installMixins();
-
-        this.connection = await createConnection({
-            database: filePath,
-            type: '@akylas/nativescript-sqlite' as any,
-            entities: [Track],
-            logging: DEV_LOG
-        });
-
-        if (DEV_LOG) {
-            console.log(TAG, 'Connection Created');
-        }
-
-        await this.connection.synchronize(false);
-
-        if (DEV_LOG) {
-            console.log(TAG, 'about to create database', filePath);
-        }
+        this.db = new NSQLDatabase(filePath, {
+            // for now it breaks
+            // threading: true,
+            transformBlobs: false
+        } as any);
+        this.trackRepository = new TrackRepository(this.db);
+        await this.trackRepository.createTables();
         this.started = true;
     }
     stop() {
-        return this.connection.close();
+        return this.db && this.db.disconnect();
+    }
+
+    getItem(itemId: string) {
+        return this.trackRepository.getItem(itemId);
     }
     _devMode: boolean = false;
     get devMode() {

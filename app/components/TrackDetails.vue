@@ -1,6 +1,6 @@
 <template>
     <Page ref="page" :navigateUrl="navigateUrl" @navigatedTo="onNavigatedTo" @loaded="onLoaded">
-        <GridLayout rows="auto,150,*">
+        <GridLayout rows="auto,250,*">
             <CActionBar :title="$t('details')" showMenuIcon>
                 <MDButton v-show="editable" variant="text" class="icon-btn" :text="isEditing ? 'mdi-content-save' : 'mdi-pencil'" @tap="isEditing ? save() : (isEditing = !isEditing)" />
 
@@ -9,7 +9,7 @@
             <GridLayout row="1" @layoutChanged="onMapLayoutChange">
                 <MapComponent ref="mapComp" height="100%" width="100%" :tracks="[track]" @mapReady="onMapReady" :showFiltered="devMode" :locationEnabled="false" />
             </GridLayout>
-            <TabView row="2">
+            <TabView row="2" :androidSelectedTabHighlightColor="accentColor">
                 <TabViewItem title="Items">
                     <GridLayout>
                         <CollectionView :items="dataItems" rowHeight="60">

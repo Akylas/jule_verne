@@ -10,6 +10,8 @@ import { bind } from 'helpful-decorators';
 import Vue, { NativeScriptVue, NavigationEntryVue } from 'nativescript-vue';
 import { VueConstructor } from 'vue';
 import { Prop } from 'vue-property-decorator';
+import LoadingIndicator from './LoadingIndicator.vue';
+import { $tc } from '~/helpers/locale';
 import { accentColor, actionBarHeight, darkColor, primaryColor } from '../variables';
 
 function timeout(ms) {
@@ -22,12 +24,21 @@ export interface BaseVueComponentRefs {
 }
 
 export interface ShowLoadingOptions {
+    title?: string;
     text: string;
     progress?: number;
+    onButtonTap?: () => void;
 }
 
 export default class BaseVueComponent extends Vue {
-    protected loadingIndicator: AlertDialog & { label?: Label; indicator?: ActivityIndicator; progress?: Progress };
+    protected loadingIndicator: AlertDialog & {
+        instance?: LoadingIndicator & {
+            showButton: boolean;
+            title: string;
+            text: string;
+            progress: number;
+        };
+    };
     $refs: BaseVueComponentRefs;
     @Prop({ type: String, default: primaryColor })
     public themeColor;
@@ -73,28 +84,46 @@ export default class BaseVueComponent extends Vue {
                 view,
                 cancelable: false
             });
-            this.loadingIndicator.indicator = view.getChildAt(0) as ActivityIndicator;
-            this.loadingIndicator.label = view.getChildAt(1) as Label;
-            this.loadingIndicator.progress = view.getChildAt(2) as Progress;
+            this.loadingIndicator.instance = instance;
+            // this.loadingIndicator.indicator = view.getChildAt(0) as ActivityIndicator;
+            // this.loadingIndicator.label = view.getChildAt(1) as Label;
+            // this.loadingIndicator.progress = view.getChildAt(2) as Progress;
         }
         return this.loadingIndicator;
     }
 
     showLoadingStartTime: number = null;
-    showLoading(msg: string | ShowLoadingOptions) {
-        const text = (msg as any).text || msg;
+
+    showingLoading() {
+        return this.showLoadingStartTime !== null;
+    }
+    updateLoadingProgress(msg: Partial<ShowLoadingOptions>) {
+        if (this.showingLoading()) {
+            const loadingIndicator = this.getLoadingIndicator();
+            if (msg.text) {
+                loadingIndicator.instance.text = msg.text;
+            }
+            loadingIndicator.instance.progress = msg.progress;
+        }
+    }
+    showLoading(msg?: string | ShowLoadingOptions) {
+        const text = (msg as any)?.text || msg || $tc('loading');
         const loadingIndicator = this.getLoadingIndicator();
+        if (!!msg?.['onButtonTap']) {
+            loadingIndicator.instance.$on('tap', msg['onButtonTap']);
+        } else {
+            loadingIndicator.instance.$off('tap');
+            loadingIndicator.instance['showButton'] = !!msg?.['onButtonTap'];
+        }
         // if (DEV_LOG) {
         //     this.log('showLoading', msg, !!this.loadingIndicator, this.showLoadingStartTime);
         // }
-        loadingIndicator.label.text = text + '...';
-        if (typeof msg !== 'string' && msg.hasOwnProperty('progress')) {
-            loadingIndicator.indicator.visibility = 'collapse';
-            loadingIndicator.progress.visibility = 'visible';
-            loadingIndicator.progress.value = msg.progress;
+        loadingIndicator.instance.text = text;
+        loadingIndicator.instance.title = (msg as any)?.title;
+        if (msg && typeof msg !== 'string' && msg?.hasOwnProperty('progress')) {
+            loadingIndicator.instance.progress = msg.progress;
         } else {
-            loadingIndicator.indicator.visibility = 'visible';
-            loadingIndicator.progress.visibility = 'collapse';
+            loadingIndicator.instance.progress = null;
         }
         if (this.showLoadingStartTime === null) {
             this.showLoadingStartTime = Date.now();
@@ -112,25 +141,12 @@ export default class BaseVueComponent extends Vue {
         // }
         this.showLoadingStartTime = null;
         if (this.loadingIndicator) {
+            const loadingIndicator = this.getLoadingIndicator();
+            loadingIndicator.instance.$off('tap');
             this.loadingIndicator.hide();
         }
     }
-    static isRounded: boolean;
-    public isRounded: boolean = null;
-    isRoundeWatch() {
-        if (this.isRounded === null) {
-            if (BaseVueComponent.isRounded === undefined) {
-                if (global.isAndroid && android.os.Build.VERSION.SDK_INT >= 23) {
-                    BaseVueComponent.isRounded = (ad.getApplicationContext() as android.content.Context).getResources().getConfiguration().isScreenRound();
-                    // https://developer.android.com/reference/android/content/res/Configuration.html#isScreenRound()
-                } else {
-                    BaseVueComponent.isRounded = false;
-                }
-            }
-            this.isRounded = BaseVueComponent.isRounded;
-        }
-        return this.isRounded;
-    }
+
     mounted() {
         if (this.nativeView && this['navigateUrl']) {
             this.nativeView['navigateUrl'] = this['navigateUrl'];
@@ -138,19 +154,9 @@ export default class BaseVueComponent extends Vue {
         const page = this.page;
         if (page) {
             page.actionBarHidden = true;
-            if (global.isIOS) {
+            if (__IOS__) {
                 page.backgroundSpanUnderStatusBar = true;
             }
-        }
-        this.isRoundeWatch();
-        if (this.isRounded && this.needsRoundedWatchesHandle) {
-            this.handleRoundedWatches();
-        }
-    }
-    handleRoundedWatches() {
-        const page = this.page;
-        if (page) {
-            page.style.padding = Screen.mainScreen.widthDIPs * 0.146467; // c = a * sqrt(2);
         }
     }
     destroyed() {}
@@ -172,13 +178,6 @@ export default class BaseVueComponent extends Vue {
         }
         this.hideLoading();
         this.$crashReportService.showError(err);
-    }
-
-    log(...args) {
-        console.log(`[${this.constructor.name}]`, ...args);
-    }
-    err(...args) {
-        console.error(`[${this.constructor.name}]`, ...args);
     }
 
     goBack() {

@@ -49,14 +49,14 @@ export default class FirmwareUpdate extends BgServiceComponent {
 
     mounted() {
         super.mounted();
-        if (global.isAndroid) {
+        if (__ANDROID__) {
             application.android.on(application.AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
         }
     }
 
     destroyed() {
         super.destroyed();
-        if (global.isAndroid) {
+        if (__ANDROID__) {
             application.android.off(application.AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
         }
     }
@@ -325,7 +325,7 @@ export default class FirmwareUpdate extends BgServiceComponent {
                                     return Promise.reject(`wrong firmwareFile: ${this.firmwareFile.path}`);
                                 }
                                 let int8arr: Int8Array;
-                                if (global.isIOS) {
+                                if (__IOS__) {
                                     //@ts-ignore
                                     int8arr = Int8Array.from(new Uint8Array(interop.bufferFromData(data)));
                                     // int8arr.forEach((v, i, array)=>{
@@ -391,7 +391,7 @@ export default class FirmwareUpdate extends BgServiceComponent {
     }
 
     onAndroidBackButton(data: application.AndroidActivityBackPressedEventData) {
-        if (global.isAndroid) {
+        if (__ANDROID__) {
             if (!this.$getAppComponent().isActiveUrl(ComponentIds.Firmware)) {
                 // data.cancel = true;
                 // we are closing normally let s disconnect

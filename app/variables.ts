@@ -12,4 +12,3 @@ export const actionBarHeight: number = parseFloat(locals.actionBarHeight);
 export const actionBarButtonHeight: number = parseFloat(locals.actionBarButtonHeight);
 export const screenHeightDips = Screen.mainScreen.heightDIPs;
 export const screenWidthDips = Screen.mainScreen.widthDIPs;
-

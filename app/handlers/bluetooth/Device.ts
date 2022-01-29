@@ -43,7 +43,7 @@ export class Device extends Observable {
                 value
             })
             .then((result) => {
-                // console.log('result requestMtu', value, result);
+                DEV_LOG && console.log('result requestMtu', value, result);
                 if (result > 0) {
                     this.setMtu(result);
                 }

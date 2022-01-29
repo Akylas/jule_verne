@@ -1,8 +1,15 @@
 export const HEADER = 0xff;
 export const FOOTER = 0xaa;
 
-export function numberToUint8Array(n: number) {
+export const CONFIG_NAME = 'julesverne';
+export const CONFIG_VERSION = 1;
+export const CONFIG_PASSWORD = 'julesverne';
+
+export function numberToUint16Array(n: number) {
     return [(n >> 8) & 0xff, n & 0xff];
+}
+export function numberToUint32Array(f) {
+    return Array.from(new Uint8Array(Float32Array.of(f).buffer));
 }
 
 export function intFromBytes(x) {
@@ -16,47 +23,63 @@ export function intFromBytes(x) {
     }
     return val;
 }
-export function toUTF8Array(str: string) {
-    str = str.normalize('NFKD').replace(/[\u0300-\u036F]/g, '');
+export function toUTF8Array(str: string, maxLengthForCtrlChar: number = Number.MAX_SAFE_INTEGER) {
     const utf8 = [];
+    if (!str) {
+        return;
+    }
+    str = str.normalize('NFKD').replace(/[\u0300-\u036F]/g, '');
     for (let i = 0; i < str.length; i++) {
         const charcode = str.charCodeAt(i);
         if (charcode < 0xff) {
             utf8.push(charcode);
         }
-        // else if (charcode < 0xd800 || charcode >= 0xe000) {
-        //     utf8.push(0xe0 | (charcode >> 12),
-        //               0x80 | ((charcode>>6) & 0x3f),
-        //               0x80 | (charcode & 0x3f));
-        // }
-        // surrogate pair
-        // else {
-        // i++;
-        // we ignore utf16
-        // // UTF-16 encodes 0x10000-0x10FFFF by
-        // // subtracting 0x10000 and splitting the
-        // // 20 bits of 0x0-0xFFFFF into two halves
-        // charcode = 0x10000 + (((charcode & 0x3ff)<<10)
-        //           | (str.charCodeAt(i) & 0x3ff))
-        // utf8.push(0xf0 | (charcode >>18),
-        //           0x80 | ((charcode>>12) & 0x3f),
-        //           0x80 | ((charcode>>6) & 0x3f),
-        //           0x80 | (charcode & 0x3f));
-        // }
     }
-    utf8.push(0);
+    if (utf8.length < maxLengthForCtrlChar) {
+        utf8.push(0);
+    }
     return utf8;
 }
 
 export function fromUTF8Array(data: MessageBuffer) {
     let result = '';
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < data.length; i++) {
         result += String.fromCharCode(data[i]);
     }
     return result;
 }
 
+export interface WriteConfigParams {
+    name: string;
+    version: number;
+    password: number;
+}
+
+export interface ParamsTypeMap {
+    [CommandType.cfgWrite]: WriteConfigParams;
+    [CommandType.cfgSet]: { name: string };
+    [CommandType.cfgDelete]: { name: string };
+}
+type TypedParamCommands = keyof ParamsTypeMap;
+export type ConfigListData = {
+    name: string;
+    size: number;
+    version: number;
+}[];
+export interface FreeSpaceData {
+    totalSize: number;
+    freeSpace: number;
+}
+export interface OutputTypeMap {
+    [CommandType.cfgFreeSpace]: FreeSpaceData;
+    [CommandType.cfgList]: ConfigListData;
+}
+type TypedOutputCommands = keyof OutputTypeMap;
+
+export type OutputMessageType<T extends CommandType> = T extends CommandType.cfgFreeSpace | CommandType.cfgList ? OutputTypeMap[T] : any;
+export type InputCommandType<T extends CommandType> = T extends CommandType.cfgWrite | CommandType.cfgDelete | CommandType.cfgSet ? ParamsTypeMap[T] : (string | number | number[])[];
 export enum CommandType {
+    Any = -1,
     Power = 0x00,
     Clear = 0x01,
     Grey = 0x02,
@@ -85,8 +108,9 @@ export enum CommandType {
     Txt = 0x37,
     BmpList = 0x40,
     SaveBmp = 0x41,
-    Bitmap = 0x42,
+    imgDisplay = 0x42,
     EraseBmp = 0x43,
+    DeleteBmp = 0x46,
     FontList = 0x50,
     SaveFont = 0x51,
     Font = 0x52,
@@ -106,10 +130,16 @@ export enum CommandType {
     ReadMdpData = 0x92,
     Setece = 0xa0,
     TDBG = 0xb0,
-    Wconfig = 0xa1,
-    Rconfig = 0xa2,
-    Setconfig = 0xa3,
-    Memory = 0xd7,
+    cfgWrite = 0xd0,
+    cfgRead = 0xd1,
+    cfgSet = 0xd2,
+    cfgList = 0xd3,
+    cfgRename = 0xd4,
+    cfgDelete = 0xd5,
+    cfgDeleteLessUsed = 0xd6,
+    cfgFreeSpace = 0xd7,
+    cfgGetNb = 0xd8,
+    NbConfigs = 0xd8,
     RawCommand = 0xefefef // only used in app to say we want to send raw data
 }
 
@@ -147,19 +177,19 @@ export enum ParsingState {
     ParsingEndFlag
 }
 
-export interface Message {
-    commandType: CommandType;
+export interface Message<T extends CommandType> {
+    commandType: T;
     queryId?: number;
-    data?: any;
+    data?: OutputMessageType<T>;
     rawData?: any;
     receivedTimestamp?: number;
     [k: string]: any;
 }
 
-export interface ParseResult {
-    commandType?: CommandType;
+export interface ParseResult<T extends CommandType = any> {
+    commandType?: T;
     queryId?: number;
-    message?: Message;
+    message?: Message<T>;
     state: ParsingState;
     progressData?: ProgressData;
 }
@@ -172,9 +202,8 @@ export interface ProgressData {
 }
 
 function parseMessagePayload(commandType: CommandType, data: Buffer) {
-    // console.log('parseMessagePayload', commandType, data);
     switch (commandType) {
-        case CommandType.Rconfig:
+        case CommandType.cfgRead:
             // 8bytes
             return {
                 version: data ? intFromBytes(data.slice(1, 5)) : -1
@@ -183,6 +212,53 @@ function parseMessagePayload(commandType: CommandType, data: Buffer) {
             return {
                 version: `${data[0]}.${data[1]}.${data[2]}${String.fromCharCode(data[3])}`
             };
+        case CommandType.cfgFreeSpace:
+            return {
+                totalSize: intFromBytes(data.slice(0, 4)),
+                freeSpace: intFromBytes(data.slice(4, 8))
+            };
+        case CommandType.cfgList:
+            let remainingLength = data.byteLength;
+            let currentSlice = data.slice(0);
+            const configs = [];
+            while (remainingLength > 0) {
+                let endNameIndex = currentSlice.indexOf(0);
+                let removeCtrlChar = true;
+                if (endNameIndex > 11) {
+                    endNameIndex = 11;
+                    removeCtrlChar = false;
+                }
+                const dataView = new DataView(new Uint8Array(currentSlice).buffer);
+                const name = fromUTF8Array(currentSlice.slice(0, endNameIndex));
+                if (removeCtrlChar) {
+                    endNameIndex += 1;
+                }
+                remainingLength -= endNameIndex + 11;
+                configs.push({
+                    name,
+                    size: dataView.getUint32(endNameIndex, false),
+                    version: dataView.getUint32(endNameIndex + 4, false),
+                    usgCnt: currentSlice[endNameIndex + 8],
+                    installCnt: currentSlice[endNameIndex + 9],
+                    isSystem: currentSlice[endNameIndex + 10] === 1 ? true : false
+                });
+                currentSlice = currentSlice.slice(endNameIndex + 11);
+            }
+            // for (let index = 0; index < nbConfig; index++) {
+            //     const sliceData = data.slice(23 * index, 23 * (index + 1));
+            //     const dataView = new DataView(sliceData.buffer);
+            //     configs.push({
+            //         name: fromUTF8Array(sliceData.slice(0, 12)),
+            //         size: dataView.getUint32(12),
+            //         version: dataView.getUint32(16),
+            //         usgCnt: sliceData[20],
+            //         installCnt: sliceData[21],
+            //         isSystem: sliceData[22] === 1 ? true : false
+            //     });
+            // }
+            return configs;
+        case CommandType.NbConfigs:
+            return data[0];
         case CommandType.Settings:
             const mask0 = data[0] >> 7; // gets the 6th bit
             const mask1 = data[1] >> 7; // gets the 6th bit
@@ -195,11 +271,9 @@ function parseMessagePayload(commandType: CommandType, data: Buffer) {
                 als: !!data[3],
                 gesture: !!data[4]
             };
-            break;
 
         default:
             return undefined;
-            break;
     }
 }
 
@@ -219,7 +293,7 @@ export class MessageParser {
     private currentTotalMessageLengthArray: ByteArray;
     private currentQueryIdArray: ByteArray;
     parsingState = ParsingState.Waiting;
-    constructor(onMessage?: (btmessage: Message) => {}) {
+    constructor(onMessage?: <T extends CommandType = CommandType.Any>(btmessage: Message<T>) => {}) {
         if (onMessage) {
             this.onMessage = onMessage;
         }
@@ -228,7 +302,7 @@ export class MessageParser {
     isReceiving() {
         return this.parsingState !== ParsingState.Waiting;
     }
-    onMessage(btmessage: Message) {}
+    onMessage<T extends CommandType = CommandType.Any>(btmessage: Message<T>) {}
     reset() {
         this.setParsingState(ParsingState.Waiting);
         this.currentPayload = undefined;
@@ -413,17 +487,21 @@ export class MessageParser {
     }
 }
 
-export function buildMessageData(
-    commandType: CommandType,
+// type MessageParams<T extends CommandType> = ParamsTypeMap[T];
+function getTypeParam<T extends CommandType>(commandType: T, param: any) {
+    return param as InputCommandType<T>;
+}
+export function buildMessageData<T extends CommandType>(
+    commandType: T,
     options: {
         timestamp?: number;
-        params?: any[];
+        params?: InputCommandType<T>;
     } = {}
 ) {
+    // DEV_LOG && console.log('buildMessageData', CommandType[commandType], options);
     if (commandType === CommandType.RawCommand) {
-        return Buffer.from(options.params[0]);
+        return new Uint8Array(options.params[0]);
     }
-    // console.log('sendBinaryCommand', commandType, options);
     const queryIdLength = options.timestamp ? 8 : 0;
     let messageLength =
         1 + // header
@@ -442,26 +520,33 @@ export function buildMessageData(
         case CommandType.Gesture:
             data = options.params[0] === 'on' ? [1] : [0];
             break;
-            break;
-        case CommandType.Bitmap:
-            data = [options.params[0]].concat(numberToUint8Array(options.params[1])).concat(numberToUint8Array(options.params[2]));
+        case CommandType.imgDisplay:
+            data = [options.params[0]].concat(numberToUint16Array(options.params[1])).concat(numberToUint16Array(options.params[2]));
             break;
         case CommandType.SetName:
             data = toUTF8Array(options.params[0]);
             break;
         case CommandType.Shift:
-            data = numberToUint8Array(options.params[0]).concat(numberToUint8Array(options.params[1]));
-            break;
         case CommandType.Rectf:
-            data = numberToUint8Array(options.params[0]).concat(numberToUint8Array(options.params[1])).concat(numberToUint8Array(options.params[2])).concat(numberToUint8Array(options.params[3]));
+            const params = getTypeParam(CommandType.Rectf, options.params);
+            data = params.map(numberToUint16Array).flat();
+            // data = numberToUint16Array(options.params[0]).concat(numberToUint16Array(options.params[1])).concat(numberToUint16Array(options.params[2])).concat(numberToUint16Array(options.params[3]));
             break;
-        case CommandType.Wconfig:
-            const configId = options.params[0];
-            data = [configId, 0, 0, 0, 1].concat(options.params[1], options.params[2], options.params[3]);
+        case CommandType.cfgWrite: {
+            const params = getTypeParam(CommandType.cfgWrite, options.params);
+            data = [...toUTF8Array(params.name, 12), ...numberToUint32Array(params.version), ...numberToUint32Array(params.password)];
+            console.log('cfgWrite data', params, data);
             break;
+        }
+        case CommandType.cfgDelete:
+        case CommandType.cfgSet: {
+            const params = getTypeParam(CommandType.cfgSet, options.params);
+            data = toUTF8Array(params.name, 12);
+            break;
+        }
         case CommandType.Txt:
-            data = numberToUint8Array(options.params[0])
-                .concat(numberToUint8Array(options.params[1]))
+            data = numberToUint16Array(options.params[0])
+                .concat(numberToUint16Array(options.params[1]))
                 .concat([options.params[2], options.params[3], options.params[4]])
                 .concat(toUTF8Array(options.params[5]));
             break;
@@ -475,13 +560,13 @@ export function buildMessageData(
     if (hasLongData) {
         messageLength += 1;
     }
-    const messageData = Buffer.alloc(messageLength);
+    const messageData = new Uint8Array(messageLength);
     let index = 0;
     messageData[index++] = HEADER;
     messageData[index++] = commandType;
     if (hasLongData) {
         messageData[index++] = 0x10 + queryIdLength;
-        const bb = numberToUint8Array(messageLength);
+        const bb = numberToUint16Array(messageLength);
         messageData[index++] = bb[0];
         messageData[index++] = bb[1];
     } else {

@@ -15,7 +15,7 @@ export abstract class SendingCharacteristic<T extends ArrayBuffer | string = Typ
     }
     set mtu(value) {
         this._mtu = value;
-        this.sliceSize = value;
+        this.sliceSize = value - 3;
     }
     stopSending(err?) {
         // console.log('stopSending', err);
@@ -86,9 +86,9 @@ export abstract class SendingCharacteristic<T extends ArrayBuffer | string = Typ
             }
             const createSublicePromise = async () => {
                 let subSlice: T;
-                if (this.getLength(slice) > this.mtu) {
-                    subSlice = this.slice(slice, 0, this.mtu);
-                    slice = this.slice(slice, this.mtu);
+                if (this.getLength(slice) > this.sliceSize) {
+                    subSlice = this.slice(slice, 0, this.sliceSize);
+                    slice = this.slice(slice, this.sliceSize);
                 } else {
                     // last slice
                     subSlice = slice;
@@ -96,6 +96,7 @@ export abstract class SendingCharacteristic<T extends ArrayBuffer | string = Typ
                 }
                 const sliceRemainingLength = this.getLength(slice);
                 const isLast = slice === null;
+                // DEV_LOG && console.log('sendSliceData', this.sendWithResponse, sliceLength, this.getLength(subSlice),  subSlice.constructor.name);
                 if (this.sendWithResponse) {
                     await this.write(subSlice);
                 } else {
@@ -192,7 +193,7 @@ export abstract class SendingCharacteristic<T extends ArrayBuffer | string = Typ
         // } else {
         //     buffer = new encoding.TextEncoder('windows-1252').encode(toSend).buffer;
         // }
-        // console.log('sendData', toSend, toSend instanceof ArrayBuffer, typeof toSend, buffer, buffer instanceof ArrayBuffer);
+        // DEV_LOG && console.log('sendData', this.getLength(toSend), this.remainingSendLength(), toSend instanceof ArrayBuffer, typeof toSend);
         if (progressCallback) {
             this.currentCommandListener = {
                 total: this.getLength(toSend) + (this.toSend ? this.remainingSendLength() : 0),
@@ -204,7 +205,7 @@ export abstract class SendingCharacteristic<T extends ArrayBuffer | string = Typ
             this.toSend = toSend;
         } else {
             this.toSend = this.concat(this.toSend, toSend);
-            // console.log('sendData concat', this.toSend, this.toSend instanceof ArrayBuffer, typeof this.toSend);
+            // console.log('sendData concat', this.toSend['length'], this.toSend instanceof ArrayBuffer, typeof this.toSend);
         }
         if (!this.sendingSlice) {
             this.sendSliceData();

@@ -1,7 +1,7 @@
-import { File } from '@akylas/nativescript';
+import { File } from '@nativescript/core';
 import { Bluetooth, StartScanningOptions as IStartScanningOptions, Peripheral, ReadResult, StartNotifyingOptions } from '@nativescript-community/ble';
 import { isSimulator } from '@nativescript-community/extendedinfo';
-import { TWEEN } from '@nativescript-community/tween';
+import { AdditiveTweening } from 'additween';
 import * as appSettings from '@nativescript/core/application-settings';
 import { EventData, Observable } from '@nativescript/core/data/observable';
 import { Folder, knownFolders, path } from '@nativescript/core/file-system';
@@ -14,7 +14,8 @@ import { alert, confirm } from '~/utils/dialogs';
 import { Characteristic } from './bluetooth/Characteristic';
 import { GlassesDevice } from './bluetooth/GlassesDevice';
 import Lyric from './Lyric';
-import { CommandType, Message } from './Message';
+import { CommandType, InputCommandType, Message } from './Message';
+import { getGlassesImagesFolder } from '~/utils/utils';
 
 export { Peripheral };
 
@@ -48,7 +49,7 @@ const SPS_FLOW_CONTROL_OFF = 0x02;
 const SPS_FLOW_CONTROL_ERROR = 0x03;
 
 export const DEFAULT_MTU = 20;
-export const DEFAULT_WRITE_TIMEOUT = 50;
+export const DEFAULT_WRITE_TIMEOUT = 0;
 
 export const FinishSendingEvent = 'finishSending';
 export const StatusChangedEvent = 'status';
@@ -75,7 +76,7 @@ function shuffleArray(arr) {
 
 export function hexToBytes(hex) {
     const bytes = [];
-    for (let c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
+    for (let c = 2; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
     return bytes;
 }
 
@@ -220,7 +221,7 @@ export class BluetoothHandler extends Observable {
 
     geoHandler: GeoHandler;
 
-    devLog: Message[];
+    devLog: Message<any>[];
 
     get devMode() {
         return this._devMode;
@@ -335,7 +336,7 @@ export class BluetoothHandler extends Observable {
         if (!this.connectingToGlasses && !this.glasses && !!this.savedGlassesUUID) {
             console.log(TAG, 'connectToSaved', 'start', this.savedGlassesUUID);
             try {
-                if (global.isAndroid) {
+                if (__ANDROID__) {
                     await this.geoHandler.enableLocation();
                 }
                 if (!this.glasses && !!this.savedGlassesUUID) {
@@ -385,7 +386,7 @@ export class BluetoothHandler extends Observable {
         }
         return bluetooth.enable().then((enabled) => {
             if (!enabled) {
-                if (global.isIOS) {
+                if (__IOS__) {
                     alert({
                         title: $tc('bluetooth_not_enabled'),
                         okButtonText: $t('ok')
@@ -475,7 +476,7 @@ export class BluetoothHandler extends Observable {
                     this.changeLuminance(this.levelLuminance);
                 }
                 // we use config 2 for images
-                this.sendCommand({ command: CommandType.Setconfig, params: [2] });
+                // this.sendCommand({ command: CommandType.cfgSet, params: [2] });
                 this.sendDim(100);
                 this.clearScreen();
             }
@@ -619,7 +620,7 @@ export class BluetoothHandler extends Observable {
         // this.switchScreenOnOff();
     }
 
-    addDevLogMessage(message: Message) {
+    addDevLogMessage(message: Message<any>) {
         if (DEV_LOG && this.devMode) {
             this.devLog.push(message);
             // console.log('addDevLogMessage', message);
@@ -634,13 +635,9 @@ export class BluetoothHandler extends Observable {
         }
     }
 
-    onGlassesMessage({ message }: { message: Message }) {
+    onGlassesMessage({ message }: { message: Message<any> }) {
         this.addDevLogMessage(message);
         switch (message.commandType) {
-            // TODO: unused in binary
-            // case CommandType.PowerDown:
-            //     this.disconnectGlasses();
-            //     break;
             case CommandType.Settings:
                 const settings = (this.glasses.settings = message.data as GlassesSettings);
                 this.notify({
@@ -655,14 +652,14 @@ export class BluetoothHandler extends Observable {
         }
     }
 
-    public sendCommand({ command, params, progressCallback }: { timestamp?: number; command: CommandType; params?: any[]; progressCallback?: ProgressCallback }) {
+    public sendCommand<T extends CommandType>({ command, params, progressCallback, timestamp }: { timestamp?: number; command: T; params?: InputCommandType<T>; progressCallback?: ProgressCallback }) {
         if (!this.glasses) {
             return;
         }
         // if (DEV_LOG) {
         //     console.log(TAG, 'sendCommandToGlass', this.glasses.binaryFormat, command, params);
         // }
-        return this.glasses.sendCommand(command, { params, progressCallback });
+        return this.glasses.sendCommand(command, { params, progressCallback, timestamp });
     }
 
     needsPowerOn = true;
@@ -746,9 +743,9 @@ export class BluetoothHandler extends Observable {
     async sendFullRectangle(x: number, y: number, xx: number, yy: number) {
         return this.sendCommand({ command: CommandType.Rectf, params: [x, y, xx, yy] });
     }
-    async sendWriteConfig(params: { configId: number; nbBitmapSaved: number; nbLayersSaved: number; nbFontsSaved: number }) {
-        return this.sendCommand({ command: CommandType.Wconfig, params: [params.configId, params.nbBitmapSaved, params.nbLayersSaved, params.nbFontsSaved] });
-    }
+    // async sendWriteConfig(params: { configId: number; nbBitmapSaved: number; nbLayersSaved: number; nbFontsSaved: number }) {
+    //     return this.sendCommand({ command: CommandType.cfgWrite, params: [params.configId, params.nbBitmapSaved, params.nbLayersSaved, params.nbFontsSaved] });
+    // }
 
     async sendEmptyRectangle(x: number, y: number, xx: number, yy: number) {
         this.sendColor(0);
@@ -760,7 +757,10 @@ export class BluetoothHandler extends Observable {
     }
 
     sendBitmap(name: number, x: number = 0, y: number = 0) {
-        this.sendCommand({ command: CommandType.Bitmap, params: [name, 0, 0, x, y] });
+        this.sendCommand({ command: CommandType.imgDisplay, params: [name, 0, 0, x, y] });
+    }
+    setConfig(name: string) {
+        this.sendCommand({ command: CommandType.cfgSet, params: { name } });
     }
     async switchSensor() {
         return this.activateSensor(!this.isSensorOn);
@@ -769,7 +769,6 @@ export class BluetoothHandler extends Observable {
         return this.activateGesture(!this.isGestureOn);
     }
     async askSettings() {
-        console.log(TAG, 'askSettings');
         return this.sendCommand({ command: CommandType.Settings });
     }
     async setGlassesName(name: string) {
@@ -856,14 +855,11 @@ export class BluetoothHandler extends Observable {
     }
     onFlowControlReading(event: ReadResult) {
         const result = new Uint8Array(event.value)[0];
-        if (DEV_LOG) {
-            console.log(TAG, 'onFlowControlReading', result, result === SPS_FLOW_CONTROL_ON);
-        }
-        if (result === SPS_FLOW_CONTROL_ERROR) {
-            // TODO: ignore errors for now
-            return;
-        }
-        if (this.glasses) {
+        // if (DEV_LOG) {
+        //     console.log(TAG, 'onFlowControlReading', result);
+        // }
+
+        if (this.glasses && result < 3) {
             this.glasses.canSendData = result === SPS_FLOW_CONTROL_ON;
         }
     }
@@ -896,22 +892,84 @@ export class BluetoothHandler extends Observable {
             console.error(error);
         }
     }
+    sendRawCommands(commandsToSend: number[][], onProgress: (progress, current, total) => void) {
+        let cancelled = false;
+        const promise = new Promise(async () => {
+            const datalength = commandsToSend.reduce((accumulator, currentValue) => accumulator + currentValue.length, 0);
+            let dataSent = 0;
 
-    async sendLayoutConfig(config: string) {
-        const r = await File.fromPath(config).readText();
-        const commandsToSend = r.split('\n').filter((s) => s && s.trim().length > 0);
-        // console.log('sendLayoutConfig', config, commandsToSend)
-        for (let index = 0; index < commandsToSend.length; index++) {
-            const cmd = commandsToSend[index];
-            const data = hexToBytes(cmd);
-            await this.sendCommand({
-                timestamp: Date.now(),
-                command: CommandType.RawCommand,
-                params: [data]
-            });
-        }
+            const promisedCallback = (resolve, reject) => (err, progress, total) => {
+                if (err || cancelled) {
+                    return reject(err);
+                }
+                const p = (progress * total + dataSent) / datalength;
+                onProgress(p, progress * total + dataSent, datalength);
+                if (progress === 1) {
+                    dataSent += total;
+                    resolve();
+                }
+            };
 
-        await this.clearFullScreen();
+            const createPromise = () =>
+                new Promise((resolve, reject) => {
+                    const currentCommandToSend = commandsToSend.shift();
+                    // console.log('currentCommandToSend', commandsToSend.length);
+                    this.sendCommand({ command: CommandType.RawCommand, params: [currentCommandToSend], progressCallback: promisedCallback(resolve, reject) });
+                }).then(() => {
+                    // console.log('command sent', commandsToSend.length);
+                    if (!cancelled && commandsToSend.length > 0) {
+                        return createPromise();
+                    }
+                });
+            await createPromise();
+            this.clearFullScreen();
+        });
+        promise['cancel'] = () => (cancelled = true);
+        return promise as Promise<void> & { cancel() };
+    }
+
+    sendLayoutConfig(config: string, onProgress: (progress, current, total) => void) {
+        let cancelled = false;
+        const promise = new Promise(async () => {
+            const r = await File.fromPath(config).readText();
+            const commandsToSend = r.split('\n').filter((s) => s && s.trim().length > 0);
+            const datalength = commandsToSend.reduce((acc, current) => acc + current.length / 2 - 1, 0);
+            let dataSent = 0;
+
+            const promisedCallback = (resolve, reject) => (err, progress, total) => {
+                if (err || cancelled) {
+                    return reject(err);
+                }
+
+                const p = (progress * total + dataSent) / datalength;
+                onProgress(p, progress * total + dataSent, datalength);
+                if (progress === 1) {
+                    dataSent += total;
+                    resolve();
+                }
+            };
+
+            const createPromise = () =>
+                new Promise((resolve, reject) => {
+                    const currentCommandToSend = commandsToSend.shift();
+                    const data = hexToBytes(currentCommandToSend);
+                    this.sendCommand({
+                        command: CommandType.RawCommand,
+                        params: [data],
+                        progressCallback: promisedCallback(resolve, reject)
+                    });
+                }).then(() => {
+                    console.log('sendLayoutConfig command sent', dataSent, datalength, commandsToSend.length);
+                    if (!cancelled && commandsToSend.length > 0) {
+                        return createPromise();
+                    }
+                });
+            await createPromise();
+            console.log('sendLayoutConfig done');
+            this.clearFullScreen();
+        });
+        promise['cancel'] = () => (cancelled = true);
+        return promise as Promise<void> & { cancel() };
     }
 
     async startLoop() {
@@ -941,7 +999,7 @@ export class BluetoothHandler extends Observable {
 
     async demoLoop(bmpIndex: number, count = 3, pauseOnFirst = false, duration = 200) {
         for (let index = 0; index < count; index++) {
-            await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
+            await this.glasses.sendCommand(CommandType.imgDisplay, { params: [bmpIndex + index, 0, 0] });
             // await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
             await timeout(pauseOnFirst && index === 0 ? 1000 : duration);
         }
@@ -1004,14 +1062,13 @@ export class BluetoothHandler extends Observable {
         };
         if (this._player.isAudioPlaying()) {
             if (fade) {
-                new TWEEN.Tween({ value: 1 })
-                    .to({ value: 0 }, 500)
-                    .easing(TWEEN.Easing.Quadratic.Out)
-                    .onUpdate((obj) => {
+                const anim = new AdditiveTweening({
+                    onRender: (obj) => {
                         this._player.volume = obj.value;
-                    })
-                    .onComplete(onDone)
-                    .start(0);
+                    },
+                    onFinish: onDone
+                });
+                anim.tween({ value: 1 }, { value: 0 }, 500);
             } else {
                 onDone();
             }
@@ -1063,9 +1120,10 @@ export class BluetoothHandler extends Observable {
         // await this.startLoop();
         // this.fadein();
         let loopIndex = 0;
-        const iterations = options?.iterations || 1;
-        const imageMap = this.imageMap;
-        // console.log('playOfImages', images, myLoop, this.currentLoop, iterations, loopIndex);
+        const iterations = options?.hasOwnProperty('iterations') ? options.iterations : 1;
+        const imageMap = this.navigationMap;
+        await this.glasses.sendCommand(CommandType.cfgSet, { params: { name: 'nav' } });
+        console.log('playOfImages', images, myLoop, this.currentLoop, iterations, loopIndex);
         while (this.currentLoop === myLoop && !this.isFaded && (!iterations || loopIndex < iterations)) {
             if (options?.randomize === true) {
                 images = shuffleArray(images);
@@ -1078,8 +1136,8 @@ export class BluetoothHandler extends Observable {
                 this.notify({ eventName: 'drawBitmap', bitmap: path.join(imagesFolder, images[index]) });
                 if (this.glasses) {
                     const [imageId, x, y] = imageMap[images[index].slice(0, -4)];
-                    // console.log('playing image', images[index], imageMap[images[index]]);
-                    await this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, x, y] });
+                    console.log('playing image', images[index], imageId, x, y);
+                    await this.glasses.sendCommand(CommandType.imgDisplay, { params: [imageId, x, y] });
                     // await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
                 }
                 await timeout(options?.frameDuration || 200);
@@ -1204,13 +1262,22 @@ export class BluetoothHandler extends Observable {
         return timeline;
     }
 
-    _imagesMap: { [k: string]: [number, number, number, number, number] };
-    get imageMap() {
-        if (!this._imagesMap) {
-            const filePath = path.join(knownFolders.currentApp().path, '/assets/data/glasses_images/image_map.json');
-            this._imagesMap = JSON.parse(File.fromPath(filePath).readTextSync());
+    _imagesMap: { [k: string]: { [k: string]: [number, number, number, number, number] } } = {};
+
+    storyImageMap(cfgId: string) {
+        if (!this._imagesMap[cfgId]) {
+            const filePath = path.join(getGlassesImagesFolder(), 'stories', cfgId, 'image_map.json');
+            this._imagesMap[cfgId] = JSON.parse(File.fromPath(filePath).readTextSync());
         }
-        return this._imagesMap;
+        return this._imagesMap[cfgId];
+    }
+    _navigationMapImagesMap: { [k: string]: [number, number, number, number, number] };
+    get navigationMap() {
+        if (!this._navigationMapImagesMap) {
+            const filePath = path.join(getGlassesImagesFolder(), 'navigation/image_map.json');
+            this._navigationMapImagesMap = JSON.parse(File.fromPath(filePath).readTextSync());
+        }
+        return this._navigationMapImagesMap;
     }
 
     async playAudio(audio: string, loop = false) {
@@ -1235,7 +1302,7 @@ export class BluetoothHandler extends Observable {
         }
     }
     async playNavigationInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
-        return this.playInstruction(instruction, { iterations: 4, noAudio: true, frameDuration: 400, instruction: true });
+        return this.playInstruction(instruction, { iterations: 3, noAudio: true, frameDuration: 300, instruction: true });
     }
     async playInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio?; instruction? }) {
         console.log('playInstruction', instruction, this.isPlaying, !!options?.noAudio, !!options?.force);
@@ -1262,7 +1329,7 @@ export class BluetoothHandler extends Observable {
         this.isPlaying = true;
 
         console.log('playInstruction', instruction, this.isPlaying, !!options?.noAudio, !!options?.force);
-        const instFolder = path.join(knownFolders.currentApp().path, `assets/data/glasses_images/navigation/${instruction}`);
+        const instFolder = path.join(getGlassesImagesFolder(), `navigation/${instruction}`);
         const files = await Folder.fromPath(instFolder).getEntities();
         const images = files
             .filter((f) => f.name.endsWith('.png') || f.name.endsWith('.jpg') || f.name.endsWith('.bmp'))
@@ -1334,14 +1401,16 @@ export class BluetoothHandler extends Observable {
         try {
             this.isPlaying = true;
             this.isPlayingStory = index;
-            const storyFolder = path.join(knownFolders.currentApp().path, `/assets/data/glasses_images/stories/${index}`);
+            const cfgId = index + '';
+            const storyFolder = path.join(getGlassesImagesFolder(), 'stories', cfgId);
             const data = await File.fromPath(path.join(storyFolder, 'composition.json')).readText();
-            const imagesMap = this.imageMap;
+            const imagesMap = this.storyImageMap(cfgId);
             const result = this.parseLottieFile(JSON.parse(data));
             // console.log('lines', result);
             // console.log('imagesMap', imagesMap);
             if (this.glasses) {
-                this.glasses.sendCommand(CommandType.Dim, { params: [70] });
+                this.glasses.sendCommand(CommandType.cfgSet, { params: { name: cfgId } });
+                this.glasses.sendCommand(CommandType.Dim, { params: [100] });
             }
             if (this.lyric) {
                 this.lyric.pause();
@@ -1350,16 +1419,19 @@ export class BluetoothHandler extends Observable {
                 lines: [{ time: 0, text: '' }].concat(result),
                 onPlay: async (line, text) => {
                     if (text && text.length > 0) {
-                        const cleaned = text.split('.')[0].replace(/\s/g, '-');
-                        const [imageId, x, y] = imagesMap[cleaned];
-                        // console.log('playing image', imageId);
-                        this.clearFadeout();
+                        const cleaned = text.split('.')[0];
+                        if (imagesMap[cleaned]) {
+                            const [imageId, x, y] = imagesMap[cleaned];
+                            // console.log('playing image', imageId);
+                            this.clearFadeout();
 
-                        // console.log('playing image', text, cleaned, imageId);
-                        this.notify({ eventName: 'drawBitmap', bitmap: path.join(storyFolder, 'images', cleaned + '.png') });
-                        if (this.glasses) {
-                            this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, x, y] });
-                            // this.glasses.sendCommand(CommandType.Bitmap, { params: [imageId, 0, 0] });
+                            // console.log('playing image', text, cleaned, imageId);
+                            if (this.glasses) {
+                                this.glasses.sendCommand(CommandType.imgDisplay, { params: [imageId, x, y] });
+                            }
+                            this.notify({ eventName: 'drawBitmap', bitmap: path.join(storyFolder, 'images', cleaned + '.png') });
+                        } else {
+                            console.error('image missing', text, cleaned);
                         }
                     } else {
                         this.notify({ eventName: 'drawBitmap', bitmap: null });
@@ -1386,7 +1458,7 @@ export class BluetoothHandler extends Observable {
         // so we know what s about to play
         // this.isPlayingStory = index;
         try {
-            const storyFolder = path.join(knownFolders.currentApp().path, `/assets/data/glasses_images/stories/${index}`);
+            const storyFolder = path.join(getGlassesImagesFolder(), `stories/${index}`);
             console.log('playMusic', storyFolder);
             await this.playAudio(path.join(storyFolder, 'musique.mp3'));
         } finally {
@@ -1394,52 +1466,4 @@ export class BluetoothHandler extends Observable {
             this.stopPlayingLoop();
         }
     }
-
-    // async playStory(bmpIndex: number, count: number, duration: number) {
-    //     const myLoop = bmpIndex + '_' + count;
-    //     console.log('playStory', this.currentLoop, myLoop);
-    //     if (this.currentLoop === myLoop) {
-    //         return;
-    //     }
-    //     this.currentLoop = myLoop;
-    //     await this._player.playFromFile({
-    //         audioFile: "~/assets/audio/La fable de l'or gris.wav", // ~ = app directory
-    //         loop: false,
-    //         completeCallback: () => {
-    //             this.stopPlayingLoop();
-    //         }
-    //     });
-    //     await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex, 0, 0] });
-    //     await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex, 0, 0] });
-    //     this.fadein();
-    //     while (this.currentLoop === myLoop) {
-    //         for (let index = 0; index < count; index++) {
-    //             if (this.currentLoop !== myLoop) {
-    //                 break;
-    //             }
-    //             await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
-    //             await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
-    //             await timeout(duration);
-    //         }
-    //     }
-    // }
-
-    // async sendBitmapImages() {
-    //     const folder = knownFolders.currentApp().getFolder('assets').getFolder('glasses_images');
-    //     const files = folder
-    //         .getEntitiesSync()
-    //         .filter((s) => s.name.endsWith('.jpg') || s.name.endsWith('.bmp'));
-    //     console.log(files);
-    //     const data = files.reduce((accumulator, currentValue) => accumulator.concat(createBitmapData(currentValue)), [] as number[][]);
-    //     // const data = createBitmapData(filePath);
-    //     await bluetoothDevice.sendWriteConfig({
-    //         configId: 0,
-    //         nbBitmapSaved: 0,
-    //         nbFontsSaved: 0,
-    //         nbLayersSaved: 0
-    //     });
-    //     this.glasses.sendCommand(CommandType.EraseBmp, { params: [0] });
-    //     await sendRawCommands(data, `sending bitmap: ${filePath}`);
-    //     await bluetoothDevice.sendReadConfig(0);
-    // }
 }

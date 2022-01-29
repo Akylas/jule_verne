@@ -1,0 +1,26 @@
+{
+    "whitelist-plugins-usages": true,
+    "whitelist": [
+        "com.akylas.juleverne*:*",
+        "androidx.appcompat.app:AppCompatDelegate*", "android.content:ServiceConnection*", "android.os:Binder*", "android.app:Service*","android.app:NotificationManager*","android.app:NotificationChannel*","android.content.pm:ServiceInfo*",
+        "androidx.appcompat.widget:AppCompatCheckBox*","androidx.core.widget:CompoundButtonCompat*",
+        "androidx.core.widget:NestedScrollView*", "android.app:Notification*", "androidx.core.app:NotificationCompat*", "androidx.core.app.NotificationCompat:Builder*", "android.app:PendingIntent",
+        "android.media:AudioManager*","android.media.AudioManager:OnAudioFocusChangeListener*","android.media:AudioAttributes*","android.media:AudioFocusRequest*","android.media.AudioAttributes:Builder*","android.media.AudioFocusRequest:Builder*","android.media:MediaPlayer*","android.media.MediaPlayer:OnInfoListener*","android.media.MediaPlayer:OnCompletionListener*","android.media.MediaPlayer:OnPreparedListener*","android.media:PlaybackParams*",
+        "android.os:Vibrator*",
+        "android.speech.tts:TextToSpeech*", "android.speech.tts.TextToSpeech:OnInitListener*", "android.speech.tts:UtteranceProgressListener*",
+        "java.net:UnknownHostException*"
+    ],
+    "blacklist": [
+        "org.nativescript.widgets:BottomNavigationBar*", 
+        "org.ow2.asmdex*:*", 
+        "com.google.android.material.chip*:*", 
+        "com.google.android.material.appbar*:*", 
+        "com.google.android.material.floatingactionbutton*:*", 
+        "com.google.android.material.bottomappbar*:*", 
+        "com.google.android.material.internal*:*", 
+        "com.google.android.material.transformation*:*", 
+        "com.google.android.material.theme*:*", 
+        "*:*BuildConfig", 
+        "*:R.*", "*:R", "*:R$*"
+    ]
+  }

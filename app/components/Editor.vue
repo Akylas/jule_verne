@@ -1,19 +1,18 @@
 <template>
-    <WebViewExt ref="webview" src="~/assets/editor/index.html" @loadFinished="onWebViewLoaded" />
+    <AWebView ref="webview" src="~/assets/editor/index.html" @loadFinished="onWebViewLoaded" normalizeUrls="false" />
 </template>
 
 <script lang="ts">
 import { Component, Prop } from 'vue-property-decorator';
 import BaseVueComponent from './BaseVueComponent';
-import { WebViewExt } from '@nota/nativescript-webview-ext';
-import { ComponentIds } from './App';
+import { AWebView } from '@nativescript-community/ui-webview';
 import Track from '~/models/Track';
 @Component({})
 export default class Editor extends BaseVueComponent {
     @Prop()
     track: Track;
     get webView() {
-        return this.getRef<WebViewExt>('webview');
+        return this.getRef<AWebView>('webview');
     }
     mounted() {
         super.mounted();

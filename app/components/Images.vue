@@ -13,6 +13,7 @@
 <script lang="ts">
 import { Folder, knownFolders, path } from '@nativescript/core';
 import { Component, Prop } from 'vue-property-decorator';
+import { getGlassesImagesFolder } from '~/utils/utils';
 import BaseVueComponent from './BaseVueComponent';
 
 async function getImagesInFolder(folder: string, images: string[] = []) {
@@ -32,9 +33,8 @@ export default class ImagesView extends BaseVueComponent {
     images = null;
     mounted() {
         (async () => {
-            const imagesFolder = path.join(knownFolders.currentApp().path, '/assets/data/glasses_images');
+            const imagesFolder = getGlassesImagesFolder();
             this.images = await getImagesInFolder(imagesFolder);
-            console.log('ImagesView', imagesFolder, this.images);
         })();
     }
 }

@@ -1,4 +1,3 @@
-import { EntitySubscriberInterface, EventSubscriber, InsertEvent, UpdateEvent } from '@nativescript-community/typeorm';
 import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { CollectionView } from '@nativescript-community/ui-collectionview';
 import { openFilePicker } from '@nativescript-community/ui-document-picker';
@@ -25,13 +24,13 @@ interface Item {
     checked: boolean;
 }
 
-@EventSubscriber()
+// @EventSubscriber()
 @Component({
     components: {
         TrackDetails
     }
 })
-export default class Tracks extends BgServiceComponent implements EntitySubscriberInterface<Track> {
+export default class Tracks extends BgServiceComponent {
     navigateUrl = ComponentIds.Tracks;
 
     dataItems: ObservableArray<Item> = null;
@@ -47,39 +46,39 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
         }
     }
 
-    afterInsert(event: InsertEvent<Track>) {
-        this.dataItems = this.dataItems || new ObservableArray();
-        this.dataItems.push({
-            session: event.entity,
-            selected: false
-        });
-    }
+    // afterInsert(event: InsertEvent<Track>) {
+    //     this.dataItems = this.dataItems || new ObservableArray();
+    //     this.dataItems.push({
+    //         session: event.entity,
+    //         selected: false
+    //     });
+    // }
     needsRefreshOnNav = false;
-    afterUpdate(event: UpdateEvent<Track>) {
-        // on iOS item udpate seems to fail for now if the listview is not visible.
-        // this is a workaround!
-        if (global.isIOS && !this.$getAppComponent().isActiveUrl(this.navigateUrl)) {
-            this.needsRefreshOnNav = true;
-            return;
-        }
-        const savedSession = event.entity;
-        this.dataItems.some((d, index) => {
-            if (d.track.id === savedSession.id) {
-                d.track = savedSession;
-                // d.selected = true;
-                this.dataItems.setItem(index, d);
-                return true;
-            }
-        });
-    }
+    // afterUpdate(event: UpdateEvent<Track>) {
+    //     // on iOS item udpate seems to fail for now if the listview is not visible.
+    //     // this is a workaround!
+    //     if (__IOS__ && !this.$getAppComponent().isActiveUrl(this.navigateUrl)) {
+    //         this.needsRefreshOnNav = true;
+    //         return;
+    //     }
+    //     const savedSession = event.entity;
+    //     this.dataItems.some((d, index) => {
+    //         if (d.track.id === savedSession.id) {
+    //             d.track = savedSession;
+    //             // d.selected = true;
+    //             this.dataItems.setItem(index, d);
+    //             return true;
+    //         }
+    //     });
+    // }
 
     mounted() {
-        this.dbHandler.connection.subscribers.push(this as any);
+        // this.dbHandler.connection.subscribers.push(this as any);
         super.mounted();
     }
     destroyed() {
-        const index = this.dbHandler.connection.subscribers.indexOf(this as any);
-        this.dbHandler.connection.subscribers.splice(index, 1);
+        // const index = this.dbHandler.connection.subscribers.indexOf(this as any);
+        // this.dbHandler.connection.subscribers.splice(index, 1);
         super.destroyed();
     }
     get title() {
@@ -96,7 +95,6 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
     }
     onTrackChecked(item: Item, $event) {
         const trackId = item.track.id;
-        console.log('onTrackChecked ', trackId, this.currentTrackId, $event.value);
         if ($event.value) {
             if (trackId !== this.currentTrackId) {
                 if (this.currentTrackId) {
@@ -137,7 +135,6 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
         }
     }
     setChecked(item: Item, checked: boolean) {
-        console.log('setChecked', item.track.id, checked);
         this.dataItems.some((d, index) => {
             if (d === item) {
                 d.checked = checked;
@@ -169,35 +166,33 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
         return this.dataItems?.filter((s) => !!s.selected).map((i) => i.track.id) || [];
     }
 
-    deleteSelectedSessions() {
-        this.log('deleteSelectedSessions');
-        return confirm({
-            title: this.$tc('delete'),
-            message: this.$tc('confirm_delete_sessions', this.selectedSessions.length),
-            okButtonText: this.$tc('delete'),
-            cancelButtonText: this.$tc('cancel')
-        })
-            .then((result) => {
-                this.log('delete, confirmed', result);
-                if (result) {
-                    const indexes = [];
-                    this.dataItems.forEach((d, index) => {
-                        if (d.selected) {
-                            indexes.push(index);
-                        }
-                    });
-                    return Track.delete(this.selectedSessions).then(() => {
-                        indexes.reverse().forEach((index) => {
-                            this.dataItems.splice(index, 1);
-                        });
-                    });
-                    // this.unselectAllSessions();
-                    // this.refresh();
-                    // });
-                }
-            })
-            .catch(this.showError);
-    }
+    // deleteSelectedSessions() {
+    //     return confirm({
+    //         title: this.$tc('delete'),
+    //         message: this.$tc('confirm_delete_sessions', this.selectedSessions.length),
+    //         okButtonText: this.$tc('delete'),
+    //         cancelButtonText: this.$tc('cancel')
+    //     })
+    //         .then((result) => {
+    //             if (result) {
+    //                 const indexes = [];
+    //                 this.dataItems.forEach((d, index) => {
+    //                     if (d.selected) {
+    //                         indexes.push(index);
+    //                     }
+    //                 });
+    //                 return this.dbHandler.trackRepository.delete(this.selectedSessions).then(() => {
+    //                     indexes.reverse().forEach((index) => {
+    //                         this.dataItems.splice(index, 1);
+    //                     });
+    //                 });
+    //                 // this.unselectAllSessions();
+    //                 // this.refresh();
+    //                 // });
+    //             }
+    //         })
+    //         .catch(this.showError);
+    // }
     get itemTitle() {
         return (item: Item) => {
             const session = item.track;
@@ -214,9 +209,8 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
 
     @profile
     async refresh() {
-        this.log('refresh');
         try {
-            const results = await Track.find();
+            const results = await this.dbHandler.trackRepository.searchItem();
             const selectedTrack = (this.currentTrackId = getString('selectedTrackId'));
             this.dataItems = new ObservableArray(
                 results.map((s) => ({
@@ -264,7 +258,7 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
     async importTrace() {
         try {
             let result;
-            if (global.isIOS) {
+            if (__IOS__) {
                 const docs = knownFolders.documents();
                 result = await docs
                     .getEntities()
@@ -285,7 +279,7 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
                     });
             } else {
                 result = await openFilePicker({
-                    extensions: global.isIOS ? ['com.akylas.juleverne.json', 'com.gpsakylas.julevernetest.gpx'] : ['*/*'],
+                    extensions: __IOS__ ? ['com.akylas.juleverne.json', 'com.gpsakylas.julevernetest.gpx'] : ['*/*'],
                     multipleSelection: false,
                     pickerMode: 0
                 });
@@ -296,8 +290,8 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
                     result.files.map((f) => {
                         if (f.endsWith('.json')) {
                             return this.geoHandler.importJSONFile(f);
-                        } else if (f.endsWith('.gpx')) {
-                            return this.geoHandler.importGPXFile(f);
+                            // } else if (f.endsWith('.gpx')) {
+                            // return this.geoHandler.importGPXFile(f);
                         }
                     })
                 );
@@ -311,7 +305,6 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
 
     async shareDB() {
         const filePath = path.join(knownFolders.documents().getFolder('db').path, 'db.sqlite');
-        console.log('shareDB', filePath);
         const shareFile = new ShareFile();
         await shareFile.open({
             path: filePath,
@@ -321,19 +314,19 @@ export default class Tracks extends BgServiceComponent implements EntitySubscrib
         });
     }
 
-    async createTrack() {
-        const result = await this.$showModal(Leaflet, {
-            fullscreen: true
-        });
-        if (result) {
-            const data = JSON.parse(result) as TrackFeatureCollection;
-            const track = new Track(Date.now());
-            Object.assign(track, data);
-            const geojson = bboxify(track.geometry);
-            track.geometry = geojson as any;
-            track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.bbox[3], lon: geojson.bbox[2] }, { lat: geojson.bbox[1], lon: geojson.bbox[0] });
-            await track.save();
-            this.$getAppComponent().navigateTo(TrackDetails, { props: { track } });
-        }
-    }
+    // async createTrack() {
+    //     const result = await this.$showModal(Leaflet, {
+    //         fullscreen: true
+    //     });
+    //     if (result) {
+    //         const data = JSON.parse(result) as TrackFeatureCollection;
+    //         const track = new Track(Date.now());
+    //         Object.assign(track, data);
+    //         const geojson = bboxify(track.geometry);
+    //         track.geometry = geojson as any;
+    //         track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.bbox[3], lon: geojson.bbox[2] }, { lat: geojson.bbox[1], lon: geojson.bbox[0] });
+    //         await track.save();
+    //         this.$getAppComponent().navigateTo(TrackDetails, { props: { track } });
+    //     }
+    // }
 }

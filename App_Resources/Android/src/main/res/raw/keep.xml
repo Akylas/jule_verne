@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:shrinkMode="strict"
+    tools:keep="@layout/material_*,@font/*,@drawable/chart*,@drawable/checklist*,@drawable/face*,@drawable/map*,@drawable/moving_forward*,@drawable/notifications*,@drawable/taxi_driver*,@drawable/teamheader*,@drawable/ic_stat_logo*"/>

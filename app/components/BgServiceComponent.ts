@@ -76,9 +76,9 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
 
     callOnServiceLoaded() {
         const params = this.getParams();
-        if (this.setup && !this.appPaused) {
-            this.setup.call(this, params);
-        }
+        // if (this.setup && !this.appPaused) {
+        //     this.setup.call(this, params);
+        // }
         // call onServiceLoaded after setup to make sure everything is set up. onServiceLoaded will be
         // callled only once
         this.onServiceLoaded.call(this, params);

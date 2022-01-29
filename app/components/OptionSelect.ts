@@ -1,6 +1,7 @@
 import Vue from 'nativescript-vue';
 import { ItemEventData } from '@nativescript/core/ui/list-view';
 import { Component, Prop } from 'vue-property-decorator';
+import { darkColor } from '~/variables';
 
 export interface Option {
     title: string;
@@ -9,10 +10,11 @@ export interface Option {
 
 @Component({})
 export default class OptionSelect extends Vue {
+    darkColor = darkColor;
     @Prop({})
     public options: Option[];
 
-    public height = '100%';
+    public height = 300;
     @Prop({ default: 'available devices' })
     title: string;
     public constructor() {

@@ -103,58 +103,7 @@ module.exports = (env, params = {}) => {
     // config.resolve.symlinks = false;
     Object.assign(config.resolve.alias, {
         '@nativescript/core': `${coreModulesPackageName}`,
-        'tns-core-modules': `${coreModulesPackageName}`,
-        '@nativescript-community/typeorm': '@nativescript-community/typeorm/browser',
-        './nativescript/NativescriptDriver': '@akylas/nativescript-sqlite/typeorm/NativescriptDriver',
-        '../driver/nativescript/NativescriptDriver': '@akylas/nativescript-sqlite/typeorm/NativescriptDriver',
-        '../driver/expo/ExpoDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './expo/ExpoDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/sqljs/SqljsDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './sqljs/SqljsDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/cordova/CordovaDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './cordova/CordovaDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/react-native/ReactNativeDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './react-native/ReactNativeDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/aurora-data-api/AuroraDataApiDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './aurora-data-api/AuroraDataApiDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/aurora-data-api-pg/AuroraDataApiPostgresDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './aurora-data-api-pg/AuroraDataApiPostgresDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/cockroachdb/CockroachDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './cockroachdb/CockroachDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/postgres/PostgresDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './postgres/PostgresDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/oracle/OracleDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './oracle/OracleDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/sap/SapDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './sap/SapDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/mysql/MysqlDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './mysql/MysqlDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/sqlserver/SqlServerDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './sqlserver/SqlServerDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/mongodb/MongoDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './mongodb/MongoDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/mongodb/MongoQueryRunner': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './mongodb/MongoQueryRunner': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './entity-manager/MongoEntityManager': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../entity-manager/MongoEntityManager': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './repository/MongoRepository': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './repository/MongoRepository': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/sqlite/SqliteDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './sqlite/SqliteDriver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../driver/better-sqlite3/BetterSqlite3Driver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        './better-sqlite3/BetterSqlite3Driver': '@nativescript-community/typeorm/browser/platform/BrowserDisabledDriversDummy',
-        '../util/DirectoryExportedClassesLoader': '@nativescript-community/typeorm/browser/platform/BrowserDirectoryExportedClassesLoader',
-        './logger/FileLogger': '@nativescript-community/typeorm/browser/platform/BrowserFileLoggerDummy',
-        './logger/DebugLogger': '@nativescript-community/typeorm/browser/platform/BrowserFileLoggerDummy',
-        './FileLogger': '@nativescript-community/typeorm/browser/platform/BrowserFileLoggerDummy',
-        './DebugLogger': '@nativescript-community/typeorm/browser/platform/BrowserFileLoggerDummy',
-        './connection/ConnectionOptionsReader': '@nativescript-community/typeorm/browser/platform/BrowserConnectionOptionsReaderDummy',
-        '../connection/ConnectionOptionsReader': '@nativescript-community/typeorm/browser/platform/BrowserConnectionOptionsReaderDummy',
-        './options-reader/ConnectionOptionsXmlReader': '@nativescript-community/typeorm/browser/platform/BrowserConnectionOptionsReaderDummy',
-        './options-reader/ConnectionOptionsYmlReader': '@nativescript-community/typeorm/browser/platform/BrowserConnectionOptionsReaderDummy',
-        './platform/PlatformTools': '@nativescript-community/typeorm/browser/platform/BrowserPlatformTools',
-        '../platform/PlatformTools': '@nativescript-community/typeorm/browser/platform/BrowserPlatformTools',
-        '../../platform/PlatformTools': '@nativescript-community/typeorm/browser/platform/BrowserPlatformTools'
+        'tns-core-modules': `${coreModulesPackageName}`
     });
 
     const package = require('./package.json');
@@ -275,7 +224,7 @@ module.exports = (env, params = {}) => {
                     loader: 'string-replace-loader',
                     options: {
                         search: '__decorate\\(\\[((.|\n)*?)profile,((.|\n)*?)\\],.*?,.*?,.*?\\);?',
-                        replace: (match, p1, offset, string) => '',
+                        replace: (match, p1, offset, str) => '',
                         flags: 'g'
                     }
                 }
@@ -303,15 +252,17 @@ module.exports = (env, params = {}) => {
 
     config.plugins.push(
         new webpack.ProvidePlugin({
-            Buffer: ['buffer', 'Buffer']
+            // Buffer: ['buffer', 'Buffer']
         })
     );
     // handle node polyfills
     // config.externals.push('fs');
     config.externalsPresets = { node: false };
     config.resolve.fallback = config.resolve.fallback || {};
-    config.resolve.fallback.buffer = require.resolve('buffer/');
-    config.resolve.fallback.util = require.resolve('util/');
+    // config.resolve.fallback.buffer = require.resolve('buffer/');
+    config.resolve.fallback.buffer = false;
+    // config.resolve.fallback.util = require.resolve('util/');
+    config.resolve.fallback.util = false;
     config.resolve.fallback.path = false;
     config.resolve.fallback.fs = false;
     config.resolve.fallback.assert = false;
@@ -351,7 +302,6 @@ module.exports = (env, params = {}) => {
         }
     ];
     copyPatterns.push({ from: 'test_assets/**/*', to: 'assets/[name][ext]', noErrorOnMissing: false, globOptions });
-
 
     Object.assign(config.plugins.find((p) => p.constructor.name === 'DefinePlugin').definitions, defines);
 
@@ -430,7 +380,7 @@ module.exports = (env, params = {}) => {
         new TerserPlugin({
             parallel: true,
             terserOptions: {
-                ecma: 2020,
+                ecma: 2017,
                 module: false,
                 toplevel: false,
                 keep_classnames: false,
@@ -441,7 +391,7 @@ module.exports = (env, params = {}) => {
                 },
                 mangle: {
                     properties: {
-                        reserved:['__metadata'],
+                        reserved: ['__metadata'],
                         regex: /^(m[A-Z])/
                     }
                 },
@@ -451,7 +401,7 @@ module.exports = (env, params = {}) => {
                     // when these options are enabled
                     collapse_vars: platform !== 'android',
                     sequences: platform !== 'android',
-                    passes: 5,
+                    passes: 2,
                     drop_console: production && noconsole
                 }
             }

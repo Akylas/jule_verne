@@ -1,6 +1,8 @@
-// import {Trace} from '@nativescript/core/trace';
+import {Trace} from '@nativescript/core/trace';
 // import {CollectionViewTraceCategory} from '@nativescript-community/ui-collectionview';
+// import {BleTraceCategory} from '@nativescript-community/ble';
 // Trace.addCategories(Trace.categories.NativeLifecycle);
+// Trace.addCategories(BleTraceCategory);
 // Trace.addCategories(Trace.categories.Navigation);
 // Trace.addCategories(Trace.categories.ViewHierarchy);
 // Trace.enable();
@@ -49,7 +51,7 @@ Vue.config.warnHandler = function (msg, vm, trace) {
     console.warn('[Vue][Warn]', `[${msg}]`);
     // cwarn(msg, trace);
 };
-if (global.isIOS) {
+if (__IOS__) {
     themer.setPrimaryColor(primaryColor);
     themer.setAccentColor(primaryColor);
 }

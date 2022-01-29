@@ -14,6 +14,7 @@ module.exports = {
     plugins: ['prettier', '@typescript-eslint'],
     rules: {
         'prettier/prettier': 'warn',
+        'vue/multi-word-component-names': 'off',
         'vue/custom-event-name-casing': 'off',
         '@typescript-eslint/adjacent-overload-signatures': 'error',
         '@typescript-eslint/array-type': 'error',

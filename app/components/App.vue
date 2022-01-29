@@ -7,7 +7,7 @@
                 </GridLayout>
                 <CollectionView :items="menuItems" row="1" paddingTop="10" rowHeight="50" @tap="noop">
                     <v-template>
-                        <GridLayout columns="50, *" class="menu" :active="item.activated" :rippleColor="accentColor" @tap="onNavItemTap(item.url)">
+                        <GridLayout columns="50, *" class="menu" :active="item.activated" :rippleColor="accentColor" @tap="onNavItemTap(item)">
                             <Label col="0" class="menuIcon" :text="item.icon" verticalAlignment="center" />
                             <Label col="1" class="menuText" :text="item.title | titlecase" verticalAlignment="center" :active="item.activated" />
                         </GridLayout>

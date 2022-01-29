@@ -1,6 +1,5 @@
 import { request } from '@nativescript-community/perms';
-import { TWEEN } from '@nativescript-community/tween';
-import { MapPosVector } from '@nativescript-community/ui-carto/core';
+import { GenericMapPos, MapPosVector } from '@nativescript-community/ui-carto/core';
 import { GeoJSONVectorTileDataSource, MergedMBVTTileDataSource } from '@nativescript-community/ui-carto/datasources';
 import { PersistentCacheTileDataSource } from '@nativescript-community/ui-carto/datasources/cache';
 import { HTTPTileDataSource } from '@nativescript-community/ui-carto/datasources/http';
@@ -39,9 +38,10 @@ import { BBox } from 'geojson';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { GeoLocation, PositionStateEvent, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
 import Track, { TrackFeature } from '~/models/Track';
-import { getDataFolder } from '~/utils/utils';
+import { getDataFolder, getWorkingDir } from '~/utils/utils';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 import { setShowDebug, setShowError, setShowInfo, setShowWarn } from '@nativescript-community/ui-carto/utils';
+import { AdditiveTweening } from 'additween';
 
 const LOCATION_ANIMATION_DURATION = 300;
 const production = TNS_ENV === 'production';
@@ -107,17 +107,7 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         super.mounted();
     }
     getDefaultMBTilesDir() {
-        let localMbtilesSource = ApplicationSettings.getString('local_mbtiles_directory');
-        if (!localMbtilesSource) {
-            let defaultPath = path.join(getDataFolder(), 'alpimaps_mbtiles');
-            if (global.isAndroid) {
-                const dirs = (Application.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
-                const sdcardFolder = dirs[dirs.length - 1].getAbsolutePath();
-                defaultPath = path.join(sdcardFolder, '../../../..', 'alpimaps_mbtiles');
-            }
-            localMbtilesSource = ApplicationSettings.getString('local_mbtiles_directory', defaultPath);
-        }
-        return localMbtilesSource;
+        return path.join(getWorkingDir(), 'tiles');
     }
     async onMapReady(e) {
         const cartoMap = (this.mCartoMap = e.object as CartoMap<LatLonKeys>);
@@ -152,9 +142,9 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
             databasePath: path.join(cacheFolder.path, 'osm.db')
         });
         const folderPath = this.getDefaultMBTilesDir();
-        // console.log('localMbtilesSource', folderPath);
+        console.log('localMbtilesSource', folderPath);
         if (folderPath) {
-            // await this.loadLocalMbtiles(folderPath);
+            await this.loadLocalMbtiles(folderPath);
         }
         if (!this.vectorLayer) {
             this.mRasterLayer = new RasterTileLayer({
@@ -319,10 +309,8 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
             if (this.mAccuracyMarker) {
                 this.mAccuracyMarker.visible = accuracy > 10;
             }
-            new TWEEN.Tween(currentLocation)
-                .to(position, LOCATION_ANIMATION_DURATION)
-                .easing(TWEEN.Easing.Quadratic.Out)
-                .onUpdate((newPos) => {
+            const anim = new AdditiveTweening<GenericMapPos<LatLonKeys>>({
+                onRender: (newPos) => {
                     if (this.mUserBackMarker) {
                         this.mUserBackMarker.position = newPos;
                         this.mUserMarker.position = newPos;
@@ -330,8 +318,9 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
                     if (this.mAccuracyMarker) {
                         this.mAccuracyMarker.positions = this.getCirclePoints(newPos);
                     }
-                })
-                .start(0);
+                }
+            });
+            anim.tween(currentLocation, position, LOCATION_ANIMATION_DURATION);
         } else {
             this.getOrCreateLocalVectorLayer();
             // const projection = this.mapView.projection;

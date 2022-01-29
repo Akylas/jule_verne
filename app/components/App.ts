@@ -1,4 +1,4 @@
-import { getFile, getJSON } from '@akylas/nativescript/http';
+import { getFile, getJSON } from '@nativescript/core/http';
 import { AppURL, handleOpenURL } from '@nativescript-community/appurl';
 import * as EInfo from '@nativescript-community/extendedinfo';
 import Observable from '@nativescript-community/observable';
@@ -6,7 +6,7 @@ import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { Drawer } from '@nativescript-community/ui-drawer';
 import { confirm } from '@nativescript-community/ui-material-dialogs';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
-import { Frame, NavigationEntry, Page, StackLayout, knownFolders } from '@nativescript/core';
+import { File, Frame, NavigationEntry, Page, StackLayout, knownFolders } from '@nativescript/core';
 import * as app from '@nativescript/core/application';
 import * as appSettings from '@nativescript/core/application-settings';
 import { path } from '@nativescript/core/file-system';
@@ -18,36 +18,30 @@ import { Vibrate } from 'nativescript-vibrate';
 import Vue, { NativeScriptVue, NavigationEntryVue } from 'nativescript-vue';
 import { VueConstructor } from 'vue';
 import { Component } from 'vue-property-decorator';
-import Tracks from '~/components/Tracks';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
 import { BLEConnectionEventData } from '~/handlers/BluetoothHandler';
 import Track from '~/models/Track';
 import { BgServiceErrorEvent } from '~/services/BgService.common';
 import { versionCompare } from '~/utils';
-import { login } from '~/utils/dialogs';
 import { bboxify } from '~/utils/geo';
 import { backgroundColor, textColor } from '~/variables';
 import { BaseVueComponentRefs } from './BaseVueComponent';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
-import FirmwareUpdate from './FirmwareUpdate';
 import Home from './Home';
-import Leaflet from './Leaflet.vue';
-import Map from './Map';
-import Settings from './Settings';
-import Images from './Images.vue';
+import { getWorkingDir } from '~/utils/utils';
 
 function timeout(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 function base64Encode(value) {
-    if (global.isIOS) {
+    if (__IOS__) {
         //@ts-ignore
         const text = NSString.stringWithString(value);
         //@ts-ignore
         const data = text.dataUsingEncoding(NSUTF8StringEncoding);
         return data.base64EncodedStringWithOptions(0);
     }
-    if (global.isAndroid) {
+    if (__ANDROID__) {
         const text = new java.lang.String(value);
         const data = text.getBytes('UTF-8');
         return android.util.Base64.encodeToString(data, android.util.Base64.DEFAULT);
@@ -63,12 +57,11 @@ export interface AppRefs extends BaseVueComponentRefs {
 
 export enum ComponentIds {
     Activity = 'activity',
-    Firmware = 'firmware',
     Settings = 'settings',
-    Images = 'images',
     Tracks = 'tracks',
-    Map = 'map',
-    Leaflet = 'leaflet'
+    Images = 'images',
+    Firmware = 'firmware',
+    Map = 'map'
 }
 
 export const navigateUrlProperty = 'navigateUrl';
@@ -96,21 +89,6 @@ export default class App extends BgServiceComponent {
     protected routes: { [k: string]: { component: typeof Vue } } = {
         [ComponentIds.Activity]: {
             component: Home
-        },
-        [ComponentIds.Settings]: {
-            component: Settings
-        },
-        [ComponentIds.Images]: {
-            component: Images as any
-        },
-        [ComponentIds.Tracks]: {
-            component: Tracks
-        },
-        [ComponentIds.Map]: {
-            component: Map
-        },
-        [ComponentIds.Leaflet]: {
-            component: Leaflet as any
         }
     };
     public activatedUrl = '';
@@ -137,20 +115,23 @@ export default class App extends BgServiceComponent {
     }
 
     async onAppUrl(data: AppURL) {
-        this.log('Got the following appURL data', data, Array.from(data.params.entries()));
+        console.log('Got the following appURL data', data, Array.from(data.params.entries()));
         try {
-            if (data.path && data.path.endsWith('.gpx')) {
-                this.showLoading(this.$t('importing'));
-                await this.geoHandler.importGPXFile(data.path);
-                console.log('resolving');
-                this.hideLoading();
-                this.$getAppComponent().navigateToUrl(ComponentIds.Tracks);
-            } else if (data.path && data.path.endsWith('.json')) {
+            // if (data.path && data.path.endsWith('.gpx')) {
+            //     this.showLoading(this.$t('importing'));
+            //     await this.geoHandler.importGPXFile(data.path);
+            //     console.log('resolving');
+            //     this.hideLoading();
+            //     const component = await import('~/components/Tracks');
+            //     this.$getAppComponent().navigateTo(component.default);
+            // } else
+            if (data.path && data.path.endsWith('.json')) {
                 this.showLoading(this.$t('importing'));
                 await this.geoHandler.importJSONFile(data.path);
                 console.log('resolving');
                 this.hideLoading();
-                this.$getAppComponent().navigateToUrl(ComponentIds.Tracks);
+                const component = await import('~/components/Tracks');
+                this.$getAppComponent().navigateTo(component.default);
             }
         } catch (err) {
             this.showError(err);
@@ -162,6 +143,7 @@ export default class App extends BgServiceComponent {
             {
                 title: this.$t('tracks'),
                 icon: 'mdi-map-marker-path',
+                component: async () => (await import('~/components/Tracks')).default,
                 url: ComponentIds.Tracks,
                 activated: false
             },
@@ -174,12 +156,14 @@ export default class App extends BgServiceComponent {
             {
                 title: this.$t('settings'),
                 icon: 'mdi-cogs',
+                component: async () => (await import('~/components/Settings')).default,
                 url: ComponentIds.Settings,
                 activated: false
             },
             {
                 title: this.$t('images'),
                 icon: 'mdi-image',
+                component: async () => (await import('~/components/Images.vue')).default,
                 url: ComponentIds.Images,
                 activated: false
             }
@@ -216,18 +200,31 @@ export default class App extends BgServiceComponent {
         // }
         console.log('importDevSessions');
         try {
+            let geojsonPath = path.join(getWorkingDir(), 'map.geojson');
+            if (!File.exists(geojsonPath)) {
+                geojsonPath = path.join(knownFolders.currentApp().path, 'assets/data/map.geojson');
+            }
             // this.showLoading({ text: this.$t('importing_data'), progress: 0 });
-            const importData = knownFolders.currentApp().getFile('assets/data/map.geojson').readTextSync();
+            const importData = File.fromPath(geojsonPath).readTextSync();
             const data = JSON.parse(importData);
+            const existing = (await this.dbHandler.trackRepository.searchItem()).map((t) => t.id);
+            console.log(
+                'existing',
+                existing,
+                existing.map((t) => typeof t)
+            );
             for (let index = 0; index < data.length; index++) {
                 const d = data[index];
-                const track = new Track(d.name || Date.now());
-                Object.assign(track, d);
+                const track = { ...d, id: (d.name || Date.now()) + '' };
                 const geojson = bboxify(track.geometry);
                 track.geometry = geojson as any;
                 // track.geometry = reader.readFeatureCollection(JSON.stringify(d.geometry));
                 track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.bbox[3], lon: geojson.bbox[2] }, { lat: geojson.bbox[1], lon: geojson.bbox[0] });
-                await track.save();
+                if (existing.indexOf(track.id) === -1) {
+                    await this.dbHandler.trackRepository.createItem(track);
+                } else {
+                    await this.dbHandler.trackRepository.updateItem(track);
+                }
                 appSettings.setBoolean('devDataImported', true);
             }
         } catch (err) {
@@ -239,7 +236,7 @@ export default class App extends BgServiceComponent {
 
     quitApp() {
         this.$bgService.stop().then(() => {
-            if (global.isIOS) {
+            if (__IOS__) {
                 //@ts-ignore
                 exit(0);
             } else {
@@ -259,7 +256,7 @@ export default class App extends BgServiceComponent {
         // we need to set it again, it seems it is not the same instance in the constructor :s
         this.$setAppComponent(this);
 
-        if (global.isIOS && app.ios.window.safeAreaInsets) {
+        if (__IOS__ && app.ios.window.safeAreaInsets) {
             const bottomSafeArea: number = app.ios.window.safeAreaInsets.bottom;
             if (bottomSafeArea > 0) {
                 app.addCss(`
@@ -310,6 +307,7 @@ export default class App extends BgServiceComponent {
 
     // @log
     setActivatedUrl(id) {
+        console.log('setActivatedUrl', id);
         if (!id || id === this.activatedUrl) {
             return;
         }
@@ -342,9 +340,13 @@ export default class App extends BgServiceComponent {
         }
     }
 
-    onNavItemTap(url: string, comp?: any): void {
+    async onNavItemTap(item) {
         this.closeDrawer();
-        this.navigateToUrl(url as any);
+        let component = item.component;
+        if (typeof component === 'function') {
+            component = await (component as () => Promise<VueConstructor>)();
+        }
+        this.navigateToUrl(item.url, { component });
     }
     onTap(command: string) {
         switch (command) {
@@ -394,14 +396,16 @@ export default class App extends BgServiceComponent {
         return super.navigateTo(component, options, cb);
     }
     navigating = false;
-    navigateToUrl(url: ComponentIds, options?: NavigationEntry & { props?: any }, cb?: () => Page) {
-        if (this.isActiveUrl(url) || !this.routes[url] || this.navigating) {
+    async navigateToUrl(url: ComponentIds, options?: NavigationEntry & { props?: any; component?: VueConstructor }, cb?: () => Page) {
+        if (this.isActiveUrl(url) || this.navigating) {
             return;
         }
         this.navigating = true;
         const index = this.findNavigationUrlIndex(url);
         if (index === -1) {
-            this.navigateTo(this.routes[url].component, options);
+            const component = options.component || this.routes[url].component;
+
+            this.navigateTo(component, options);
         } else {
             this.navigateBackToUrl(url);
         }
@@ -511,9 +515,10 @@ export default class App extends BgServiceComponent {
                                         'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
                                     }
                                 };
-                                return getFile(args, filePath).then((response) => {
+                                return getFile(args, filePath).then(async (response) => {
                                     this.hideLoading();
-                                    this.navigateTo(FirmwareUpdate, { props: { firmwareFile: response } });
+                                    const component = await import('~/components/FirmwareUpdate');
+                                    this.navigateTo(component.default, { props: { firmwareFile: response } });
                                 });
                             } else if (response.mandatory) {
                                 // this.quitApp();

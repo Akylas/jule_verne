@@ -11,15 +11,16 @@ export const NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL = 'juleverne_service';
 import { primaryColor } from '~/variables';
 import { $tc } from '~/helpers/locale';
 import { getBoolean } from '@nativescript/core/application-settings';
+import { Color } from '@nativescript/core/color';
 
 function titlecase(value) {
-    return value.replace(/\w\S*/g, function(txt) {
+    return value.replace(/\w\S*/g, function (txt) {
         return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
     });
 }
 export class NotificationHelper {
     public static getNotification(context: android.content.Context, builder: androidx.core.app.NotificationCompat.Builder) {
-        const color = android.graphics.Color.parseColor(primaryColor);
+        const color = android.graphics.Color.parseColor(new Color(primaryColor).hex);
         NotificationHelper.createNotificationChannel(context);
 
         const activityClass = (com as any).tns.NativeScriptActivity.class;
@@ -64,9 +65,9 @@ export class NotificationHelper {
     public static updateBuilderTexts(builder) {
         builder.setContentTitle(null);
         // if (session) {
-            // builder.setContentText(NotificationHelper.getSessionString(session));
+        // builder.setContentText(NotificationHelper.getSessionString(session));
         // } else {
-            builder.setContentText(titlecase($tc('tap_to_open')));
+        builder.setContentText(titlecase($tc('tap_to_open')));
         // }
     }
 
@@ -78,7 +79,7 @@ export class NotificationHelper {
 
     /* Create a notification channel */
     public static createNotificationChannel(context) {
-        const color = android.graphics.Color.parseColor(primaryColor);
+        const color = android.graphics.Color.parseColor(new Color(primaryColor).hex);
         if (android.os.Build.VERSION.SDK_INT >= 26) {
             // API level 26 ("Android O") supports notification channels.
             const channelName = 'Session State';

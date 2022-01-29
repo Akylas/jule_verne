@@ -33,7 +33,7 @@ export default class DeviceSelect extends BaseVueComponent {
     public devices: ObservableArray<Peripheral> = new ObservableArray([] as any);
     public scanning: boolean = false;
 
-    public height = global.isAndroid ? 350 : '100%';
+    public height = __ANDROID__ ? 350 : '100%';
 
     @Prop({})
     scanningParams?: StartScanningOptions;

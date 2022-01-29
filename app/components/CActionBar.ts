@@ -43,7 +43,7 @@ export default class ActionBar extends BaseVueComponent {
             return 'mdi-close';
         }
         if (this.canGoBack) {
-            return global.isIOS ? 'mdi-chevron-left' : 'mdi-arrow-left';
+            return __IOS__ ? 'mdi-chevron-left' : 'mdi-arrow-left';
         }
         return 'mdi-menu';
     }

@@ -1,9 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="map">"map"</string>
-  <string name="tap_to_open">"tap to open"</string>
-  <string name="leaving_feature">"you are leaving %1$s"</string>
-  <string name="entering_feature">"you are entering %1$s"</string>
+  <string name="tap_to_open">"appuyez pour ouvrir"</string>
+  <string name="stop">"arrêter"</string>
+  <string name="shift_desc">"décalage actuel de l\'écran"</string>
+  <string name="settings">"paramétres"</string>
+  <string name="sending_config_progress">"envoie en cours: %1$s (%2$s)"</string>
+  <string name="sending_config">"envoie de la configuration \"%1$s\""</string>
+  <string name="refresh">"rafraichir"</string>
+  <string name="pick_firmware">"choisir un firmware"</string>
+  <string name="pick_config_to_send">"choisissez une config a envoyer"</string>
+  <string name="not_enough_memory">"pas assez de mémoire: %1$s / %2$s"</string>
+  <string name="no_file_found">"pas de fichier trouvé"</string>
+  <string name="memory">"mémoire"</string>
+  <string name="map">"carte"</string>
+  <string name="loading">"chargement"</string>
+  <string name="leaving_feature">"vous quittez %1$s"</string>
+  <string name="gesture_desc">"activez le capteur de gestes"</string>
+  <string name="gesture">"gestes"</string>
+  <string name="entering_feature">"vous entrez dans %1$s"</string>
+  <string name="delete_config">"supprimer la configuration \"%1$s\" ?"</string>
+  <string name="delete">"supprimer"</string>
+  <string name="configs">"configurations"</string>
+  <string name="config_deleted">"configuration supprimée"</string>
+  <string name="cancel">"annuler"</string>
+  <string name="auto_luminance">"luminosité automatique"</string>
   <string name="app_name">"Jules Verne"</string>
   <string name="title_activity_kimera">"Jules Verne"</string>
+  <string name="add">"ajouter"</string>
 </resources>

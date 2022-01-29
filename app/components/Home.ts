@@ -100,13 +100,9 @@ export default class Home extends BgServiceComponent {
     }
     mounted() {
         super.mounted();
-
-        if (global.isAndroid) {
-            application.android.on(application.AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
-        }
     }
     eLog(...args) {
-        this.log.apply(
+        console.log.apply(
             this,
             args.filter((s) => s !== undefined)
         );
@@ -144,7 +140,7 @@ export default class Home extends BgServiceComponent {
 
     destroyed() {
         super.destroyed();
-        if (global.isAndroid) {
+        if (__ANDROID__) {
             application.android.off(application.AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
         }
     }
@@ -175,9 +171,24 @@ export default class Home extends BgServiceComponent {
         console.log('onSessionStateEvent', e.data);
         this.currentSessionState = e.data.state;
     }
+    inFront = false;
+    onNavigatingTo() {
+        this.inFront = true;
+
+        // if (__ANDROID__) {
+        //     application.android.on(application.AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
+        // }
+    }
+    onNavigatingFrom() {
+        this.inFront = false;
+
+        // if (__ANDROID__) {
+        //     application.android.off(application.AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
+        // }
+    }
     onAndroidBackButton(data: application.AndroidActivityBackPressedEventData) {
-        if (global.isAndroid) {
-            if (!this.$getAppComponent().isActiveUrl(ComponentIds.Activity)) {
+        if (__ANDROID__) {
+            if (!this.inFront) {
                 return;
             }
             if (this.shouldConfirmBack && this.currentSessionState !== SessionState.STOPPED) {
@@ -193,7 +204,7 @@ export default class Home extends BgServiceComponent {
                         if (result) {
                             this.shouldConfirmBack = false;
                             this.geoHandler.stopSession();
-                            this.log('about to close activity', result);
+                            console.log('about to close activity', result);
                             setTimeout(() => {
                                 frame.android.activity.finish();
                             }, 10);
@@ -264,6 +275,7 @@ export default class Home extends BgServiceComponent {
             }
         });
         this.isWatchingLocation = handlers.geoHandler.isWatching();
+        this.onTrackSelected({ track: this.geoHandler.currentTrack } as any);
     }
 
     get currentBearing() {
@@ -290,10 +302,7 @@ export default class Home extends BgServiceComponent {
         this.searchingLocation = false;
     }
 
-    onNavigatingFrom() {}
-    onNavigatingTo() {}
-
-    async onTap(command: string, args: GestureEventData) {
+    async onTap(command: string, ...args) {
         try {
             switch (command) {
                 case 'location':
@@ -359,8 +368,8 @@ export default class Home extends BgServiceComponent {
                     }
 
                     break;
-                case 'histoire 1':
-                    await this.bluetoothHandler.playStory(1);
+                case 'playStory':
+                    await this.bluetoothHandler.playStory(args[0]);
                     break;
                 case 'hello':
                     await this.bluetoothHandler.playInstruction('start', { randomize: true });

@@ -1,4 +1,4 @@
-import { isNumber } from '@akylas/nativescript/utils/types';
+import { isNumber } from '@nativescript/core/utils/types';
 import { GPS, GenericGeoLocation, Options as GeolocationOptions, LocationMonitor, setGeoLocationKeys, setMockEnabled } from '@nativescript-community/gps';
 import * as perms from '@nativescript-community/perms';
 import { TNSTextToSpeech } from '@nativescript-community/texttospeech';
@@ -20,7 +20,7 @@ import { CoreTypes } from '@nativescript/core/ui/enums/enums';
 import { Feature, LineString, Point, Polygon } from 'geojson';
 import { bind } from 'helpful-decorators';
 import { bearing } from '~/helpers/geo';
-import { parseGPX } from '~/helpers/gpx';
+// import { parseGPX } from '~/helpers/gpx';
 import { $t, $tc } from '~/helpers/locale';
 import { confirm } from '~/utils/dialogs';
 import { TO_DEG, bboxify, computeAngleBetween, computeDistanceBetween, distanceToEnd, isLocactionInBbox, isLocationOnPath } from '~/utils/geo';
@@ -42,7 +42,7 @@ export type GeoLocation = GenericGeoLocation<LatLonKeys> & {
 let geolocation: GPS;
 
 //@ts-ignore
-export const desiredAccuracy = global.isAndroid ? CoreTypes.Accuracy.high : kCLLocationAccuracyBestForNavigation;
+export const desiredAccuracy = __ANDROID__ ? CoreTypes.Accuracy.high : kCLLocationAccuracyBestForNavigation;
 export const timeout = 20000;
 export const minimumUpdateTime = 1000; // Should update every 1 second according ;
 
@@ -203,8 +203,10 @@ export class GeoHandler extends Observable {
         this._currentTrack = track;
         this._isInTrackBounds = true;
         if (track) {
+            console.log('saving track id', track.id, typeof track.id);
             appSettings.setString('selectedTrackId', track.id);
         } else {
+            console.log('removing saved track id');
             appSettings.remove('selectedTrackId');
         }
 
@@ -230,8 +232,6 @@ export class GeoHandler extends Observable {
         return this._aimingFeature;
     }
     async start() {
-        console.log(TAG, 'start');
-
         this.launched = true;
         geolocation.on(GPS.gps_status_event, this.onGPSStateChange, this);
 
@@ -243,15 +243,13 @@ export class GeoHandler extends Observable {
         try {
             await this.dbHandler.start();
             const selectedTrackId = appSettings.getString('selectedTrackId');
-            console.log('selectedTrackId', selectedTrackId);
             if (selectedTrackId) {
-                const track = await Track.findOne(selectedTrackId);
-                // console.log('track', !!track);
+                const track = await this.dbHandler.getItem(selectedTrackId);
+                console.log('track', !!track);
                 if (track) {
                     this.currentTrack = track;
                 }
             }
-            console.log('dbHandler', 'started');
         } catch (err) {
             console.log('dbHandler', 'start error', err, err.stack);
             return Promise.reject(err);
@@ -378,7 +376,7 @@ export class GeoHandler extends Observable {
         return false;
     }
     checkBattery() {
-        if (global.isIOS) {
+        if (__IOS__) {
             return Promise.resolve();
         }
         const activity = androidApp.foregroundActivity || androidApp.startActivity;
@@ -911,7 +909,7 @@ export class GeoHandler extends Observable {
     }
     startWatch() {
         const options: GeolocationOptions = { minimumUpdateTime, desiredAccuracy, onDeferred: this.onDeferred, nmeaAltitude: true, skipPermissionCheck: true };
-        if (global.isIOS) {
+        if (__IOS__) {
             // if (this._isIOSBackgroundMode) {
             //     options.pausesLocationUpdatesAutomatically = false;
             //     options.allowsBackgroundLocationUpdates = true;
@@ -1015,47 +1013,47 @@ export class GeoHandler extends Observable {
         });
     }
 
-    @bind
-    importGPXFile(filePath: string) {
-        return File.fromPath(filePath)
-            .readText()
-            .then((r) => this.importGPXString(r));
-    }
+    // @bind
+    // importGPXFile(filePath: string) {
+    //     return File.fromPath(filePath)
+    //         .readText()
+    //         .then((r) => this.importGPXString(r));
+    // }
 
-    async importGPXString(value: string) {
-        if (!value || value.length === 0) {
-            throw new Error($t('empty_file'));
-        }
-        // if (DEV_LOG) {
-        // console.log(TAG,'importGPXString', value);
-        // }
-        // console.log('importXMLString', value);
-        return parseGPX(value).then((gpx) => {
-            // console.log('gpx2', gpx);
-            // return Promise.resolve().then(() => {
-            const trk = gpx.trk[0] || gpx.trk;
-            const trkseg = trk.trkseg[0] || trk.trkseg;
-            const locs = trkseg.trkpt as any[];
-            const coordinates = [];
-            const geojson = {
-                name: gpx.metadata.name,
-                geometry: {
-                    type: 'FeatureCollection',
-                    features: [
-                        {
-                            type: 'LineString',
-                            properties: {},
-                            coordinates: locs.map((l) => [Math.round(parseFloat(l.$.lon) * 1000000) / 1000000, Math.round(parseFloat(l.$.lat) * 1000000) / 1000000])
-                        } as LineString
-                    ]
-                }
-            } as unknown as TrackFeatureCollection;
-            bboxify(geojson);
-            const track = new Track(Date.now());
-            track.name = trk.name;
-            track.geometry = geojson;
-            track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.extent[2], lon: geojson.extent[3] }, { lat: geojson.extent[0], lon: geojson.extent[1] });
-            return track.save();
-        });
-    }
+    // async importGPXString(value: string) {
+    //     if (!value || value.length === 0) {
+    //         throw new Error($t('empty_file'));
+    //     }
+    //     // if (DEV_LOG) {
+    //     // console.log(TAG,'importGPXString', value);
+    //     // }
+    //     // console.log('importXMLString', value);
+    //     return parseGPX(value).then((gpx) => {
+    //         // console.log('gpx2', gpx);
+    //         // return Promise.resolve().then(() => {
+    //         const trk = gpx.trk[0] || gpx.trk;
+    //         const trkseg = trk.trkseg[0] || trk.trkseg;
+    //         const locs = trkseg.trkpt as any[];
+    //         const coordinates = [];
+    //         const geojson = {
+    //             name: gpx.metadata.name,
+    //             geometry: {
+    //                 type: 'FeatureCollection',
+    //                 features: [
+    //                     {
+    //                         type: 'LineString',
+    //                         properties: {},
+    //                         coordinates: locs.map((l) => [Math.round(parseFloat(l.$.lon) * 1000000) / 1000000, Math.round(parseFloat(l.$.lat) * 1000000) / 1000000])
+    //                     } as LineString
+    //                 ]
+    //             }
+    //         } as unknown as TrackFeatureCollection;
+    //         bboxify(geojson);
+    //         const track = new Track(Date.now());
+    //         track.name = trk.name;
+    //         track.geometry = geojson;
+    //         track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.extent[2], lon: geojson.extent[3] }, { lat: geojson.extent[0], lon: geojson.extent[1] });
+    //         return track.save();
+    //     });
+    // }
 }

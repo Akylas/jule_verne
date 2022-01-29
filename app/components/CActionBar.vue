@@ -17,7 +17,7 @@
                 <GridLayout :columns="glassesBatteryColumns" backgroundColor="#E4E4E4" width="24" borderRadius="1" height="4" row="4" col="1" colSpan="2">
                     <AbsoluteLayout col="0" :backgroundColor="glassBatteryColor" />
                 </GridLayout>
-                <Label isUserInteractionEnabled="false" horizontalAlignment="center" color="white" fontSize="7" fontWeight="bold" :text="battery + '%'" row="5" col="1" colSpan="2" />
+                <Label isUserInteractionEnabled="false" horizontalAlignment="center" fontSize="7" fontWeight="bold" :text="battery + '%'" row="5" col="1" colSpan="2" />
             </GridLayout>
         </StackLayout>
     </GridLayout>

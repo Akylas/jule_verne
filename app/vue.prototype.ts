@@ -1,9 +1,9 @@
 import { Device, Screen } from '@nativescript/core/platform';
-import App from '~/components/App';
-import { BgService } from './services/BgService';
-import { alert, confirm } from './utils/dialogs';
 import VueType from 'nativescript-vue';
-import { $t , $tc, $tt, $tu} from '~/helpers/locale';
+import App from '~/components/App';
+import { $t, $tc, $tt, $tu } from '~/helpers/locale';
+import { BgService } from './services/BgService';
+import { alert } from './utils/dialogs';
 
 const filters = (VueType.prototype.$filters = VueType['options'].filters);
 
@@ -12,10 +12,10 @@ const Plugin = {
         const bgService = new BgService();
         Vue.prototype.$bgService = bgService;
         let appComponent: App;
-        Vue.prototype.$setAppComponent = function(comp: App) {
+        Vue.prototype.$setAppComponent = function (comp: App) {
             appComponent = comp;
         };
-        Vue.prototype.$getAppComponent = function() {
+        Vue.prototype.$getAppComponent = function () {
             return appComponent;
         };
 
@@ -24,7 +24,7 @@ const Plugin = {
         Vue.prototype.$tt = $tt;
         Vue.prototype.$tu = $tu;
 
-        Vue.prototype.$alert = function(message) {
+        Vue.prototype.$alert = function (message) {
             return alert({
                 okButtonText: $tc('ok'),
                 message

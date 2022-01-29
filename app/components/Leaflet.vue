@@ -2,7 +2,7 @@
     <Page ref="page" :navigateUrl="navigateUrl">
         <GridLayout rows="auto,*">
             <CActionBar modal showMenuIcon :title="$tc('create_track')" />
-            <WebViewExt ref="webview" row="1" src="~/assets/leaflet/index.html" @geojson="onGeoJSON" />
+            <AWebView ref="webview" row="1" src="~/assets/leaflet/index.html" @geojson="onGeoJSON" normalizeUrls="false" />
         </GridLayout>
     </Page>
 </template>
@@ -10,13 +10,12 @@
 <script lang="ts">
 import { Component } from 'vue-property-decorator';
 import BaseVueComponent from './BaseVueComponent';
-import { WebViewExt } from '@nota/nativescript-webview-ext';
+import { AWebView } from '@nativescript-community/ui-webview';
 import { ComponentIds } from './App';
 @Component({})
 export default class Leaflet extends BaseVueComponent {
-    navigateUrl = ComponentIds.Leaflet;
     get webView() {
-        return this.getRef<WebViewExt>('webview');
+        return this.getRef<AWebView>('webview');
     }
     mounted() {
         super.mounted();

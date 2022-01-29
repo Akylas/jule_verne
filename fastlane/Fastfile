@@ -9,6 +9,10 @@ def truncate(string, length = 20)
 end
 
 fastlane_version '2.135.2'
+$app_id = 'com.akylas.julesverne'
+$lang = 'fr-FR'
+$ios_scheme = 'julesverne'
+$repository_name = 'farfromrefug/jule_verne'
 
 desc 'test lane'
 lane :test do
@@ -39,13 +43,16 @@ desc 'Prepare the application.'
 lane :prepare do |params| 
   platform = params[:platform]
   sh("rm", "-fr", "platforms/" + platform)
-  sh("tns", "prepare", platform, "--release", "--clean", "--env.adhoc")
+  sh("tns", "prepare", platform, "--release", "--env.adhoc")
 
 end
 
 lane :build_flavor do |params| 
   platform = params[:platform]
   flavor = params[:flavor]
+
+  build
+
   version = ""
   versionCode = ""
   
@@ -63,19 +70,17 @@ lane :build_flavor do |params|
   puts "version:"  + version
   puts "versionCode:"  + versionCode
 
-  build
-
   sentry_create_release(
     version: version, # release version to create
+    app_identifier: $app_id, # pass in the bundle_identifer of your app
   )
   sentry_set_commits(
     version: version,
-    # app_identifier: '...', # pass in the bundle_identifer of your app
+    app_identifier: $app_id, # pass in the bundle_identifer of your app
     auto: true, # enable completely automated commit management
     # clear: false, # clear all current commits from the release
     # commit: '...', # commit spec, see `sentry-cli releases help set-commits` for more information
   )
-  # sentry_upload_sourcemaps(platform:platform, version: version, versionCode: versionCode);
 
   sentry_upload
 
@@ -84,49 +89,7 @@ lane :build_flavor do |params|
   upload_store(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   add_git_tag(tag: "#{platform}/#{flavor}/#{version}/#{versionCode}")
 
-  push_git_tags
-end
-
-
-lane :sentry_upload_sourcemaps do |params|
-  # there we add the platform to the dist paramater. The idea is to have different dist for ios android
-  # this is because we generate different sources for android and ios so we have different sourceMaps
-  # and so to map errors correctly we use different dist for ios and android
-  version = params[:version]
-  versionCode = params[:versionCode]
-  platform = params[:platform]
-  sentry_prefix = ENV['SENTRY_PREFIX']
-  sentryDist =  versionCode + '.' + platform # optional distribution of the release usually the buildnumber
-  sourceDist = ""
-  Dir.chdir("..") do
-    sourceDist  =  sh("node", "./fastlane/getDist.js", platform).gsub(/\n/,'')
-  end
-  sourceMapeDirPath = "#{sourceDist}/#{ENV['SOURCEMAP_REL_DIR']}"
-  Dir.chdir(sourceDist) do
-    Dir.glob('*.js').each do|f|
-      filePath = sourceDist + '/' + f
-      puts "uploading source file:"  + filePath
-      sentry_upload_file(
-        version: version,
-        dist: sentryDist, # optional distribution of the release usually the buildnumber
-        file:filePath,
-        file_url: sentry_prefix + f
-      )
-      # in our webpack config we put sourcemaps there for them not to be packaged with the app
-      sourceMapFilePath = "#{sourceMapeDirPath}/#{f}.map"
-      if(File.exist?(sourceMapFilePath)) 
-        puts "uploading sourcemap file:" + sourceMapFilePath
-        sentry_upload_sourcemap(
-          rewrite:true,
-          version: version,
-          dist: sentryDist, # optional distribution of the release usually the buildnumber
-          url_prefix:sentry_prefix,
-          sourcemap: sourceMapFilePath
-        )
-      end
-      
-    end
-  end
+  push_git_tags(force:true)
 end
 
 
@@ -153,22 +116,9 @@ platform :ios do
   lane :upload_store  do |params| 
     upload_to_testflight(
         changelog:params[:changelog],
-        beta_app_feedback_email: "martin.guillon@akylas.fr",
-        beta_app_description: "Mobile application for testing gps",
-        demo_account_required: false,
         distribute_external: true,
         groups: [params[:flavor]],
-        team_name:"yout_team_name",
-        notify_external_testers: true,
-        beta_app_review_info: {
-          contact_email: "martin.guillon@akylas.fr",
-          contact_first_name: "Martin",
-          contact_last_name: "Guillon",
-          contact_phone: "+33 679134385",
-          demo_account_name: "",
-          demo_account_password: "",
-          notes: "Thank you for reviewing!"
-        },
+        notify_external_testers: true
       )
   end
 
@@ -184,8 +134,8 @@ platform :ios do
       prepare(platform:'ios')
       build_ios_app(
         output_directory:"dist",
-        scheme: "juleverne",
-        workspace: './platforms/ios/juleverne.xcworkspace'
+        scheme: $ios_scheme,
+        workspace: "./platforms/ios/#{$ios_scheme}.xcworkspace"
       )
   end
 
@@ -218,7 +168,7 @@ lane :write_changelog do |params|
     changelog = changelog[0..499]
   end
 
-  metadata_dir="metadata/android/en-US/changelogs"
+  metadata_dir="metadata/android/#{$lang}/changelogs"
   require 'fileutils'
   system 'mkdir', '-p', metadata_dir
   File.write("#{metadata_dir}/#{version}.txt", changelog)
@@ -227,30 +177,80 @@ lane :write_changelog do |params|
 end
   lane :upload_store   do |params| 
     track = params[:flavor]
-    if (track == 'beta') 
-      track = 'internal'
-    end
+    # if (track == 'beta') 
+    #   track = 'internal'
+    # end
     write_changelog(version:params[:versionCode], changelog:params[:changelog]);
     upload_to_play_store(
       track: track,
-      package_name:'com.akylas.juleverne',
+      package_name:$app_id,
       track_promote_to: track,
-      json_key: ENV["PLAYSTORE_JSON_KEY_DATA"],
+      json_key_data: ENV["PLAYSTORE_JSON_KEY_DATA"],
       aab: './platforms/android/app/build/outputs/bundle/release/app-release.aab'
     )
   end
 
   desc 'Build the Android application.'
     lane :build do
-      sh("rm", "-fr", "platforms/android")
-      sh("tns", "build", "android", "--release", "--clean", "--env.adhoc", "--aab",
+      prepare(platform:'android')
+      sh("tns", "build", "android", "--release", "--env.adhoc", "--aab",
           "--key-store-path", "../" + ENV["KEYSTORE_PATH"],
           "--key-store-password", ENV["KEYSTORE_PASSWORD"],
           "--key-store-alias", ENV["KEYSTORE_ALIAS"],
           "--key-store-alias-password", ENV["KEYSTORE_ALIAS_PASSWORD"]
         )
   end
+  desc 'Build the Android application For Github.'
+  lane :build_github do
+    prepare(platform:'android')
+    sh("devns", "build", "android", "--release", "--env.adhoc",
+        "--key-store-path", "../" + ENV["KEYSTORE_PATH"],
+        "--key-store-password", ENV["KEYSTORE_PASSWORD"],
+        "--key-store-alias", ENV["KEYSTORE_ALIAS"],
+        "--key-store-alias-password", ENV["KEYSTORE_ALIAS_PASSWORD"]
+      )
+end
 
+desc 'Ship to Github.'
+lane :github do
+  checkGitStatus
+  platform = "android"
+  tns_install(platform:platform)
+  version = ""
+  versionCode = ""
+  flavor = "github"
+
+  
+  Dir.chdir("..") do
+    version  =  sh("./node_modules/.bin/get-version", platform, "version").gsub(/\n/,'')
+    versionCode  =  sh("./node_modules/.bin/get-version", platform, "code").gsub(/\n/,'')
+  end
+  
+  puts "platform:"  + platform
+  puts "flavor:"  + flavor
+  puts "version:"  + version
+  puts "versionCode:"  + versionCode
+
+  # sentry_create_release(
+  #   version: version, # release version to create
+  # )
+  build_github
+  # sentry_upload
+  changelog = get_changelog(platform:platform, flavor:flavor)
+  tag  = "#{platform}/#{flavor}/#{version}/#{versionCode}";
+  add_git_tag(tag: tag)
+
+  push_git_tags(force:true)
+  set_github_release(
+    repository_name: $repository_name,
+    api_token: ENV["GH_TOKEN"],
+    name: version,
+    tag_name: tag,
+    description: changelog,
+    commitish: "master",
+    upload_assets: ["platforms/android/app/build/outputs/apk/release/app-release.apk"]
+  )
+end
 
   desc 'Ship to Android Playstore Beta.'
   lane :beta do

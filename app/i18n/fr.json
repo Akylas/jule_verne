@@ -1,19 +1,40 @@
 {
-  "ios": {
-    "info": {
-      "plist": {
-        "NSLocationWhenInUseUsageDescription": "«Jule Verne» uses GPS to display it ",
-        "NSMotionUsageDescription": "«Jule Verne» uses the Barometer to compute more accurate elevation",
-        "NSBluetoothPeripheralUsageDescription": "«Jule Verne» utilise le Bluetooth pour se connecter à vos lunettes",
-        "NSBluetoothAlwaysUsageDescription": "«Jule Verne» utilise le Bluetooth pour se connecter à vos lunettes"
-      }
-    }
-  },
+  "add": "ajouter",
   "app": {
     "name": "Jules Verne"
   },
+  "auto_luminance": "luminosité automatique",
+  "cancel": "annuler",
+  "config_deleted": "configuration supprimée",
+  "configs": "configurations",
+  "delete": "supprimer",
+  "delete_config": "supprimer la configuration \"%1$s\" ?",
   "entering_feature": "vous entrez dans %s",
+  "gesture": "gestes",
+  "gesture_desc": "activez le capteur de gestes",
+  "ios": {
+    "info": {
+      "plist": {
+        "NSBluetoothAlwaysUsageDescription": "«Jule Verne» utilise le Bluetooth pour se connecter à vos lunettes",
+        "NSBluetoothPeripheralUsageDescription": "«Jule Verne» utilise le Bluetooth pour se connecter à vos lunettes",
+        "NSLocationWhenInUseUsageDescription": "«Jule Verne» uses GPS to display it ",
+        "NSMotionUsageDescription": "«Jule Verne» uses the Barometer to compute more accurate elevation"
+      }
+    }
+  },
   "leaving_feature": "vous quittez %s",
-  "tap_to_open": "appuyez pour ouvrir",
-  "map": "carte"
+  "loading": "chargement",
+  "map": "carte",
+  "memory": "mémoire",
+  "no_file_found": "pas de fichier trouvé",
+  "not_enough_memory": "pas assez de mémoire: %1$s / %2$s",
+  "pick_config_to_send": "choisissez une config a envoyer",
+  "pick_firmware": "choisir un firmware",
+  "refresh": "rafraichir",
+  "sending_config": "envoie de la configuration \"%1$s\"",
+  "sending_config_progress": "envoie en cours: %1$s (%2$s)",
+  "settings": "paramétres",
+  "shift_desc": "décalage actuel de l'écran",
+  "stop": "arrêter",
+  "tap_to_open": "appuyez pour ouvrir"
 }

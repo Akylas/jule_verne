@@ -58,19 +58,17 @@ export default class TrackDetails extends BgServiceComponent {
     }
 
     get fillColor() {
-        return (item: Feature<TrackGeometry, GeometryProperties>) => item.properties.color && new Color(item.properties.color).setAlpha(0.5);
+        return (item: Feature<TrackGeometry, GeometryProperties>) => item.properties.fill && new Color(item.properties.fill).setAlpha(125);
     }
     get icon() {
         return (item: Feature<TrackGeometry, GeometryProperties>) => {
-            switch (item.properties.shape) {
-                case 'Circle':
-                    return 'mdi-circle-outline';
-                case 'Line':
+            switch (item.geometry.type) {
+                case 'Polygon':
+                    return 'mdi-vector-polygon';
+                case 'LineString':
                     return 'mdi-chart-line-variant';
-                case 'Marker':
+                case 'Point':
                     return 'mdi-map-marker';
-                case 'CircleMarker':
-                    return 'mdi-record-circle-outline';
             }
         };
     }
@@ -103,19 +101,25 @@ export default class TrackDetails extends BgServiceComponent {
         }
     }
 
-    save() {
+    async save() {
         if (this.isEditing) {
-            this.showLoading(this.$t('saving'));
-            this.track.name = this.editableName;
-            this.track.desc = this.editableDesc;
-            this.track
-                .save()
-                .then(() => {
-                    // appNotify({eventName:HistorySessionUpdatedEvent, session:this.session});
-                    this.hideLoading();
-                    this.leaveEditing();
-                })
-                .catch(this.showError);
+            try {
+                this.showLoading(this.$t('saving'));
+                this.track.name = this.editableName;
+                this.track.desc = this.editableDesc;
+                await this.dbHandler.trackRepository.updateItem(this.track);
+                // this.track
+                // .save()
+                // .then(() => {
+                // appNotify({eventName:HistorySessionUpdatedEvent, session:this.session});
+            } catch (error) {
+                this.showError(error);
+            } finally {
+                this.hideLoading();
+                this.leaveEditing();
+            }
+            // })
+            // .catch(this.showError);
         }
     }
 
