@@ -174,6 +174,10 @@ export default class Settings extends BgServiceComponent {
     }
 
     refresh() {
+        if (!this.connectedGlasses) {
+            this.items = [] as any;
+            return;
+        }
         this.items = new ObservableArray([
             { type: 'header', title: $t('memory') },
             {
@@ -239,7 +243,6 @@ export default class Settings extends BgServiceComponent {
         try {
             const result = await this.bluetoothHandler.sendCommand({ command: CommandType.cfgList, timestamp: Date.now() });
             this.configs = result?.data || [];
-            console.log('getConfigs', this.configs);
             refresh && this.refresh();
         } catch (error) {
             this.showError(error);
@@ -249,7 +252,6 @@ export default class Settings extends BgServiceComponent {
         try {
             const result = await this.bluetoothHandler.sendCommand({ command: CommandType.cfgFreeSpace, timestamp: Date.now() });
             this.memory = result?.data || ({} as any);
-            console.log('getMemory', this.memory);
             refresh && this.refresh();
         } catch (error) {
             this.showError(error);

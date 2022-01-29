@@ -83,7 +83,6 @@ export class TrackRepository extends CrudRepository<Track> {
     }
 
     prepareGetItem(item: Track) {
-        console.log('prepareGetItem', item);
         return {
             id: item.id,
             name: item.name,
@@ -91,7 +90,6 @@ export class TrackRepository extends CrudRepository<Track> {
             _geometry: item.geometry,
             get bounds() {
                 if (!this._parsedBounds) {
-                    console.log('test', this._bounds);
                     this._parsedBounds = JSON.parse(this._bounds);
                 }
                 return this._parsedBounds;

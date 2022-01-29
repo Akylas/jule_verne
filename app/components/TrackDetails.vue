@@ -24,7 +24,7 @@
                                     :borderBottomColor="borderColor"
                                     backgroundColor="transparent"
                                 >
-                                    <CSpan :text="icon(item)" color="gray" fontSize="24" verticalAlignment="center" :fontFamily="mdiFontFamily" width="24"/>
+                                    <CSpan :text="icon(item)" color="gray" fontSize="24" verticalAlignment="center" :fontFamily="mdiFontFamily" width="24" />
                                     <CSpan :color="textColor" paddingLeft="50" fontSize="15" verticalAlignment="center" :text="item.properties.name" />
                                     <Circle
                                         strokeWidth="2"

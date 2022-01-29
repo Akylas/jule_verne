@@ -1,9 +1,10 @@
-import {Trace} from '@nativescript/core/trace';
+// import {Trace} from '@nativescript/core/trace';
 // import {CollectionViewTraceCategory} from '@nativescript-community/ui-collectionview';
 // import {BleTraceCategory} from '@nativescript-community/ble';
 // Trace.addCategories(Trace.categories.NativeLifecycle);
 // Trace.addCategories(BleTraceCategory);
 // Trace.addCategories(Trace.categories.Navigation);
+// Trace.addCategories(Trace.categories.Transition);
 // Trace.addCategories(Trace.categories.ViewHierarchy);
 // Trace.enable();
 import { setMapPosKeys } from '@nativescript-community/ui-carto/core';

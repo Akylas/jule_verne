@@ -131,7 +131,6 @@ export default class Home extends BgServiceComponent {
         const track = event['track'] as Track;
         this.selectedTrack = track;
         this.selectedTracks = [track];
-        console.log('onTrackSelected', track && track.id);
         const map = this.map;
         if (track && map) {
             map.moveToFitBounds(track.bounds, undefined, true, true, false, 200);

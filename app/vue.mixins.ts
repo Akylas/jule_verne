@@ -10,8 +10,8 @@ declare module '@nativescript/core/ui/frame' {
 }
 
 export function applyMixins(derivedCtor: any, baseCtors: any[]) {
-    baseCtors.forEach(baseCtor => {
-        Object.getOwnPropertyNames(baseCtor.prototype).forEach(name => {
+    baseCtors.forEach((baseCtor) => {
+        Object.getOwnPropertyNames(baseCtor.prototype).forEach((name) => {
             const descriptor = Object.getOwnPropertyDescriptor(baseCtor.prototype, name);
 
             if (name === 'constructor') return;
@@ -22,19 +22,19 @@ export function applyMixins(derivedCtor: any, baseCtors: any[]) {
                 if (!oldImpl) {
                     derivedCtor.prototype[name] = baseCtor.prototype[name];
                 } else {
-                    derivedCtor.prototype[name] = function(...args) {
+                    derivedCtor.prototype[name] = function (...args) {
                         oldImpl.apply(this, args);
                         baseCtor.prototype[name].apply(this, args);
                     };
                 }
             }
         });
-        Object.getOwnPropertySymbols(baseCtor.prototype).forEach(symbol => {
+        Object.getOwnPropertySymbols(baseCtor.prototype).forEach((symbol) => {
             const oldImpl: Function = derivedCtor.prototype[symbol];
             if (!oldImpl) {
                 derivedCtor.prototype[symbol] = baseCtor.prototype[symbol];
             } else {
-                derivedCtor.prototype[symbol] = function(...args) {
+                derivedCtor.prototype[symbol] = function (...args) {
                     oldImpl.apply(this, args);
                     baseCtor.prototype[symbol].apply(this, args);
                 };
@@ -59,8 +59,8 @@ class FrameWithEvents extends NSFrame {
 const Plugin = {
     install(Vue) {
         installMixins();
-        const NSFrame = require('@nativescript/core/ui/frame').Frame;
-        applyMixins(NSFrame, [FrameWithEvents]);
+        // const NSFrame = require('@nativescript/core/ui/frame').Frame;
+        // applyMixins(NSFrame, [FrameWithEvents]);
     }
 };
 

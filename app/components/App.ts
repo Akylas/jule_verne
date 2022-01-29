@@ -6,7 +6,7 @@ import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { Drawer } from '@nativescript-community/ui-drawer';
 import { confirm } from '@nativescript-community/ui-material-dialogs';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
-import { File, Frame, NavigationEntry, Page, StackLayout, knownFolders } from '@nativescript/core';
+import { ApplicationSettings, File, Frame, NavigationEntry, ObservableArray, Page, StackLayout, knownFolders } from '@nativescript/core';
 import * as app from '@nativescript/core/application';
 import * as appSettings from '@nativescript/core/application-settings';
 import { path } from '@nativescript/core/file-system';
@@ -115,7 +115,7 @@ export default class App extends BgServiceComponent {
     }
 
     async onAppUrl(data: AppURL) {
-        console.log('Got the following appURL data', data, Array.from(data.params.entries()));
+        // console.log('Got the following appURL data', data, Array.from(data.params.entries()));
         try {
             // if (data.path && data.path.endsWith('.gpx')) {
             //     this.showLoading(this.$t('importing'));
@@ -128,7 +128,6 @@ export default class App extends BgServiceComponent {
             if (data.path && data.path.endsWith('.json')) {
                 this.showLoading(this.$t('importing'));
                 await this.geoHandler.importJSONFile(data.path);
-                console.log('resolving');
                 this.hideLoading();
                 const component = await import('~/components/Tracks');
                 this.$getAppComponent().navigateTo(component.default);
@@ -138,55 +137,63 @@ export default class App extends BgServiceComponent {
         }
     }
 
-    get menuItems() {
-        const result = [
-            {
-                title: this.$t('tracks'),
-                icon: 'mdi-map-marker-path',
-                component: async () => (await import('~/components/Tracks')).default,
-                url: ComponentIds.Tracks,
-                activated: false
-            },
-            // {
-            //     title: this.$t('create_track'),
-            //     icon: 'mdi-map-marker-distance',
-            //     url: ComponentIds.Leaflet,
-            //     activated: false
-            // },
-            {
-                title: this.$t('settings'),
-                icon: 'mdi-cogs',
-                component: async () => (await import('~/components/Settings')).default,
-                url: ComponentIds.Settings,
-                activated: false
-            },
-            {
-                title: this.$t('images'),
-                icon: 'mdi-image',
-                component: async () => (await import('~/components/Images.vue')).default,
-                url: ComponentIds.Images,
-                activated: false
-            }
-        ];
-
-        result.forEach((m) => {
-            if (m.url === this.activatedUrl) {
-                m.activated = true;
-            }
-        });
-        return result;
-    }
+    menuItems = new ObservableArray([
+        {
+            title: this.$t('map'),
+            icon: 'mdi-map',
+            component: async () => (await import('~/components/Home')).default,
+            url: ComponentIds.Activity,
+            activated: false
+        },
+        {
+            title: this.$t('tracks'),
+            icon: 'mdi-map-marker-path',
+            component: async () => (await import('~/components/Tracks')).default,
+            url: ComponentIds.Tracks,
+            activated: false
+        },
+        // {
+        //     title: this.$t('create_track'),
+        //     icon: 'mdi-map-marker-distance',
+        //     url: ComponentIds.Leaflet,
+        //     activated: false
+        // },
+        {
+            title: this.$t('settings'),
+            icon: 'mdi-cogs',
+            component: async () => (await import('~/components/Settings')).default,
+            url: ComponentIds.Settings,
+            activated: false
+        },
+        {
+            title: this.$t('images'),
+            icon: 'mdi-image',
+            component: async () => (await import('~/components/Images.vue')).default,
+            url: ComponentIds.Images,
+            activated: false
+        }
+    ]);
 
     needsImportOldSessionsOnLoaded = false;
+
+    onNavigatedTo() {
+        console.log('onNavigatedTo', this.needsImportOldSessionsOnLoaded);
+        // if (this.dbHandler && this.dbHandler.started) {
+        //     this.importDevSessions();
+        // } else {
+        //     this.needsImportOldSessionsOnLoaded = true;
+        // }
+    }
     onServiceStarted() {
-        console.log('onServiceStarted');
+        // console.log('onServiceStarted', this.needsImportOldSessionsOnLoaded);
         if (this.needsImportOldSessionsOnLoaded) {
             this.needsImportOldSessionsOnLoaded = false;
             this.importDevSessions();
         }
     }
     onLoaded() {
-        GC();
+        // GC();
+        // console.log('onLoaded', this.needsImportOldSessionsOnLoaded);
         if (this.dbHandler && this.dbHandler.started) {
             this.importDevSessions();
         } else {
@@ -194,25 +201,21 @@ export default class App extends BgServiceComponent {
         }
     }
     async importDevSessions() {
-        const devDataImported = appSettings.getBoolean('devDataImported', false);
-        // if (devDataImported) {
-        //     return;
-        // }
-        console.log('importDevSessions');
         try {
             let geojsonPath = path.join(getWorkingDir(), 'map.geojson');
             if (!File.exists(geojsonPath)) {
                 geojsonPath = path.join(knownFolders.currentApp().path, 'assets/data/map.geojson');
             }
             // this.showLoading({ text: this.$t('importing_data'), progress: 0 });
-            const importData = File.fromPath(geojsonPath).readTextSync();
+            const file = File.fromPath(geojsonPath);
+            const lastChecked = ApplicationSettings.getNumber('map.geojson_date', 0);
+            console.log('importDevSessions', lastChecked, file.lastModified.getTime());
+            if (file.lastModified.getTime() <= lastChecked) {
+                return;
+            }
+            const importData = file.readTextSync();
             const data = JSON.parse(importData);
             const existing = (await this.dbHandler.trackRepository.searchItem()).map((t) => t.id);
-            console.log(
-                'existing',
-                existing,
-                existing.map((t) => typeof t)
-            );
             for (let index = 0; index < data.length; index++) {
                 const d = data[index];
                 const track = { ...d, id: (d.name || Date.now()) + '' };
@@ -225,8 +228,8 @@ export default class App extends BgServiceComponent {
                 } else {
                     await this.dbHandler.trackRepository.updateItem(track);
                 }
-                appSettings.setBoolean('devDataImported', true);
             }
+            appSettings.setNumber('map.geojson_date', file.lastModified.getTime());
         } catch (err) {
             this.showError(err);
         } finally {
@@ -264,7 +267,7 @@ export default class App extends BgServiceComponent {
               `);
             }
         }
-        this.innerFrame.on(Page.navigatingToEvent, this.onPageNavigation, this);
+        this.innerFrame.on(Page.navigatedToEvent, this.onPageNavigation, this);
     }
     onPageNavigation(event) {
         if (!event.entry.resolvedPage) {
@@ -305,16 +308,31 @@ export default class App extends BgServiceComponent {
         return this.activatedUrl === id;
     }
 
-    // @log
     setActivatedUrl(id) {
-        console.log('setActivatedUrl', id);
         if (!id || id === this.activatedUrl) {
             return;
         }
+        const oldActiveUrl = this.activatedUrl;
         this.activatedUrl = id;
+        if (oldActiveUrl) {
+            const index = this.menuItems.findIndex((d) => d.url === oldActiveUrl);
+            if (index !== -1) {
+                const item = this.menuItems.getItem(index);
+                item.activated = false;
+                this.menuItems.setItem(index, item);
+            }
+        }
+        if (this.activatedUrl) {
+            const index = this.menuItems.findIndex((d) => d.url === this.activatedUrl);
+            if (index !== -1) {
+                const item = this.menuItems.getItem(index);
+                item.activated = true;
+                this.menuItems.setItem(index, item);
+            }
+        }
     }
     navigateBack(backEntry?) {
-        this.innerFrame && this.innerFrame.goBack(backEntry);
+        return this.innerFrame && this.innerFrame.goBack(backEntry);
     }
     findNavigationUrlIndex(url) {
         return this.innerFrame.backStack.findIndex((b) => b.resolvedPage[navigateUrlProperty] === url);
@@ -331,7 +349,7 @@ export default class App extends BgServiceComponent {
             console.log(url, 'not in backstack');
             return;
         }
-        this.navigateBack(this.innerFrame.backStack[index]);
+        return this.navigateBack(this.innerFrame.backStack[index]);
     }
     navigateBackToRoot() {
         const stack = this.innerFrame.backStack;
@@ -341,12 +359,15 @@ export default class App extends BgServiceComponent {
     }
 
     async onNavItemTap(item) {
-        this.closeDrawer();
         let component = item.component;
         if (typeof component === 'function') {
             component = await (component as () => Promise<VueConstructor>)();
         }
-        this.navigateToUrl(item.url, { component });
+        try {
+            this.navigateToUrl(item.url, { component });
+        } catch (error) {
+            this.showError(error);
+        }
     }
     onTap(command: string) {
         switch (command) {
@@ -398,6 +419,7 @@ export default class App extends BgServiceComponent {
     navigating = false;
     async navigateToUrl(url: ComponentIds, options?: NavigationEntry & { props?: any; component?: VueConstructor }, cb?: () => Page) {
         if (this.isActiveUrl(url) || this.navigating) {
+            this.closeDrawer();
             return;
         }
         this.navigating = true;
@@ -405,9 +427,9 @@ export default class App extends BgServiceComponent {
         if (index === -1) {
             const component = options.component || this.routes[url].component;
 
-            this.navigateTo(component, options);
+            return this.navigateTo(component, options);
         } else {
-            this.navigateBackToUrl(url);
+            return this.navigateBackToUrl(url);
         }
     }
     bDevMode = true;
