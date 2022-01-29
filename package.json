@@ -11,7 +11,7 @@
         "run.ios.device.production": "tns run ios --bundle --release --env.production --env.adhoc --provision 'match Development com.akylas.juleverne' --i-cloud-container-environment Development"
     },
     "dependencies": {
-        "@akylas/nativescript": "8.1.6",
+        "@akylas/nativescript": "8.1.7",
         "@geoman-io/leaflet-geoman-free": "2.11.4",
         "@mapbox/geojson-area": "^0.2.2",
         "@mdi/font": "6.5.95",

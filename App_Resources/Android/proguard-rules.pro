@@ -39,6 +39,8 @@
 -keep,allowoptimization public class java.util.HashMap** { public  *; }
 -keep,allowoptimization public class com.tns.NativeScriptApplication** { public  *; }
 -keep,allowoptimization public class com.tns.NativeScriptActivity** { public  *; }
+-keep,allowoptimization public class com.tns.FragmentClass** { public  *; }
+-keep,allowoptimization public class com.tns.NativeScriptException** { public  *; }
 -keep,allowoptimization public class com.nativescript.** { public protected *; }
 -keep,allowoptimization public class org.nativescript.** { public protected *; }
 -keep,allowoptimization public class android.content.Context** { public  *; }
@@ -145,6 +147,7 @@
 -keep,allowoptimization public class android.widget.FrameLayout** { public  *; }
 -keep,allowoptimization public class android.widget.Button** { public  *; }
 -keep,allowoptimization public class android.widget.TextView** { public  *; }
+-keep,allowoptimization public class android.widget.TextView.BufferType** { public  *; }
 -keep,allowoptimization public class android.widget.TextView.OnEditorActionListener** { public  *; }
 -keep,allowoptimization public class android.widget.ImageView** { public  *; }
 -keep,allowoptimization public class android.widget.ImageView.ScaleType** { public  *; }
@@ -182,6 +185,7 @@
 -keep,allowoptimization public class android.animation.AnimatorSet** { public  *; }
 -keep,allowoptimization public class android.animation.Animator** { public  *; }
 -keep,allowoptimization public class android.animation.StateListAnimator** { public  *; }
+-keep,allowoptimization public class android.animation.TimeInterpolator** { public  *; }
 -keep,allowoptimization public class android.animation.Animator.AnimatorListener** { public  *; }
 -keep,allowoptimization public class android.provider.Settings** { public  *; }
 -keep,allowoptimization public class android.provider.Settings.Secure** { public  *; }
@@ -280,6 +284,8 @@
 -keep,allowoptimization public class android.Manifest.permission.** { public protected *; }
 -keep,allowoptimization public class android.os.Process** { public  *; }
 -keep,allowoptimization public class android.Manifest** { public  *; }
+-keep,allowoptimization public class android.database.Cursor** { public  *; }
+-keep,allowoptimization public class android.database.sqlite.SQLiteDatabase** { public  *; }
 -keep,allowoptimization public class java.nio.ByteOrder** { public  *; }
 -keep,allowoptimization public class com.akylas.canvas.** { public protected *; }
 -keep,allowoptimization public class android.graphics.DashPathEffect** { public  *; }
@@ -379,6 +385,13 @@
 -keep,allowoptimization public class androidx.viewpager2.widget.CompositePageTransformer** { public  *; }
 -keep,allowoptimization public class com.rd.PageIndicatorView2** { public  *; }
 -keep,allowoptimization public class com.rd.animation.type.AnimationType** { public  *; }
+-keep,allowoptimization public class com.nativescript.webviewinterface.** { public  *; }
+-keep,allowoptimization public class android.webkit.WebChromeClient** { public  *; }
+-keep,allowoptimization public class android.webkit.WebResourceResponse** { public  *; }
+-keep,allowoptimization public class android.webkit.JsResult** { public  *; }
+-keep,allowoptimization public class android.webkit.ConsoleMessage** { public  *; }
+-keep,allowoptimization public class android.webkit.ValueCallback** { public  *; }
+-keep,allowoptimization public class android.webkit.PermissionRequest** { public  *; }
 -keep,allowoptimization public class com.nativescript.material.core.Utils** { public  *; }
 -keep,allowoptimization public class com.google.android.material.shape.ShapeAppearanceModel** { public  *; }
 -keep,allowoptimization public class com.google.android.material.shape.MaterialShapeDrawable** { public  *; }
@@ -399,6 +412,8 @@
 -keep,allowoptimization public class android.app.NotificationManager** { public  *; }
 -keep,allowoptimization public class android.app.NotificationChannel** { public  *; }
 -keep,allowoptimization public class android.content.pm.ServiceInfo** { public  *; }
+-keep,allowoptimization public class androidx.appcompat.widget.AppCompatCheckBox** { public  *; }
+-keep,allowoptimization public class androidx.core.widget.CompoundButtonCompat** { public  *; }
 -keep,allowoptimization public class androidx.core.widget.NestedScrollView** { public  *; }
 -keep,allowoptimization public class android.app.Notification** { public  *; }
 -keep,allowoptimization public class androidx.core.app.NotificationCompat** { public  *; }
