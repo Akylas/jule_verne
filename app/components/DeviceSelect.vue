@@ -5,7 +5,7 @@
                 <CActionBar modal :title="$t('pairing')" :showMenuIcon="false" />
                 <GridLayout rows="auto,*,50">
                     <GridLayout class="themedBack" columns="*,auto" row="0" paddingLeft="20%" paddingRight="20%">
-                        <Label col="0" class="robotoMedium" fontWeight="800" :text="title | capitalize" verticalAlignment="center" textWrap color="white" />
+                        <Label col="0" class="robotoMedium" fontWeight="800" :text="title | capitalize" verticalAlignment="center" textWrap />
                         <MDActivityIndicator col="1" class="activity-indicator" :busy="scanning" />
                     </GridLayout>
                     <CollectionView row="1" :items="devices" rowHeight="50">

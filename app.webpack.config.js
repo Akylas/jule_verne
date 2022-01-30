@@ -127,6 +127,9 @@ module.exports = (env, params = {}) => {
         TNS_ENV: JSON.stringify(mode),
         'gVars.sentry': !!sentry,
         SENTRY_DSN: `"${process.env.SENTRY_DSN}"`,
+        GLASSES_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/Ci9CHLTngBY8ePj/download/glasses_images.zip"',
+        MAP_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/LqYLkRmFoGrMixi/download/tiles.zip"',
+        GEOJSON_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/TCKXP59bgzix6eR/download/map.geojson"',
         SENTRY_PREFIX: `"${!!sentry ? process.env.SENTRY_PREFIX : ''}"`,
         NO_CONSOLE: noconsole,
         DEV_LOG: !!devlog,
@@ -283,22 +286,24 @@ module.exports = (env, params = {}) => {
             from: 'node_modules/@mdi/font/fonts/materialdesignicons-webfont.ttf',
             to: 'fonts',
             globOptions,
-            transform: {
-                transformer(content, path) {
-                    return new Promise((resolve, reject) => {
-                        new Fontmin()
-                            .src(content)
-                            .use(Fontmin.glyph({ subset: usedMDIICons }))
-                            .run(function (err, files) {
-                                if (err) {
-                                    reject(err);
-                                } else {
-                                    resolve(files[0].contents);
-                                }
-                            });
-                    });
-                }
-            }
+            transform: production
+                ? {
+                      transformer(content, path) {
+                          return new Promise((resolve, reject) => {
+                              new Fontmin()
+                                  .src(content)
+                                  .use(Fontmin.glyph({ subset: usedMDIICons }))
+                                  .run(function (err, files) {
+                                      if (err) {
+                                          reject(err);
+                                      } else {
+                                          resolve(files[0].contents);
+                                      }
+                                  });
+                          });
+                      }
+                  }
+                : undefined
         }
     ];
     copyPatterns.push({ from: 'test_assets/**/*', to: 'assets/[name][ext]', noErrorOnMissing: false, globOptions });

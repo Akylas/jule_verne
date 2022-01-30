@@ -184,7 +184,7 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         return layer;
     }
     async loadLocalMbtiles(directory: string) {
-        await request('storage');
+        // await request('storage');
         if (!Folder.exists(directory)) {
             return;
         }
@@ -195,10 +195,14 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
             for (let i = 0; i < folders.length; i++) {
                 const f = folders[i];
                 const subentities = await Folder.fromPath(f.path).getEntities();
+                const sources = subentities.map((e2) => e2.path).filter((s) => s.endsWith('.mbtiles'));
+                if (sources.length === 0) {
+                    return;
+                }
                 const layer = (this.vectorLayer = this.createMergeMBtiles({
                     legend: 'https://www.openstreetmap.org/key.html',
                     name: f.name,
-                    sources: subentities.map((e2) => e2.path).filter((s) => s.endsWith('.mbtiles'))
+                    sources
                 }));
                 this.mCartoMap.addLayer(layer);
             }

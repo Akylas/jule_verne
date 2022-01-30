@@ -16,6 +16,9 @@ declare const PRODUCTION: boolean;
 declare const NO_CONSOLE: boolean;
 declare const SENTRY_DSN: string;
 declare const SENTRY_PREFIX: string;
+declare const GLASSES_DATA_DEFAULT_URL: string;
+declare const MAP_DATA_DEFAULT_URL: string;
+declare const GEOJSON_DATA_DEFAULT_URL: string;
 declare const SUPPORTED_LOCALES: string[];
 // declare const process: { env: any };
 

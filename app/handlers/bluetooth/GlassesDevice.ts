@@ -43,7 +43,7 @@ export class GlassesDevice extends Device {
     rxChar: GlassesRXCharacteristic | GlassesBinaryRXCharacteristic;
     parser: MessageParser;
 
-    messagePromises: { [key: string]: { resolve: Function; reject: Function; timeoutTimer: NodeJS.Timer }[] } = {};
+    messagePromises: { [key: string]: { resolve: Function; reject: Function; timeoutTimer: any }[] } = {};
 
     _gestureOn: boolean = undefined;
     _alsOn: boolean = undefined;

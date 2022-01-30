@@ -98,6 +98,7 @@ export default class Home extends BgServiceComponent {
         }
         return result;
     }
+
     mounted() {
         super.mounted();
     }

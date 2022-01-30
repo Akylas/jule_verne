@@ -41,7 +41,6 @@ export default class ListItem extends Vue {
         this.$emit('tap', event);
     }
     onCheckedChange(event) {
-        console.log('onCheckedChange', event.value , !!this.nativeView);
         // if (this.ignoreFirst && event.value) {
         //     this.ignoreFirst = false;
         //     return;

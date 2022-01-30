@@ -28,7 +28,7 @@
                 </StackLayout>
                 <MDButton class="small-floating-btn" v-show="connectedGlasses" text="mdi-cog" @tap="onTap('settings')" verticalAlignment="bottom" row="1" horizontalAlignment="left" marginBottom="8" />
             </GridLayout>
-            <GridLayout ~rightDrawer rows="auto, *, auto" height="100%" backgroundColor="white" width="70%">
+            <GridLayout ~rightDrawer rows="auto, *, auto" height="100%" width="70%">
                 <GridLayout v-show="!!connectedGlasses" columns="auto,*,auto" rows="*,auto,auto,*,30" margin="15 15 30 15">
                     <GridLayout borderRadius="20" width="40" height="40" row="1" rowSpan="2" col="0" backgroundColor="#ececec" marginRight="10" verticalAlignment="top">
                         <Label class="menuIcon" :text="'mdi-sunglasses'" verticalAlignment="center" />

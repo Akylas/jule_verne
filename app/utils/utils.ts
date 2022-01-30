@@ -37,19 +37,21 @@ export function getDataFolder() {
 }
 
 export function getWorkingDir() {
-    let localMbtilesSource = ApplicationSettings.getString('local_directory');
-    if (!localMbtilesSource) {
-        let defaultPath = path.join(getDataFolder(), 'jules_verne');
-        if (__ANDROID__) {
-            const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
-            const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();
-            if (sdcardFolder) {
-                defaultPath = path.join(sdcardFolder, '../../../..', 'jules_verne');
-            }
-        }
-        localMbtilesSource = ApplicationSettings.getString('loca_directory', defaultPath);
-    }
-    return localMbtilesSource;
+    const folder = Folder.fromPath(path.join(knownFolders.documents().path, 'data'));
+    return folder.path;
+    // let localMbtilesSource = ApplicationSettings.getString('local_directory');
+    // if (!localMbtilesSource) {
+    //     let defaultPath = path.join(getDataFolder(), 'jules_verne');
+    //     if (__ANDROID__) {
+    //         const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
+    //         const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();
+    //         if (sdcardFolder) {
+    //             defaultPath = path.join(sdcardFolder, '../../../..', 'jules_verne');
+    //         }
+    //     }
+    //     localMbtilesSource = ApplicationSettings.getString('local_directory', defaultPath);
+    // }
+    // return localMbtilesSource;
 }
 
 export function getGlassesImagesFolder() {
@@ -59,4 +61,16 @@ export function getGlassesImagesFolder() {
         return folderPath;
     }
     return path.join(knownFolders.currentApp().path, '/assets/data/glasses_images');
+}
+
+export function throttle(fn, delay) {
+    let lastCalled = 0;
+    return (...args) => {
+        const now = new Date().getTime();
+        if (now - lastCalled < delay) {
+            return;
+        }
+        lastCalled = now;
+        return fn(...args);
+    };
 }

@@ -1,6 +1,6 @@
 <template>
     <Page ref="page" actionBarHidden @loaded="onLoaded" @navigatedTo="onNavigatedTo">
-        <Drawer ref="drawer" leftDrawerMode="slide" :leftClosedDrawerAllowDraging="false">
+        <Drawer ref="drawer" leftDrawerMode="slide" :leftClosedDrawerAllowDraging="false" height="100%">
             <GridLayout ~leftDrawer rows="auto, *, auto" height="100%" :backgroundColor="backgroundColor" width="80%">
                 <GridLayout padding="10" height="80" rows="auto, *" columns="auto, *">
                     <Label marginLeft="15" fontSize="20" :text="$t('menu') | titlecase" :color="textColor" />
@@ -14,16 +14,19 @@
                     </v-template>
                 </CollectionView>
                 <StackLayout row="2" width="100%" padding="10">
-                    <StackLayout class="menuInfos">
-                        <Label :text="'App version: ' + (appVersion || '')" @longPress="switchDevMode" />
-                    </StackLayout>
+                    <Label @longPress="switchDevMode" textWrap textAlignment="center">
+                        <Span :text="'Glasses data version: ' + (glassesDataUpdateDate ? date(glassesDataUpdateDate, 'lll') : '')" />
+                        <Span :text="'\n' + 'Map data version: ' + (mapDataUpdateDate ? date(mapDataUpdateDate, 'lll') : '')" />
+                        <Span :text="'\n' + 'GeoJSON version: ' + (geojsonDataUpdateDate ? date(geojsonDataUpdateDate, 'lll') : '')" />
+                        <Span :text="'\n' + 'App version: ' + (appVersion || '')" />
+                    </Label>
                 </StackLayout>
             </GridLayout>
-            <StackLayout ~mainContent>
+            <GridLayout ~mainContent height="100%">
                 <Frame ref="innerFrame">
                     <Home />
                 </Frame>
-            </StackLayout>
+            </GridLayout>
         </Drawer>
     </Page>
 </template>

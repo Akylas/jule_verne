@@ -244,6 +244,7 @@ export class BluetoothHandler extends Observable {
     }
 
     async stop() {
+        DEV_LOG && console.log('BLE', 'stop');
         this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
         this.stopScanning();
         this.connectingToSavedGlasses = false;

@@ -1,6 +1,10 @@
 import fileSize from 'filesize';
 import VueStringFilter from 'vue-string-filter';
 import { UNITS, convertTime, formatValueToUnit } from '~/helpers/formatter';
+
+export function date(value, formatStr?: string) {
+    return convertTime(value, formatStr || 'LLL');
+}
 const Plugin = {
     install(Vue) {
         Vue.use(VueStringFilter);
@@ -14,9 +18,7 @@ const Plugin = {
             return fileSize(value);
         });
 
-        Vue.filter('date', function (value, formatStr?: string) {
-            return convertTime(value, formatStr || 'LLL');
-        });
+        Vue.filter('date', date);
     }
 };
 

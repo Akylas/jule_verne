@@ -29,6 +29,7 @@ import { ComponentIds } from './App';
 import FirmwareUpdate from './FirmwareUpdate';
 import OptionSelect from './OptionSelect';
 import { getGlassesImagesFolder } from '~/utils/utils';
+import { Application } from '@akylas/nativescript';
 
 @Component({
     components: {}
@@ -139,7 +140,6 @@ export default class Settings extends BgServiceComponent {
     }
     onCheckedChange(item, event) {
         const toggle = event.object;
-        console.log('onCheckedChange', item, toggle.checked);
         if (toggle.checked === item.checked) {
             return;
         }
@@ -175,7 +175,10 @@ export default class Settings extends BgServiceComponent {
 
     refresh() {
         if (!this.connectedGlasses) {
-            this.items = [] as any;
+            this.items = new ObservableArray([
+                { type: 'header', title: $t('settings') },
+                { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') }
+            ]) as any;
             return;
         }
         this.items = new ObservableArray([
@@ -189,13 +192,15 @@ export default class Settings extends BgServiceComponent {
             },
             { id: 'addConfig', type: 'header', title: $t('configs'), buttonTitle: $t('add') },
             ...this.configs.map((c) => ({ ...c, type: 'config' })),
-            { type: 'header', title: $t('settings') },
+            { type: 'header', title: $t('glasses') },
             { id: 'gesture', type: 'switch', title: $t('gesture'), subtitle: $t('gesture_desc'), checked: this.gestureEnabled },
             { id: 'sensor', type: 'switch', title: $t('auto_luminance'), subtitle: $t('sensor_desc'), checked: this.sensorEnabled },
             { id: 'light', type: 'slider', title: $t('light'), subtitle: $t('light_desc'), value: this.levelLuminance },
             { id: 'shift', type: 'shift', description: this.shiftDescription, currentShift: this.currentShift },
             { id: 'checkBetaFirmware', type: 'button', title: $t('beta_firmware'), buttonTitle: $t('check_update') },
-            { id: 'firmwareUpdate', type: 'button', title: $t('firmware'), subtitle: this.firmwareVersion, buttonTitle: $t('update_firmware') }
+            { id: 'firmwareUpdate', type: 'button', title: $t('firmware'), subtitle: this.firmwareVersion, buttonTitle: $t('update_firmware') },
+            { type: 'header', title: $t('settings') },
+            { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') }
         ]);
     }
 
@@ -338,6 +343,9 @@ export default class Settings extends BgServiceComponent {
         console.log('onButtonTap', command, item);
         try {
             switch (command) {
+                case 'wallpaper':
+                    await this.setWalppaper();
+                    break;
                 case 'addConfig':
                     const config = await this.pickConfig();
                     if (config) {
@@ -419,5 +427,11 @@ export default class Settings extends BgServiceComponent {
         }
         switch (command) {
         }
+    }
+    async setWalppaper() {
+        const context = Application.android.context;
+        const identifier = context.getResources().getIdentifier('wallpaper', 'drawable', context.getPackageName());
+        const wallpaperManager = android.app.WallpaperManager.getInstance(context);
+        wallpaperManager.setResource(identifier);
     }
 }

@@ -12,6 +12,29 @@ export function numberToUint32Array(f) {
     return Array.from(new Uint8Array(Float32Array.of(f).buffer));
 }
 
+function concatTypedArrays(a, b) {
+    // Checks for truthy values on both arrays
+    if (!a && !b) throw new Error('Please specify valid arguments for parameters a and b.');
+
+    // Checks for truthy values or empty arrays on each argument
+    // to avoid the unnecessary construction of a new array and
+    // the type comparison
+    if (!b || b.length === 0) return a;
+    if (!a || a.length === 0) return b;
+
+    // Make sure that both typed arrays are of the same type
+    if (Object.prototype.toString.call(a) !== Object.prototype.toString.call(b)) throw new Error('The types of the two arguments passed for parameters a and b do not match.');
+
+    // a, b TypedArray of same type
+    const c = new a.constructor(a.length + b.length);
+    c.set(a, 0);
+    c.set(b, a.length);
+    return c;
+}
+export function concatBuffers(a, b) {
+    return concatTypedArrays(a.buffer ? a : new Uint8Array(a), b.buffer ? b : new Uint8Array(b));
+}
+
 export function intFromBytes(x) {
     let val = 0;
     const length = x.length;
@@ -201,7 +224,7 @@ export interface ProgressData {
     total?: number;
 }
 
-function parseMessagePayload(commandType: CommandType, data: Buffer) {
+function parseMessagePayload(commandType: CommandType, data: Uint8Array) {
     switch (commandType) {
         case CommandType.cfgRead:
             // 8bytes
@@ -280,7 +303,7 @@ function parseMessagePayload(commandType: CommandType, data: Buffer) {
 export type ByteArray = number[];
 export type MessageBuffer = ByteArray | Uint8Array;
 export class MessageParser {
-    currentPayload?: Buffer;
+    currentPayload?: Uint8Array;
     private currentMessageType: CommandType;
     currentQueryId: number;
     currentControlFlag: number;
@@ -375,13 +398,13 @@ export class MessageParser {
                 this.setParsingState(ParsingState.ParsingEndFlag);
             }
             if (toAppend) {
-                if (!(toAppend instanceof Buffer)) {
-                    toAppend = Buffer.from(toAppend);
+                if (!(toAppend instanceof Uint8Array)) {
+                    toAppend = Uint8Array.from(toAppend);
                 }
                 if (this.currentPayload) {
-                    this.currentPayload = Buffer.concat([this.currentPayload, toAppend]);
+                    this.currentPayload = concatBuffers(this.currentPayload, toAppend);
                 } else {
-                    this.currentPayload = Buffer.from(toAppend);
+                    this.currentPayload = Uint8Array.from(toAppend);
                 }
                 this.currentReceivedPayloadLength += toAppend.length;
                 result.progressData = {
@@ -458,7 +481,7 @@ export class MessageParser {
                         received: this.currentReceivedPayloadLength,
                         total: this.currentPayloadLength
                     };
-                    this.currentPayload = theRest instanceof Buffer ? theRest : Buffer.from(theRest);
+                    this.currentPayload = theRest instanceof Uint8Array ? theRest : Uint8Array.from(theRest);
                     break;
                 case ParsingState.ParsingEndFlag:
                     if (value === FOOTER) {

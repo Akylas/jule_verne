@@ -281,6 +281,46 @@
 -keep,allowoptimization public class android.location.LocationListener** { public  *; }
 -keep,allowoptimization public class android.location.Criteria** { public  *; }
 -keep,allowoptimization public class android.os.SystemClock** { public  *; }
+-keep,allowoptimization public class android.os.StrictMode** { public  *; }
+-keep,allowoptimization public class android.os.StrictMode.ThreadPolicy** { public  *; }
+-keep,allowoptimization public class okhttp3.Call** { public  *; }
+-keep,allowoptimization public class okhttp3.Dispatcher** { public  *; }
+-keep,allowoptimization public class okhttp3.RequestBody** { public  *; }
+-keep,allowoptimization public class okhttp3.MediaType** { public  *; }
+-keep,allowoptimization public class okhttp3.MultipartBody** { public  *; }
+-keep,allowoptimization public class okhttp3.Response** { public  *; }
+-keep,allowoptimization public class okhttp3.ResponseBody** { public  *; }
+-keep,allowoptimization public class okhttp3.Headers** { public  *; }
+-keep,allowoptimization public class okhttp3.MultipartBody.Builder** { public  *; }
+-keep,allowoptimization public class okhttp3.CacheControl** { public  *; }
+-keep,allowoptimization public class okhttp3.CacheControl.Builder** { public  *; }
+-keep,allowoptimization public class okhttp3.Request** { public  *; }
+-keep,allowoptimization public class okhttp3.Request.Builder** { public  *; }
+-keep,allowoptimization public class okhttp3.Interceptor** { public  *; }
+-keep,allowoptimization public class okhttp3.OkHttpClient** { public  *; }
+-keep,allowoptimization public class okhttp3.OkHttpClient.Builder** { public  *; }
+-keep,allowoptimization public class okhttp3.CertificatePinner** { public  *; }
+-keep,allowoptimization public class okhttp3.CertificatePinner.Builder** { public  *; }
+-keep,allowoptimization public class okhttp3.ConnectionSpec** { public  *; }
+-keep,allowoptimization public class okhttp3.Cache** { public  *; }
+-keep,allowoptimization public class okhttp3.Callback** { public  *; }
+-keep,allowoptimization public class okhttp3.FormBody** { public  *; }
+-keep,allowoptimization public class okhttp3.FormBody.Builder** { public  *; }
+-keep,allowoptimization public class okhttp3.CookieJar** { public  *; }
+-keep,allowoptimization public class java.net.CookieManager** { public  *; }
+-keep,allowoptimization public class java.net.CookiePolicy** { public  *; }
+-keep,allowoptimization public class com.nativescript.https.QuotePreservingCookieJar** { public  *; }
+-keep,allowoptimization public class com.nativescript.https.CacheInterceptor** { public  *; }
+-keep,allowoptimization public class com.nativescript.https.OkHttpResponse** { public  *; }
+-keep,allowoptimization public class java.util.Collections** { public  *; }
+-keep,allowoptimization public class java.security.cert.CertificateFactory** { public  *; }
+-keep,allowoptimization public class java.security.KeyStore** { public  *; }
+-keep,allowoptimization public class java.security.Security** { public  *; }
+-keep,allowoptimization public class javax.net.ssl.TrustManagerFactory** { public  *; }
+-keep,allowoptimization public class javax.net.ssl.SSLContext** { public  *; }
+-keep,allowoptimization public class javax.net.ssl.HttpsURLConnection** { public  *; }
+-keep,allowoptimization public class java.util.concurrent.TimeUnit** { public  *; }
+-keep,allowoptimization public class org.conscrypt.Conscrypt** { public  *; }
 -keep,allowoptimization public class android.Manifest.permission.** { public protected *; }
 -keep,allowoptimization public class android.os.Process** { public  *; }
 -keep,allowoptimization public class android.Manifest** { public  *; }
@@ -405,6 +445,8 @@
 -keep,allowoptimization public class com.nativescript.material.textfield.TextInputLayout** { public  *; }
 -keep,allowoptimization public class com.nativescript.material.textfield.TextInputEditText** { public  *; }
 -keep,allowoptimization public class com.akylas.juleverne.** { public protected *; }
+-keep,allowoptimization public class net.lingala.zip4j.** { public protected *; }
+-keep,allowoptimization public class android.app.WallpaperManager** { public  *; }
 -keep,allowoptimization public class androidx.appcompat.app.AppCompatDelegate** { public  *; }
 -keep,allowoptimization public class android.content.ServiceConnection** { public  *; }
 -keep,allowoptimization public class android.os.Binder** { public  *; }

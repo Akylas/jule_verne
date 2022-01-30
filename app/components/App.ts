@@ -1,6 +1,6 @@
-import { getFile, getJSON } from '@nativescript/core/http';
 import { AppURL, handleOpenURL } from '@nativescript-community/appurl';
 import * as EInfo from '@nativescript-community/extendedinfo';
+import { HttpsRequestOptions, cancelRequest, request, setCache } from '@nativescript-community/https';
 import Observable from '@nativescript-community/observable';
 import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { Drawer } from '@nativescript-community/ui-drawer';
@@ -9,10 +9,9 @@ import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { ApplicationSettings, File, Frame, NavigationEntry, ObservableArray, Page, StackLayout, knownFolders } from '@nativescript/core';
 import * as app from '@nativescript/core/application';
 import * as appSettings from '@nativescript/core/application-settings';
-import { path } from '@nativescript/core/file-system';
+import { Folder, path } from '@nativescript/core/file-system';
 import { Device, Screen } from '@nativescript/core/platform';
 import { GestureEventData } from '@nativescript/core/ui/gestures';
-import { GC } from '@nativescript/core/utils/utils';
 import { compose } from '@nativescript/email';
 import { Vibrate } from 'nativescript-vibrate';
 import Vue, { NativeScriptVue, NavigationEntryVue } from 'nativescript-vue';
@@ -20,15 +19,52 @@ import { VueConstructor } from 'vue';
 import { Component } from 'vue-property-decorator';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
 import { BLEConnectionEventData } from '~/handlers/BluetoothHandler';
-import Track from '~/models/Track';
 import { BgServiceErrorEvent } from '~/services/BgService.common';
 import { versionCompare } from '~/utils';
 import { bboxify } from '~/utils/geo';
+import { getWorkingDir, throttle } from '~/utils/utils';
 import { backgroundColor, textColor } from '~/variables';
 import { BaseVueComponentRefs } from './BaseVueComponent';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 import Home from './Home';
-import { getWorkingDir } from '~/utils/utils';
+import { Zip } from '@nativescript/zip';
+import { $tc } from '~/helpers/locale';
+import fileSize from 'filesize';
+import { date } from '~/vue.filters';
+
+const folder = knownFolders.temp().getFolder('cache');
+const diskLocation = folder.path;
+const cacheSize = 10 * 1024 * 1024;
+setCache({
+    forceCache: !PRODUCTION,
+    diskLocation,
+    diskSize: cacheSize,
+    memorySize: cacheSize
+});
+
+export function getJSON<T>(arg: any): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        request(typeof arg === 'string' ? { url: arg, method: 'GET' } : arg).then(
+            (r) => {
+                try {
+                    const json = r.content.toJSON();
+                    resolve(json);
+                } catch (e) {
+                    reject(e);
+                }
+            },
+            (e) => reject(e)
+        );
+    });
+}
+
+export async function getHEAD<T>(arg: any) {
+    return (await request<T>(typeof arg === 'string' ? { url: arg, method: 'HEAD' } : arg)).headers;
+}
+
+export async function getFile(arg: string | HttpsRequestOptions, destinationFilePath?: string) {
+    return (await request(typeof arg === 'string' ? { url: arg, method: 'GET' } : arg)).content.toFile(destinationFilePath);
+}
 
 function timeout(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -82,6 +118,7 @@ export const notify = observable.notify.bind(observable);
     }
 })
 export default class App extends BgServiceComponent {
+    date = date;
     textColor = textColor;
     $refs: AppRefs;
     cartoLicenseRegistered = false;
@@ -98,6 +135,10 @@ export default class App extends BgServiceComponent {
     public glassesSerialNumber = null;
     public glassesVersion = null;
     public connectedGlasses: GlassesDevice = null;
+
+    glassesDataUpdateDate = ApplicationSettings.getNumber('GLASSES_DATA_LASTDATE', null);
+    mapDataUpdateDate = ApplicationSettings.getNumber('MAP_DATA_LASTDATE', null);
+    geojsonDataUpdateDate = ApplicationSettings.getNumber('GEOJSON_DATA_LASTDATE', null);
 
     get drawer() {
         return this.getRef<Drawer>('drawer');
@@ -199,10 +240,15 @@ export default class App extends BgServiceComponent {
         } else {
             this.needsImportOldSessionsOnLoaded = true;
         }
+        this.checkForGlassesDataUpdate().then(() => {
+            this.checkForMapDataUpdate();
+        });
     }
     async importDevSessions() {
         try {
             let geojsonPath = path.join(getWorkingDir(), 'map.geojson');
+            await this.checkForGeoJSONUpdate(geojsonPath);
+            console.log('importDevSessions', geojsonPath, File.exists(geojsonPath));
             if (!File.exists(geojsonPath)) {
                 geojsonPath = path.join(knownFolders.currentApp().path, 'assets/data/map.geojson');
             }
@@ -530,14 +576,16 @@ export default class App extends BgServiceComponent {
                             if (result) {
                                 this.showLoading(this.$t('downloading_update'));
                                 const filePath = path.join(knownFolders.temp().path, `update_${newVersion}.img`);
-                                const args = {
-                                    url: response.url,
-                                    method: 'GET',
-                                    headers: {
-                                        'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
-                                    }
-                                };
-                                return getFile(args, filePath).then(async (response) => {
+                                return getFile(
+                                    {
+                                        url: response.url,
+                                        method: 'GET',
+                                        headers: {
+                                            'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
+                                        }
+                                    },
+                                    filePath
+                                ).then(async (response) => {
                                     this.hideLoading();
                                     const component = await import('~/components/FirmwareUpdate');
                                     this.navigateTo(component.default, { props: { firmwareFile: response } });
@@ -552,5 +600,192 @@ export default class App extends BgServiceComponent {
             .catch((error) => {
                 console.error('Https.request error', error);
             });
+    }
+    checkConfigUpdateOnline(beta?: boolean) {
+        getJSON({
+            url: `https://gitlab.com/api/v4/projects/20247090/repository/files/${beta ? 'beta' : 'latest'}.json/raw?ref=master`,
+            method: 'GET',
+            headers: {
+                'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
+            }
+        })
+            .then((response: any) => {
+                // if (response.statusCode === 200) {
+                // const content = response.content;
+                const newVersion = response.version;
+                const compareResult = versionCompare(newVersion, this.glassesVersion);
+
+                if (compareResult > 0) {
+                    confirm({
+                        cancelable: !response.mandatory,
+                        title: this.$t('firmware_update', newVersion),
+                        message: response.mandatory ? this.$t('mandatory_firmware_update_available_desc') : this.$t('firmware_update_available_desc'),
+                        okButtonText: this.$t('update'),
+                        cancelButtonText: response.mandatory ? undefined : this.$t('cancel')
+                    })
+                        .then((result) => timeout(500).then(() => result)) // delay a bit for android. Too fast
+                        .then((result) => {
+                            if (result) {
+                                this.showLoading(this.$t('downloading_update'));
+                                const filePath = path.join(knownFolders.temp().path, `config_update_${newVersion}.txt`);
+                                return getFile(
+                                    {
+                                        url: response.url,
+                                        method: 'GET',
+                                        headers: {
+                                            'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
+                                        }
+                                    },
+                                    filePath
+                                ).then(async (response) => {
+                                    this.hideLoading();
+                                    // const component = await import('~/components/FirmwareUpdate');
+                                    // this.navigateTo(component.default, { props: { firmwareFile: response } });
+                                });
+                            } else if (response.mandatory) {
+                                // this.quitApp();
+                            }
+                        })
+                        .catch(this.showError);
+                }
+            })
+            .catch((error) => {
+                console.error('Https.request error', error);
+            });
+    }
+    async checkForGlassesDataUpdate() {
+        try {
+            const url = ApplicationSettings.getString('GLASSES_DATA_DEFAULT_URL', GLASSES_DATA_DEFAULT_URL);
+            const headers = await getHEAD(url);
+            const lastSize = ApplicationSettings.getString('GLASSES_DATA_SIZE', '');
+            console.log(url, lastSize, headers);
+            if (lastSize !== headers['content-length']) {
+                const requestTag = Date.now() + '';
+                this.showLoading({
+                    title: $tc('downloading_glasses_update'),
+                    text: ' ',
+                    progress: 0,
+                    onButtonTap: () => cancelRequest(requestTag)
+                });
+                const filePath = path.join(knownFolders.temp().path, 'glasses_images.zip');
+                const onProgress = throttle((current, total) => {
+                    const perc = Math.round((current / total) * 100);
+                    this.updateLoadingProgress({
+                        text: `${fileSize(current)}/${fileSize(total)} (${perc}%)`,
+                        progress: perc
+                    });
+                }, 1000);
+                const file = await getFile(
+                    {
+                        url,
+                        tag: requestTag,
+                        method: 'GET',
+                        onProgress
+                    },
+                    filePath
+                );
+                this.updateLoadingProgress({
+                    text: $tc('uncompress_glasses_data'),
+                    progress: 0
+                });
+                await Zip.unzip({
+                    archive: file.path,
+                    directory: getWorkingDir(),
+                    overwrite: true,
+                    onProgress: (percent) => {
+                        this.updateLoadingProgress({
+                            text: `${Math.round(percent)}%`,
+                            progress: percent
+                        });
+                    }
+                });
+                this.glassesDataUpdateDate = Date.now();
+                ApplicationSettings.setNumber('GLASSES_DATA_LASTDATE', this.glassesDataUpdateDate);
+                ApplicationSettings.setString('GLASSES_DATA_SIZE', headers['content-length'] as string);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    async checkForMapDataUpdate() {
+        try {
+            const url = ApplicationSettings.getString('MAP_DATA_DEFAULT_URL', MAP_DATA_DEFAULT_URL);
+            const headers = await getHEAD(url);
+            const lastSize = ApplicationSettings.getString('MAP_DATA_SIZE', '');
+            console.log(url, lastSize, headers);
+            if (lastSize !== headers['content-length'] || !Folder.exists(path.join(getWorkingDir(), 'tiles'))) {
+                const requestTag = Date.now() + '';
+                this.showLoading({
+                    title: $tc('downloading_map_update'),
+                    text: ' ',
+                    progress: 0,
+                    onButtonTap: () => cancelRequest(requestTag)
+                });
+                const filePath = path.join(knownFolders.temp().path, 'tiles.zip');
+                const onProgress = throttle((current, total) => {
+                    const perc = Math.round((current / total) * 100);
+                    this.updateLoadingProgress({
+                        text: `${fileSize(current)}/${fileSize(total)} (${perc}%)`,
+                        progress: perc
+                    });
+                }, 1000);
+                const file = await getFile(
+                    {
+                        url,
+                        tag: requestTag,
+                        method: 'GET',
+                        onProgress
+                    },
+                    filePath
+                );
+                this.updateLoadingProgress({
+                    text: $tc('uncompress_map_data'),
+                    progress: 0
+                });
+                await Zip.unzip({
+                    archive: file.path,
+                    directory: getWorkingDir(),
+                    overwrite: true,
+                    onProgress: (percent) => {
+                        this.updateLoadingProgress({
+                            text: `${Math.round(percent)}%`,
+                            progress: percent
+                        });
+                    }
+                });
+                this.mapDataUpdateDate = Date.now();
+                ApplicationSettings.setString('MAP_DATA_SIZE', headers['content-length'] as string);
+                ApplicationSettings.setNumber('MAP_DATA_LASTDATE', this.mapDataUpdateDate);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    async checkForGeoJSONUpdate(geojsonPath: string) {
+        try {
+            const url = ApplicationSettings.getString('GEOJSON_DATA_DEFAULT_URL', GEOJSON_DATA_DEFAULT_URL);
+            const headers = await getHEAD(url);
+            const lastSize = ApplicationSettings.getString('GEOJSON_DATA_SIZE', '');
+            console.log('checkForGeoJSONUpdate', url, lastSize, headers);
+            if (lastSize !== headers['content-length']) {
+                await getFile(
+                    {
+                        url,
+                        method: 'GET'
+                    },
+                    geojsonPath
+                );
+
+                this.geojsonDataUpdateDate = Date.now();
+                ApplicationSettings.setString('GEOJSON_DATA_SIZE', headers['content-length'] as string);
+                ApplicationSettings.setNumber('GEOJSON_DATA_LASTDATE', this.geojsonDataUpdateDate);
+            }
+        } catch (error) {
+            console.error(error);
+        }
     }
 }
