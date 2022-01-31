@@ -37,4 +37,4 @@ typings/
 pnpm-lock.yaml
 /report
 /jules_verne
-/jules_verne.zip
+*.zip
