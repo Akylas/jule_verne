@@ -1,3 +1,5 @@
+import { GlassesSettings } from './BluetoothHandler';
+
 export const HEADER = 0xff;
 export const FOOTER = 0xaa;
 
@@ -94,12 +96,13 @@ export interface FreeSpaceData {
     freeSpace: number;
 }
 export interface OutputTypeMap {
+    [CommandType.Settings]: GlassesSettings;
     [CommandType.cfgFreeSpace]: FreeSpaceData;
     [CommandType.cfgList]: ConfigListData;
 }
 type TypedOutputCommands = keyof OutputTypeMap;
 
-export type OutputMessageType<T extends CommandType> = T extends CommandType.cfgFreeSpace | CommandType.cfgList ? OutputTypeMap[T] : any;
+export type OutputMessageType<T extends CommandType> = T extends CommandType.cfgFreeSpace | CommandType.cfgList | CommandType.Settings ? OutputTypeMap[T] : any;
 export type InputCommandType<T extends CommandType> = T extends CommandType.cfgWrite | CommandType.cfgDelete | CommandType.cfgSet ? ParamsTypeMap[T] : (string | number | number[])[];
 export enum CommandType {
     Any = -1,
@@ -293,7 +296,7 @@ function parseMessagePayload(commandType: CommandType, data: Uint8Array) {
                 luma: data[2],
                 als: !!data[3],
                 gesture: !!data[4]
-            };
+            } as GlassesSettings;
 
         default:
             return undefined;

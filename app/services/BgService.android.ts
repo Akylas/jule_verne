@@ -43,17 +43,16 @@ export class BgService extends BgServiceCommon {
         });
     }
 
-    stop() {
-        return super.stop().then(() => {
-            const bgService = this.bgService && this.bgService.get();
-            if (bgService) {
-                bgService.removeForeground();
-                const intent = new android.content.Intent(this.context, com.akylas.juleverne.BgService.class);
-                this.context.stopService(intent);
-                this.context.unbindService(this.serviceConnection);
-                this._loaded = false;
-            }
-        });
+    async stop() {
+        DEV_LOG && console.log('BgService', 'stop');
+        const bgService = this.bgService && this.bgService.get();
+        bgService.removeForeground();
+        await super.stop();
+        DEV_LOG && console.log('BgService', 'stopService');
+        const intent = new android.content.Intent(this.context, com.akylas.juleverne.BgService.class);
+        this.context.stopService(intent);
+        this.context.unbindService(this.serviceConnection);
+        this._loaded = false;
     }
     handleBinder(binder: android.os.IBinder) {
         const bgBinder = binder as IBgServiceBinder;

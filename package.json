@@ -5,13 +5,14 @@
     "author": "Martin Guillon<martin.guillon@akylas.fr>",
     "scripts": {
         "run.android.production": "cross-var devns run android --release --clean --key-store-path $KEYSTORE_PATH --key-store-password $KEYSTORE_PASSWORD --key-store-alias $KEYSTORE_ALIAS --key-store-alias-password $KEYSTORE_ALIAS_PASSWORD --env.adhoc --env.sentry=0 --env.sourceMap=0",
+        "run.android.timeline": "cross-var devns run android --config=nativescript.config.timeline.js --release --clean --key-store-path $KEYSTORE_PATH --key-store-password $KEYSTORE_PASSWORD --key-store-alias $KEYSTORE_ALIAS --key-store-alias-password $KEYSTORE_ALIAS_PASSWORD --env.timeline ",
         "build.android.production": "cross-var devns build android --release --clean --key-store-path $KEYSTORE_PATH --key-store-password $KEYSTORE_PASSWORD --key-store-alias $KEYSTORE_ALIAS --key-store-alias-password $KEYSTORE_ALIAS_PASSWORD --env.adhoc --env.sentry=0 --env.sourceMap=0 --aab",
         "build.android.production.fdroid": "cross-var devns build android --release --clean --key-store-path $KEYSTORE_PATH --key-store-password $KEYSTORE_PASSWORD --key-store-alias $KEYSTORE_ALIAS --key-store-alias-password $KEYSTORE_ALIAS_PASSWORD --env.adhoc --env.sentry=0 --env.sourceMap=0 --env.report",
         "run.ios.device": "tns run ios --no-hmr --i-cloud-container-environment Development",
         "run.ios.device.production": "tns run ios --bundle --release --env.production --env.adhoc --provision 'match Development com.akylas.juleverne' --i-cloud-container-environment Development"
     },
     "dependencies": {
-        "@akylas/nativescript": "8.1.7",
+        "@akylas/nativescript": "8.1.9",
         "@akylas/nativescript-checkbox": "2.0.5",
         "@geoman-io/leaflet-geoman-free": "2.11.4",
         "@mapbox/geojson-area": "^0.2.2",

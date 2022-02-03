@@ -184,7 +184,9 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         return layer;
     }
     async loadLocalMbtiles(directory: string) {
-        // await request('storage');
+        if (!PRODUCTION) {
+            await request('storage');
+        }
         if (!Folder.exists(directory)) {
             return;
         }
@@ -304,27 +306,34 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         }
 
         const position = { lat: geoPos.lat, lon: geoPos.lon, horizontalAccuracy: geoPos.horizontalAccuracy };
-        // console.log('updateUserLocation', position, this.userFollow, accuracyColor);
+        DEV_LOG && console.log('updateUserLocation', position, this.userFollow, accuracyColor, !!this.mUserMarker, accuracy);
         if (this.mUserMarker) {
             const currentLocation = { lat: this.mLastUserLocation.lat, lon: this.mLastUserLocation.lon, horizontalAccuracy: this.mLastUserLocation.horizontalAccuracy };
             const styleBuilder = this.mUserMarker.styleBuilder;
             styleBuilder.color = accuracyColor;
             this.mUserMarker.styleBuilder = styleBuilder;
-            if (this.mAccuracyMarker) {
-                this.mAccuracyMarker.visible = accuracy > 10;
+            // if (this.mAccuracyMarker) {
+            //     this.mAccuracyMarker.visible = accuracy > 10;
+            // }
+            // const anim = new AdditiveTweening<GenericMapPos<LatLonKeys>>({
+            //     onRender: (newPos) => {
+            //         if (this.mUserBackMarker) {
+            //             this.mUserBackMarker.position = newPos;
+            //             this.mUserMarker.position = newPos;
+            //         }
+            //         if (this.mAccuracyMarker) {
+            //             this.mAccuracyMarker.positions = this.getCirclePoints(newPos);
+            //         }
+            //     }
+            // });
+            // anim.tween(currentLocation, position, LOCATION_ANIMATION_DURATION);
+            if (this.mUserBackMarker) {
+                this.mUserBackMarker.position = position;
+                this.mUserMarker.position = position;
             }
-            const anim = new AdditiveTweening<GenericMapPos<LatLonKeys>>({
-                onRender: (newPos) => {
-                    if (this.mUserBackMarker) {
-                        this.mUserBackMarker.position = newPos;
-                        this.mUserMarker.position = newPos;
-                    }
-                    if (this.mAccuracyMarker) {
-                        this.mAccuracyMarker.positions = this.getCirclePoints(newPos);
-                    }
-                }
-            });
-            anim.tween(currentLocation, position, LOCATION_ANIMATION_DURATION);
+            if (this.mAccuracyMarker) {
+                this.mAccuracyMarker.positions = this.getCirclePoints(position);
+            }
         } else {
             this.getOrCreateLocalVectorLayer();
             // const projection = this.mapView.projection;
@@ -465,10 +474,10 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
             .catch(this.showError);
     }
 
-    showErrorInternal(err: Error | string) {
-        this.searchingForUserLocation = false;
-        super.showErrorInternal(err);
-    }
+    // showErrorInternal(err: Error | string) {
+    //     this.searchingForUserLocation = false;
+    //     super.showErrorInternal(err);
+    // }
 
     onVectorElementClicked(data: VectorElementEventData) {
         // const { clickType, position, elementPos, metaData, element } = data;
@@ -562,6 +571,9 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
     @Watch('viewedFeature')
     onViewedFeature(newValue, oldValue?) {
         const decoder = this.mGeoJSONLayer?.options?.decoder as MBVectorTileDecoder;
+        if (!decoder) {
+            return;
+        }
         const param = this.viewedFeature ? '^(' + this.viewedFeature.map((s) => '' + s).join('|') + ')$' : '';
         // console.log('onViewedFeature', param);
         decoder.setStyleParameter('viewed', param);
@@ -581,10 +593,10 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
 
         if (this.tracks) {
             this.getOrCreateLocalVectorLayer();
-            this.localVectorDataSource.clear();
+            // this.geoJSONVectorDataSource.clear();
             this.tracks.forEach(this.addTrack);
         } else if (this.localVectorDataSource) {
-            this.localVectorDataSource.clear();
+            // this.geoJSONVectorDataSource.clear();
         }
     }
 

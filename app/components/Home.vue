@@ -1,6 +1,6 @@
 <template>
-    <Page ref="page" id="activity" :navigateUrl="navigateUrl" @navigatingTo="onNavigatingTo" @navigatingFrom="onNavigatingFrom">
-        <Drawer ref="drawer" rightDrawerMode="slide" :gestureEnabled="true">
+    <Page ref="page" id="activity" :navigateUrl="navigateUrl" @navigatingTo="onNavigatingTo" @navigatingFrom="onNavigatingFrom" @loaded="onLoaded">
+        <Drawer ref="drawer" :gestureEnabled="true">
             <GridLayout rows="auto,*" ~mainContent>
                 <CActionBar
                     showMenuIcon
@@ -21,14 +21,35 @@
                     <MDButton variant="text" v-show="!!insideFeature" :text="insideFeature ? `play ${insideFeatureName}` : ''" @tap="playCurrentStory" />
                 </StackLayout> -->
 
-                <Image ref="imageView" width="100" height="100" horizontalAlignment="left" verticalAlignment="bottom" row="1" marginBottom="70"/>
+                <Image ref="imageView" :width="bigImage ? '90%' : 100" horizontalAlignment="left" verticalAlignment="bottom" row="1" marginBottom="70" @tap="bigImage = !bigImage" />
                 <StackLayout orientation="horizontal" horizontalAlignment="center" verticalAlignment="bottom" row="1">
                     <MDButton class="floating-btn" :text="sessionRunning ? 'mdi-pause' : 'mdi-play'" @tap="onTap('startSession')" />
                     <MDButton class="floating-btn" v-show="sessionPaused" :text="'mdi-stop'" @tap="onTap('stopSession')" />
                 </StackLayout>
                 <MDButton class="small-floating-btn" v-show="connectedGlasses" text="mdi-cog" @tap="onTap('settings')" verticalAlignment="bottom" row="1" horizontalAlignment="left" marginBottom="8" />
             </GridLayout>
-            <GridLayout ~rightDrawer rows="auto, *, auto" height="100%" width="70%">
+            <GridLayout ~leftDrawer rows="auto, *, auto" height="100%" :backgroundColor="backgroundColor" width="80%">
+                <GridLayout padding="10" height="80" rows="auto, *" columns="auto, *">
+                    <Label marginLeft="15" fontSize="20" :text="$t('menu') | titlecase" :color="textColor" />
+                </GridLayout>
+                <CollectionView :items="menuItems" row="1" paddingTop="10" rowHeight="50" @tap="noop">
+                    <v-template>
+                        <GridLayout columns="50, *" class="menu" :active="item.activated" :rippleColor="accentColor" @tap="onNavItemTap(item)">
+                            <Label col="0" class="menuIcon" :text="item.icon" verticalAlignment="center" />
+                            <Label col="1" class="menuText" :text="item.title | titlecase" verticalAlignment="center" :active="item.activated" />
+                        </GridLayout>
+                    </v-template>
+                </CollectionView>
+                <StackLayout row="2" width="100%" padding="10">
+                    <Label @longPress="$switchDevMode" textWrap textAlignment="center">
+                        <Span :text="'Glasses data version: ' + (glassesDataUpdateDate ? date(glassesDataUpdateDate, 'lll') : '')" />
+                        <Span :text="'\n' + 'Map data version: ' + (mapDataUpdateDate ? date(mapDataUpdateDate, 'lll') : '')" />
+                        <Span :text="'\n' + 'GeoJSON version: ' + (geojsonDataUpdateDate ? date(geojsonDataUpdateDate, 'lll') : '')" />
+                        <Span :text="'\n' + 'App version: ' + (appVersion || '')" />
+                    </Label>
+                </StackLayout>
+            </GridLayout>
+            <GridLayout ~rightDrawer rows="auto, *, auto" height="100%" width="70%" :backgroundColor="backgroundColor">
                 <GridLayout v-show="!!connectedGlasses" columns="auto,*,auto" rows="*,auto,auto,*,30" margin="15 15 30 15">
                     <GridLayout borderRadius="20" width="40" height="40" row="1" rowSpan="2" col="0" backgroundColor="#ececec" marginRight="10" verticalAlignment="top">
                         <Label class="menuIcon" :text="'mdi-sunglasses'" verticalAlignment="center" />
@@ -49,8 +70,10 @@
                     <MDButton :text="'Or Gris'" @tap="onTap('playStory', '1')" />
                     <MDButton :text="'Houille Blanche'" @tap="onTap('playStory', '2')" />
                     <MDButton :text="'Or Blanc'" @tap="onTap('playStory', '3')" />
-                    <MDButton :text="'bonjour'" @tap="onTap('hello')" />
-                    <MDButton :text="'demitour'" @tap="onTap('demitour')" />
+                    <MDButton :text="'bonjour'" @tap="onTap('start')" />
+                    <MDButton :text="'demitour'" @tap="onTap('uturn')" />
+                    <MDButton :text="'exit'" @tap="onTap('exit')" />
+                    <MDButton :text="'right'" @tap="onTap('right')" />
                     <MDButton :text="$tc('stop')" @tap="onTap('stopPlaying')" />
                 </StackLayout>
             </GridLayout>

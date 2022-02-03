@@ -6,9 +6,11 @@ import { BluetoothHandler } from '~/handlers/BluetoothHandler';
 export const BgServiceLoadedEvent = 'BgServiceLoadedEvent';
 export const BgServiceStartedEvent = 'BgServiceStartedEvent';
 export const BgServiceErrorEvent = 'BgServiceErrorEvent';
+
+const TAG = 'BgServiceCommon';
 export abstract class BgServiceCommon extends Observable {
-    abstract get  geoHandler(): GeoHandler;
-    abstract get  bluetoothHandler(): BluetoothHandler;
+    abstract get geoHandler(): GeoHandler;
+    abstract get bluetoothHandler(): BluetoothHandler;
     protected _loaded = false;
     protected _started = false;
 
@@ -34,20 +36,16 @@ export abstract class BgServiceCommon extends Observable {
             });
         }
     }
-    log(...args) {
-        console.log(`[${this.constructor.name}]`, ...args);
-    }
-
     stop() {
-        this.log('stop');
+        DEV_LOG && console.log(TAG, 'stop');
         this._started = false;
         return Promise.all([this.geoHandler.stop(), this.bluetoothHandler.stop()]) as Promise<any>;
     }
     start() {
-        this.log(' start');
+        DEV_LOG && console.log(TAG, ' start');
         return Promise.all([this.geoHandler.start(), this.bluetoothHandler.start()]).then(() => {
             this._started = true;
-            this.log('started');
+            DEV_LOG && console.log(TAG, 'started');
             this.notify({
                 eventName: BgServiceStartedEvent,
                 object: this
@@ -55,8 +53,8 @@ export abstract class BgServiceCommon extends Observable {
         });
     }
     onAppLaunch(args: ApplicationEventData) {
-        // this.log('onAppLaunch');
-        this.start().catch(error => {
+        // console.log(TAG, 'onAppLaunch');
+        this.start().catch((error) => {
             this.notify({
                 eventName: BgServiceErrorEvent,
                 object: this,
@@ -65,7 +63,9 @@ export abstract class BgServiceCommon extends Observable {
         });
     }
     onAppExit(args: ApplicationEventData) {
-        this.stop().catch(error => {
+        DEV_LOG && console.log(TAG, 'onAppExit');
+
+        this.stop().catch((error) => {
             this.notify({
                 eventName: BgServiceErrorEvent,
                 object: this,

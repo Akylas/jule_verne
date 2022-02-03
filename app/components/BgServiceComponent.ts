@@ -1,10 +1,11 @@
-import { BgServiceLoadedEvent } from '~/services/BgService';
-import { GeoHandler } from '~/handlers/GeoHandler';
-import BaseVueComponent from './BaseVueComponent';
-import { ApplicationEventData, off as applicationOff, on as applicationOn, resumeEvent, suspendEvent } from '@nativescript/core/application';
-import { BgServiceStartedEvent } from '~/services/BgService.common';
+import { backgroundEvent, foregroundEvent } from '@akylas/nativescript/application';
+import { ApplicationEventData, off as applicationOff, on as applicationOn } from '@nativescript/core/application';
 import { BluetoothHandler } from '~/handlers/BluetoothHandler';
 import { DBHandler } from '~/handlers/DBHandler';
+import { GeoHandler } from '~/handlers/GeoHandler';
+import { BgServiceLoadedEvent } from '~/services/BgService';
+import { BgServiceStartedEvent } from '~/services/BgService.common';
+import BaseVueComponent from './BaseVueComponent';
 
 export interface BgServiceMethodParams {
     bluetoothHandler: BluetoothHandler;
@@ -27,19 +28,20 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         } else {
             this.$bgService.once(BgServiceStartedEvent, this.callOnServiceStarted, this);
         }
-        applicationOn(suspendEvent, this.onAppPause, this);
-        applicationOn(resumeEvent, this.onAppResume, this);
+        applicationOn(backgroundEvent, this.onAppPause, this);
+        applicationOn(foregroundEvent, this.onAppResume, this);
     }
     destroyed() {
         super.destroyed();
 
-        applicationOff(suspendEvent, this.onAppPause, this);
-        applicationOff(resumeEvent, this.onAppResume, this);
+        applicationOff(backgroundEvent, this.onAppPause, this);
+        applicationOff(foregroundEvent, this.onAppResume, this);
         this.unloadService();
     }
 
     inSetup = false;
     onAppResume(args: ApplicationEventData) {
+        DEV_LOG && console.log('onAppResume', this.appPaused);
         if (!this.appPaused) {
             return;
         }
@@ -52,6 +54,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         }
     }
     onAppPause(args: ApplicationEventData) {
+        DEV_LOG && console.log('onAppPause', this.appPaused);
         if (this.appPaused) {
             return;
         }
@@ -85,6 +88,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     }
     callOnServiceStarted() {
         const params = this.getParams();
+        console.log('callOnServiceStarted', this.constructor.name);
 
         if (this.setup && !this.appPaused) {
             this.inSetup = true;
@@ -97,6 +101,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         this.onServiceStarted.call(this, params);
     }
     unregisterSetupEvents() {
+        DEV_LOG && console.log('unregisterSetupEvents');
         const bluetoothHandler = this.$bgService.bluetoothHandler;
         const geoHandler = this.$bgService.geoHandler;
         if (bluetoothHandler) {
@@ -124,6 +129,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         this.bluetoothHandlerListeners = [];
         if (geoHandler) {
             this.geoHandlerListeners.forEach((r) => {
+                DEV_LOG && console.log('unregisterEvents', r[0]);
                 geoHandler.off(r[0], r[1], r[2] || this);
             });
         }

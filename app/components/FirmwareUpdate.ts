@@ -2,7 +2,7 @@ import { ReadResult } from '@nativescript-community/ble';
 import * as application from '@nativescript/core/application';
 import { File } from '@nativescript/core/file-system';
 import { Component, Prop } from 'vue-property-decorator';
-import BgServiceComponent from '~/components/BgServiceComponent';
+import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
 import {
     BLEBatteryEventData,
@@ -25,9 +25,9 @@ import {
 import { GeoHandler } from '~/handlers/GeoHandler';
 import { confirm } from '~/utils/dialogs';
 import { SuotaCharacteristic, getUint32 } from '../handlers/bluetooth/SuotaCharacteristic';
-import { ComponentIds } from './App';
-import { concatBuffers } from '~/handlers/bluetooth/BufferSendingCharacteristic';
 import filesize from 'filesize';
+import { ComponentIds } from '~/vue.prototype';
+import { concatBuffers } from '~/handlers/Message';
 
 const TAG = '[FirmwareUpdate]';
 
@@ -83,11 +83,12 @@ export default class FirmwareUpdate extends BgServiceComponent {
         this.updateGlassesBattery(e.data);
     }
 
-    setup(handlers) {
+    setup(handlers: BgServiceMethodParams) {
         if (!handlers.geoHandler || !handlers.bluetoothHandler) {
             return;
         }
         this.connectedGlasses = handlers.bluetoothHandler.glasses;
+        DEV_LOG && console.log('FirmwareUpdate', 'setup', !!this.connectedGlasses, this.connectedGlasses?.name);
         if (this.connectedGlasses) {
             this.updateGlassesBattery(handlers.bluetoothHandler.glassesBattery);
         }
@@ -100,7 +101,7 @@ export default class FirmwareUpdate extends BgServiceComponent {
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
     }
     onGlassesConnected(e: BLEConnectionEventData) {
-        console.log(TAG, 'onGlassesConnected');
+        DEV_LOG && console.log(TAG, 'onGlassesConnected');
         this.connectedGlasses = e.data as GlassesDevice;
         this.glassesBattery = -1;
         // close after successful reconnection
@@ -109,7 +110,7 @@ export default class FirmwareUpdate extends BgServiceComponent {
     onGlassesDisconnected(e: BLEConnectionEventData) {
         this.connectedGlasses = null;
         this.glassesBattery = -1;
-        // this.close();
+        this.close();
     }
     onTap(command: string, event) {
         switch (command) {
@@ -136,7 +137,7 @@ export default class FirmwareUpdate extends BgServiceComponent {
     }
 
     fLog(...args) {
-        console.log(TAG, ...args);
+        DEV_LOG && console.log(TAG, ...args);
         this.firmwareRunLog += args.join(' ') + '\n';
     }
     readParamValue(chUUID: string) {
@@ -147,9 +148,9 @@ export default class FirmwareUpdate extends BgServiceComponent {
         });
     }
     updateFirmware() {
-        this.fLog('update firmware start');
         this.updatingFirmware = true;
         const glasses = this.connectedGlasses;
+        this.fLog('update firmware start', !!glasses);
 
         const memoryType = 0x13;
         const memoryBank = 0;
@@ -192,7 +193,7 @@ export default class FirmwareUpdate extends BgServiceComponent {
         }
 
         const runForStatus = (runner: () => Promise<any>, expectedStatus) => {
-            console.log(TAG, 'runForStatus', expectedStatus);
+            DEV_LOG && console.log(TAG, 'runForStatus', expectedStatus);
             let returnedStatus = -1,
                 toResolve,
                 toReject,
@@ -218,7 +219,7 @@ export default class FirmwareUpdate extends BgServiceComponent {
             return runner().then(
                 (r) =>
                     new Promise((resolve, reject) => {
-                        console.log(TAG, 'after runner', returnedStatus);
+                        DEV_LOG && console.log(TAG, 'after runner', returnedStatus);
                         if (returnedStatus !== -1) {
                             // status already returned
                             if (returnedStatus === expectedStatus) {
@@ -243,10 +244,10 @@ export default class FirmwareUpdate extends BgServiceComponent {
         };
 
         const writeValueForStatus = (serviceUUID, charUUID, data, expectedStatus) => {
-            console.log(TAG, 'writeValueForStatus', serviceUUID, charUUID, data);
+            DEV_LOG && console.log(TAG, 'writeValueForStatus', serviceUUID, charUUID, data);
             return runForStatus(() => {
                 const toSend = getUint32(data);
-                console.log(TAG, 'write', serviceUUID, charUUID, data, toSend);
+                DEV_LOG && console.log(TAG, 'write', serviceUUID, charUUID, data, toSend);
                 return bluetooth.write({ peripheralUUID: glasses.UUID, serviceUUID, characteristicUUID: charUUID, value: toSend });
             }, expectedStatus);
         };
@@ -281,7 +282,7 @@ export default class FirmwareUpdate extends BgServiceComponent {
                     this.fLog('requesting Mtu', glasses.mtu, suotaPatchDataSize + 3, suotaMtu);
                     return glasses.requestMtu(suotaPatchDataSize + 3).then((value) => {
                         suotaMtu = value;
-                        console.log(TAG, 'requested suotaMtu', suotaMtu);
+                        DEV_LOG && console.log(TAG, 'requested suotaMtu', suotaMtu);
                     });
                 })
                 .then(() => {
@@ -367,7 +368,7 @@ export default class FirmwareUpdate extends BgServiceComponent {
                         cancelButtonText: this.$tc('cancel')
                     })
                         .then((result) => {
-                            console.log(TAG, 'glasses_updated, confirmed', result);
+                            DEV_LOG && console.log(TAG, 'glasses_updated, confirmed', result);
                             if (result) {
                                 // Send reboot signal to device
                                 // ignore write errors. Apparently the glasses can reboot very quickly not letting the time for the write to response correctly
@@ -387,12 +388,12 @@ export default class FirmwareUpdate extends BgServiceComponent {
         );
     }
     close() {
-        this.$getAppComponent().navigateBackIfUrl(this.navigateUrl);
+        this.$navigateBackIfUrl(this.navigateUrl);
     }
 
     onAndroidBackButton(data: application.AndroidActivityBackPressedEventData) {
         if (__ANDROID__) {
-            if (!this.$getAppComponent().isActiveUrl(ComponentIds.Firmware)) {
+            if (!this.$isActiveUrl(ComponentIds.Firmware)) {
                 // data.cancel = true;
                 // we are closing normally let s disconnect
                 // this.$getAppComponent().navigateBack();

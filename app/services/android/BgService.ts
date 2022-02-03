@@ -20,6 +20,7 @@ export class BgService extends android.app.Service {
     notificationManager: any;
     recording: boolean;
     onStartCommand(intent: android.content.Intent, flags: number, startId: number) {
+        DEV_LOG && console.log('onStartCommand');
         this.onStartCommand(intent, flags, startId);
         const action = intent ? intent.getAction() : null;
         if (action === ACTION_RESUME) {
@@ -30,14 +31,16 @@ export class BgService extends android.app.Service {
         return android.app.Service.START_STICKY;
     }
     onCreate() {
+        DEV_LOG && console.log('onCreate');
         this.currentNotifText = $tc('tap_to_open');
         this.recording = false;
         this.inBackground = false;
         this.bounded = false;
         this.notificationManager = this.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
-        NotificationHelper.createNotificationChannel(this);
+        NotificationHelper.createNotificationChannels(this);
     }
     onDestroy() {
+        DEV_LOG && console.log('onDestroy');
         this.bluetoothHandler.off(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
         if (this.geoHandler) {
             this.geoHandler.off(SessionStateEvent, this.onSessionStateEvent, this);
@@ -49,21 +52,25 @@ export class BgService extends android.app.Service {
 
     onBind(intent: android.content.Intent) {
         // a client is binding to the service with bindService()
+        DEV_LOG && console.log('onBind');
         this.bounded = true;
         const result = new BgServiceBinder();
         result.setService(this);
         return result;
     }
     onUnbind(intent: android.content.Intent) {
+        DEV_LOG && console.log('onUnbind');
         this.bounded = false;
         this.removeForeground();
         return true;
     }
     onRebind(intent: android.content.Intent) {
+        DEV_LOG && console.log('onRebind');
         // a client is binding to the service with bindService(), after onUnbind() has already been called
     }
 
     onBounded() {
+        DEV_LOG && console.log('onBounded');
         this.geoHandler = new GeoHandler();
         this.bluetoothHandler = new BluetoothHandler();
         this.showForeground();

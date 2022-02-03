@@ -35,8 +35,12 @@ export class DBHandler extends Observable {
         await this.trackRepository.createTables();
         this.started = true;
     }
-    stop() {
-        return this.db && this.db.disconnect();
+    async stop() {
+        try {
+            await this.db?.disconnect();
+        } catch (error) {
+            console.error('DBHandler', 'stop', error);
+        }
     }
 
     getItem(itemId: string) {

@@ -74,6 +74,10 @@ function shuffleArray(arr) {
     return arr.sort(() => Math.random() - 0.5);
 }
 
+function getRandomFromArray(array) {
+    return array[Math.floor(Math.random() * array.length)];
+}
+
 export function hexToBytes(hex) {
     const bytes = [];
     for (let c = 2; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
@@ -256,6 +260,7 @@ export class BluetoothHandler extends Observable {
 
         // we clear the bluetooth module on stop or it will be in a bad state on restart (not forced kill) on android.
         bluetooth = null;
+        DEV_LOG && console.log('BLE', 'stop done');
     }
     start() {
         this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
@@ -476,9 +481,9 @@ export class BluetoothHandler extends Observable {
                     this.activateGesture(this.isGestureOn);
                     this.changeLuminance(this.levelLuminance);
                 }
-                // we use config 2 for images
-                // this.sendCommand({ command: CommandType.cfgSet, params: [2] });
+                this.askConfigs();
                 this.sendDim(100);
+                this.setConfig('nav');
                 this.clearScreen();
             }
             this.removeConnectingDeviceUUID(data.UUID);
@@ -504,6 +509,7 @@ export class BluetoothHandler extends Observable {
         this.removeConnectingDeviceUUID(data.UUID);
 
         if (this.glasses && data.UUID === this.glasses.UUID) {
+            this.geoHandler.setReadableStories(null);
             this.glasses.onDisconnected();
             this.glasses = null;
             bluetooth.isBluetoothEnabled().then((enabled) => {
@@ -587,15 +593,14 @@ export class BluetoothHandler extends Observable {
         });
     }
 
-    disconnectGlasses(manualDisconnect?: boolean): Promise<void> {
-        console.log(TAG, 'disconnectGlasses', manualDisconnect, !!this.glasses);
+    async disconnectGlasses(manualDisconnect?: boolean): Promise<void> {
+        DEV_LOG && console.log(TAG, 'disconnectGlasses', manualDisconnect, !!this.glasses);
         if (this.glasses) {
-            return new Promise((resolve, reject) => {
-                this.once(GlassesDisconnectedEvent, () => resolve());
+            await new Promise<any>((resolve, reject) => {
+                this.once(GlassesDisconnectedEvent, resolve);
                 return this.disconnect(this.glasses.UUID, manualDisconnect);
             });
         }
-        return Promise.resolve();
     }
 
     startScanning(options: StartScanningOptions) {
@@ -637,10 +642,19 @@ export class BluetoothHandler extends Observable {
     }
 
     onGlassesMessage({ message }: { message: Message<any> }) {
-        this.addDevLogMessage(message);
+        // this.addDevLogMessage(message);
         switch (message.commandType) {
+            case CommandType.cfgList:
+                const list = (message as Message<CommandType.cfgList>).data;
+                this.geoHandler.setReadableStories(
+                    list
+                        .map((c) => parseInt(c.name, 10))
+                        .filter((s) => !isNaN(s))
+                        .sort()
+                );
+                break;
             case CommandType.Settings:
-                const settings = (this.glasses.settings = message.data as GlassesSettings);
+                const settings = (this.glasses.settings = (message as Message<CommandType.Settings>).data);
                 this.notify({
                     eventName: GlassesSettingsEvent,
                     object: this,
@@ -760,8 +774,12 @@ export class BluetoothHandler extends Observable {
     sendBitmap(name: number, x: number = 0, y: number = 0) {
         this.sendCommand({ command: CommandType.imgDisplay, params: [name, 0, 0, x, y] });
     }
+
     setConfig(name: string) {
-        this.sendCommand({ command: CommandType.cfgSet, params: { name } });
+        if (this.glasses.currentConfig !== name) {
+            this.glasses.currentConfig = name;
+            this.sendCommand({ command: CommandType.cfgSet, params: { name } });
+        }
     }
     async switchSensor() {
         return this.activateSensor(!this.isSensorOn);
@@ -771,6 +789,9 @@ export class BluetoothHandler extends Observable {
     }
     async askSettings() {
         return this.sendCommand({ command: CommandType.Settings });
+    }
+    async askConfigs() {
+        return this.sendCommand({ command: CommandType.cfgList });
     }
     async setGlassesName(name: string) {
         return new Promise((resolve, reject) => {
@@ -826,6 +847,7 @@ export class BluetoothHandler extends Observable {
             const str = String.fromCharCode.apply(null, r);
             this.glasses.firmwareVersion = str;
             this.glasses.supportSettings = versionCompare(str, '2.9.5c') >= 0;
+            DEV_LOG && console.log('readFirmwareVersion', str);
             this.notify({
                 eventName: VersionEvent,
                 object: this,
@@ -843,6 +865,7 @@ export class BluetoothHandler extends Observable {
         try {
             const r = await this.glasses.readDescriptor('180a', '2a25');
             const str = String.fromCharCode.apply(null, r);
+            DEV_LOG && console.log('readSerialNumber', str);
             this.notify({
                 eventName: SerialEvent,
                 object: this,
@@ -960,13 +983,13 @@ export class BluetoothHandler extends Observable {
                         progressCallback: promisedCallback(resolve, reject)
                     });
                 }).then(() => {
-                    console.log('sendLayoutConfig command sent', dataSent, datalength, commandsToSend.length);
+                    // console.log('sendLayoutConfig command sent', dataSent, datalength, commandsToSend.length);
                     if (!cancelled && commandsToSend.length > 0) {
                         return createPromise();
                     }
                 });
             await createPromise();
-            console.log('sendLayoutConfig done');
+            // console.log('sendLayoutConfig done');
             this.clearFullScreen();
         });
         promise['cancel'] = () => (cancelled = true);
@@ -980,9 +1003,9 @@ export class BluetoothHandler extends Observable {
         await timeout(50); // ms
     }
     async fadein() {
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 10; i++) {
             await timeout(20); // ms
-            this.sendDim(i * 5);
+            this.sendDim(i * 10);
         }
     }
     // async function stopLoop(index: number) {
@@ -1027,17 +1050,21 @@ export class BluetoothHandler extends Observable {
             return this.stopPlayingLoop({ fade });
         }
     }
-    async stopSession() {
-        this.stopPlayingLoop({ fade: true, ignoreNext: true });
+    async stopSession(fade = true) {
+        DEV_LOG && console.log(TAG, 'stopSession', fade);
+        await this.stopPlayingLoop({ fade, ignoreNext: true });
+        if (fade) {
+            this.playInstruction('end');
+        }
     }
-    async stopPlayingLoop({ fade = true, ignoreNext = false, instruction = false } = {}) {
+    async stopPlayingLoop({ fade = false, ignoreNext = false, instruction = false } = {}) {
         // if (!this.isPlaying) {
         //     return;
         // }
+        DEV_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this._player.isAudioPlaying(), new Error().stack);
         if (instruction && this.isPlayingNavigationInstruction && (this.isPlayingMusic || this.isPlayingStory)) {
             return;
         }
-        console.log('stopPlayingLoop', fade, ignoreNext, instruction, this._player.isAudioPlaying());
         this.isPlaying = false;
         if (this.lyric) {
             this.lyric.pause();
@@ -1048,6 +1075,7 @@ export class BluetoothHandler extends Observable {
             // await this.fadeout();
         }
         const onDone = async () => {
+            DEV_LOG && console.log('stopPlayingLoop onDone');
             this._player.pause();
             this._player['_options']?.errorCallback();
             try {
@@ -1063,20 +1091,28 @@ export class BluetoothHandler extends Observable {
         };
         if (this._player.isAudioPlaying()) {
             if (fade) {
-                const anim = new AdditiveTweening({
-                    onRender: (obj) => {
-                        this._player.volume = obj.value;
-                    },
-                    onFinish: onDone
-                });
-                anim.tween({ value: 1 }, { value: 0 }, 500);
+                try {
+                    await new Promise((resolve) => {
+                        const anim = new AdditiveTweening({
+                            onRender: (obj) => {
+                                this._player.volume = obj.value;
+                            },
+                            onFinish: resolve
+                        });
+                        anim.tween({ value: 1 }, { value: 0 }, 500);
+                    });
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    await onDone();
+                }
             } else {
-                onDone();
+                await onDone();
             }
         } else {
-            onDone();
+            await onDone();
         }
-        console.log('stopPlayingLoop done');
+        DEV_LOG && console.log('stopPlayingLoop done', this.isPlaying);
         this.notify({ eventName: 'drawBitmap', bitmap: null });
         if (fade) {
             this.fadeout();
@@ -1113,6 +1149,7 @@ export class BluetoothHandler extends Observable {
     }
     async playOfImages(images: string[], imagesFolder, options?: { frameDuration?; randomize?; iterations? }) {
         const myLoop = images.join('');
+        // DEV_LOG && console.log('playOfImages', images, imagesFolder, myLoop, this.currentLoop, options, this.isFaded);
         if (images.length === 0 || this.currentLoop === myLoop) {
             return;
         }
@@ -1123,8 +1160,10 @@ export class BluetoothHandler extends Observable {
         let loopIndex = 0;
         const iterations = options?.hasOwnProperty('iterations') ? options.iterations : 1;
         const imageMap = this.navigationMap;
-        await this.glasses.sendCommand(CommandType.cfgSet, { params: { name: 'nav' } });
-        console.log('playOfImages', images, myLoop, this.currentLoop, iterations, loopIndex);
+        DEV_LOG && console.log('playOfImages', images, imagesFolder, myLoop, this.currentLoop, options, this.isFaded, iterations, loopIndex);
+        if (this.glasses) {
+            this.setConfig('nav');
+        }
         while (this.currentLoop === myLoop && !this.isFaded && (!iterations || loopIndex < iterations)) {
             if (options?.randomize === true) {
                 images = shuffleArray(images);
@@ -1133,12 +1172,12 @@ export class BluetoothHandler extends Observable {
                 if (this.isFaded) {
                     break;
                 }
-                // console.log('playing image', images[index], imageMap[images[index]]);
+                const cleaned = images[index].split('.')[0];
+                // DEV_LOG && console.log('playing image', images[index], cleaned, imageMap[cleaned]);
                 this.notify({ eventName: 'drawBitmap', bitmap: path.join(imagesFolder, images[index]) });
-                if (this.glasses) {
-                    const [imageId, x, y] = imageMap[images[index].slice(0, -4)];
-                    console.log('playing image', images[index], imageId, x, y);
-                    await this.glasses.sendCommand(CommandType.imgDisplay, { params: [imageId, x, y] });
+                if (this.glasses && imageMap[cleaned]) {
+                    const [imageId, x, y] = imageMap[cleaned];
+                    this.glasses.sendCommand(CommandType.imgDisplay, { params: [imageId, x, y] });
                     // await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
                 }
                 await timeout(options?.frameDuration || 200);
@@ -1188,9 +1227,8 @@ export class BluetoothHandler extends Observable {
     // }
 
     async sendDim(percentage: number) {
-        // console.log('sendDim', percentage, this.levelLuminance, Math.round((this.levelLuminance * percentage) / 100));
-        // return this.glasses.sendCommand(CommandType.Luma, { params: [Math.round((this.levelLuminance * 15 * percentage) / 100)] });
-        return this.glasses.sendCommand(CommandType.Dim, { params: [percentage] });
+        // TODO: disabled for now
+        // return this.glasses.sendCommand(CommandType.Dim, { params: [percentage] });
     }
     // async playHello() {
     //     await this._player.playFromFile({
@@ -1302,14 +1340,19 @@ export class BluetoothHandler extends Observable {
             await this.playAudio(audio);
         }
     }
-    async playNavigationInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
-        return this.playInstruction(instruction, { iterations: 3, noAudio: true, frameDuration: 300, instruction: true });
+    async playNavigationInstruction(instruction: string, options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
+        if (instruction === 'exit') {
+            instruction = 'uturn';
+            options = options || {};
+            options.audioFolder = options.audioFolder || path.join(getGlassesImagesFolder(), 'navigation', 'exit');
+        }
+        return this.playInstruction(instruction, { iterations: 0, frameDuration: 300, instruction: true, queue: true, randomAudio: true, ...options });
     }
-    async playInstruction(instruction: string, options?: { frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio?; instruction? }) {
-        console.log('playInstruction', instruction, this.isPlaying, !!options?.noAudio, !!options?.force);
+    async playInstruction(instruction: string, options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio?; randomAudio?: boolean; instruction? }) {
+        DEV_LOG && console.log('playInstruction', instruction, this.isPlaying, options);
         if (this.isPlaying) {
             if (options?.force === true) {
-                this.stopPlayingLoop({ fade: false, ignoreNext: true });
+                await this.stopPlayingLoop({ fade: false, ignoreNext: true });
             } else if (options?.queue === true) {
                 return new Promise<void>((resolve) => {
                     this.toPlayNext = async () => {
@@ -1329,29 +1372,27 @@ export class BluetoothHandler extends Observable {
         }
         this.isPlaying = true;
 
-        console.log('playInstruction', instruction, this.isPlaying, !!options?.noAudio, !!options?.force);
         const instFolder = path.join(getGlassesImagesFolder(), `navigation/${instruction}`);
+        DEV_LOG && console.log('playInstruction instFolder', instruction, instFolder, Folder.exists(instFolder));
+        if (!Folder.exists(instFolder)) {
+            return;
+        }
         const files = await Folder.fromPath(instFolder).getEntities();
+        const audioFiles = options?.audioFolder ? await Folder.fromPath(options?.audioFolder).getEntities() : files;
         const images = files
             .filter((f) => f.name.endsWith('.png') || f.name.endsWith('.jpg') || f.name.endsWith('.bmp'))
             .map((f) => f.name)
             .sort();
         const audios = !!options?.noAudio
             ? []
-            : files
+            : audioFiles
                   .filter((f) => f.name.endsWith('.mp3'))
                   .map((f) => f.path)
                   .sort();
-        console.log('images', images);
-        // console.log('audios', audios);
+        DEV_LOG && console.log('images', images);
+        DEV_LOG && console.log('audios', audios);
         if (audios && audios.length) {
             await new Promise<void>((resolve, reject) => {
-                this.playAudios(audios)
-                    .then(() => {
-                        resolve();
-                        console.log('instruction played done');
-                    })
-                    .catch(reject);
                 if (options?.delay) {
                     setTimeout(() => {
                         this.playOfImages(images, instFolder, options);
@@ -1359,11 +1400,17 @@ export class BluetoothHandler extends Observable {
                 } else {
                     this.playOfImages(images, instFolder, options);
                 }
+                this.playAudios(options?.randomAudio ? [getRandomFromArray(audios)] : audios)
+                    .then(() => {
+                        DEV_LOG && console.log('instruction played done');
+                        resolve();
+                    })
+                    .catch(reject);
             });
         } else {
             await this.playOfImages(images, instFolder, options);
         }
-        await this.stopPlayingLoop({ instruction: options.instruction });
+        await this.stopPlayingLoop({ instruction: options?.instruction });
         if (instruction) {
             this.isPlayingNavigationInstruction = false;
         }
@@ -1371,6 +1418,7 @@ export class BluetoothHandler extends Observable {
     lyric: Lyric = null;
 
     async playRideauAndStory(storyIndex = 1) {
+        DEV_LOG && console.log('playRideauAndStory', storyIndex, this.isPlayingStory, this.isPlaying);
         if (this.isPlayingStory === storyIndex) {
             return;
         }
@@ -1385,12 +1433,11 @@ export class BluetoothHandler extends Observable {
         // console.log('playRideauAndStory', this.isPlaying);
         // set it now to make sure we dont play the same story twice
         this.isPlayingStory = storyIndex;
-        await this.playInstruction('rideau', { iterations: 1, delay: 1500 });
-        await timeout(1000);
+        await this.playInstruction('rideau', { iterations: 1 });
         this.playStory(storyIndex);
     }
     async playStory(index = 1) {
-        console.log('playStory', index, this.isPlaying);
+        DEV_LOG && console.log('playStory', index, this.isPlaying);
         if (this.isPlaying) {
             return new Promise<void>((resolve) => {
                 this.toPlayNext = async () => {
@@ -1407,11 +1454,9 @@ export class BluetoothHandler extends Observable {
             const data = await File.fromPath(path.join(storyFolder, 'composition.json')).readText();
             const imagesMap = this.storyImageMap(cfgId);
             const result = this.parseLottieFile(JSON.parse(data));
-            // console.log('lines', result);
-            // console.log('imagesMap', imagesMap);
             if (this.glasses) {
-                this.glasses.sendCommand(CommandType.cfgSet, { params: { name: cfgId } });
-                this.glasses.sendCommand(CommandType.Dim, { params: [100] });
+                this.setConfig(cfgId);
+                this.sendDim(100);
             }
             if (this.lyric) {
                 this.lyric.pause();
@@ -1443,9 +1488,11 @@ export class BluetoothHandler extends Observable {
             this.clearFadeout();
             this.lyric.play();
             await this.playAudio(path.join(storyFolder, 'audio.mp3'));
-            console.log('playStory done ', index, this.isPlaying);
+            DEV_LOG && console.log('playStory done ', index, this.isPlaying);
             // mark story as played
+
             this.geoHandler.playedStory(index + '');
+            this.playInstruction('story_finished');
         } finally {
             this.isPlayingStory = 0;
             this.stopPlayingLoop();
@@ -1453,15 +1500,16 @@ export class BluetoothHandler extends Observable {
     }
 
     async playMusic(index) {
-        this.isPlaying = true;
+        // this.isPlaying = true;
         this.isPlayingMusic = true;
         // story will play right after so store the playing index
         // so we know what s about to play
         // this.isPlayingStory = index;
         try {
-            const storyFolder = path.join(getGlassesImagesFolder(), `stories/${index}`);
-            console.log('playMusic', storyFolder);
-            await this.playAudio(path.join(storyFolder, 'musique.mp3'));
+            // const storyFolder = path.join(getGlassesImagesFolder(), `stories/${index}`);
+            // DEV_LOG && console.log('playMusic', storyFolder);
+            await this.playInstruction('music', { randomAudio: true });
+            // await this.playAudio(path.join(storyFolder, 'musique.mp3'));
         } finally {
             this.isPlayingMusic = false;
             this.stopPlayingLoop();

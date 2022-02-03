@@ -10,7 +10,7 @@
 import { setMapPosKeys } from '@nativescript-community/ui-carto/core';
 import { themer } from '@nativescript-community/ui-material-core';
 import Vue from 'nativescript-vue';
-import App from './components/App';
+import Home from './components/Home';
 import CrashReportService from './services/CrashReportService';
 import { primaryColor } from './variables';
 // importing filters
@@ -19,6 +19,25 @@ import MixinsPlugin from './vue.mixins';
 // adding to Vue prototype
 import PrototypePlugin from './vue.prototype';
 import ViewsPlugin from './vue.views';
+import { time } from '@nativescript/core/profiling';
+
+if (!global.window) {
+    window = global.window = {
+        requestAnimationFrame,
+        cancelAnimationFrame,
+        performance: {
+            now: time
+        } as any
+    } as any;
+} else if (!global.window.requestAnimationFrame) {
+    global.window.requestAnimationFrame = requestAnimationFrame;
+    global.window.cancelAnimationFrame = cancelAnimationFrame;
+    if (!global.window.performance) {
+        global.window.performance = {
+            now: time
+        } as any;
+    }
+}
 const crashReportService = new CrashReportService();
 // start it as soon as possible
 crashReportService.start();
@@ -66,5 +85,5 @@ themer.createShape('round', {
 });
 
 new Vue({
-    render: (h) => h(App)
+    render: (h) => h('frame', [h(Home)])
 }).$start();

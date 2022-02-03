@@ -1,3 +1,5 @@
+import { EventData, Observable } from '@nativescript/core';
+
 export function pick<T extends object, U extends keyof T>(object: T, ...props: U[]): Pick<T, U> {
     return props.reduce((o, k) => ((o[k] = object[k]), o), {} as any);
 }
@@ -6,6 +8,14 @@ export function omit<T extends object, U extends keyof T>(object: T, ...props: U
         .filter((key) => (props as string[]).indexOf(key) < 0)
         .reduce((newObj, key) => Object.assign(newObj, { [key]: object[key] }), {} as any);
 }
+
+const observable = new Observable();
+export const on = observable.on.bind(observable);
+export const off = observable.off.bind(observable);
+export const notify = function <T extends Partial<EventData>>(data: T) {
+    data.object = data.object || observable;
+    observable.notify.call(observable, data as EventData);
+};
 
 const verRegex = /^v?(\d+)\.(\d+)\.(\d+)([a-z])?$/;
 export function versionCompare(v1: string, v2: string) {

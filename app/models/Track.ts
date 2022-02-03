@@ -79,7 +79,7 @@ export class TrackRepository extends CrudRepository<Track> {
     async updateItem(item: Track) {
         const { id, ...others } = item;
         const newItem = await this.update({ id } as any, { bounds: JSON.stringify(item.bounds), geometry: JSON.stringify(item.geometry) });
-        return this.prepareGetItem(newItem);
+        return item;
     }
 
     prepareGetItem(item: Track) {

@@ -36,22 +36,21 @@ export function getDataFolder() {
     return dataFolder;
 }
 
-export function getWorkingDir() {
+export function getWorkingDir(allowDev = true) {
+    if (!PRODUCTION && allowDev) {
+        if (__ANDROID__) {
+            const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
+            const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();
+            if (sdcardFolder) {
+                const sdcardPath = path.join(sdcardFolder, '../../../..', 'jules_verne');
+                if (Folder.exists(sdcardPath)) {
+                    return sdcardPath;
+                }
+            }
+        }
+    }
     const folder = Folder.fromPath(path.join(knownFolders.documents().path, 'data'));
     return folder.path;
-    // let localMbtilesSource = ApplicationSettings.getString('local_directory');
-    // if (!localMbtilesSource) {
-    //     let defaultPath = path.join(getDataFolder(), 'jules_verne');
-    //     if (__ANDROID__) {
-    //         const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
-    //         const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();
-    //         if (sdcardFolder) {
-    //             defaultPath = path.join(sdcardFolder, '../../../..', 'jules_verne');
-    //         }
-    //     }
-    //     localMbtilesSource = ApplicationSettings.getString('local_directory', defaultPath);
-    // }
-    // return localMbtilesSource;
 }
 
 export function getGlassesImagesFolder() {

@@ -19,7 +19,7 @@
         "noImplicitReturns": false,
         "noImplicitUseStrict": false,
         "noFallthroughCasesInSwitch": true,
-        "types": ["vue", "geojson"],
+        "types": ["node", "vue", "geojson"],
         "baseUrl": ".",
         "paths": {
             "~/*": ["app/*"],

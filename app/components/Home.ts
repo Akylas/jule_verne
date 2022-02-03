@@ -1,10 +1,24 @@
+import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { CartoMap } from '@nativescript-community/ui-carto/ui';
+import { Drawer } from '@nativescript-community/ui-drawer';
 import { prompt } from '@nativescript-community/ui-material-dialogs';
-import * as application from '@nativescript/core/application';
-import { EventData } from '@nativescript/core/data/observable';
-import { Frame } from '@nativescript/core/ui/frame';
-import { GestureEventData } from '@nativescript/core/ui/gestures';
+import {
+    AndroidActivityBackPressedEventData,
+    AndroidApplication,
+    Application,
+    ApplicationSettings,
+    EventData,
+    File,
+    Frame,
+    GestureEventData,
+    ObservableArray,
+    knownFolders,
+    path
+} from '@nativescript/core';
 import { bind } from 'helpful-decorators';
+import { Vibrate } from 'nativescript-vibrate';
+import Vue from 'nativescript-vue';
+import { VueConstructor } from 'vue';
 import { Component } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
@@ -13,11 +27,12 @@ import {
     BLEConnectionEventData,
     GlassesBatteryEvent,
     GlassesConnectedEvent,
-    GlassesConnectionEventData,
     GlassesDisconnectedEvent,
     Peripheral,
     SPOTA_SERVICE_UUID,
-    StatusChangedEvent
+    SerialEvent,
+    StatusChangedEvent,
+    VersionEvent
 } from '~/handlers/BluetoothHandler';
 import {
     FeatureViewedEvent,
@@ -33,8 +48,13 @@ import {
 } from '~/handlers/GeoHandler';
 import { $tc } from '~/helpers/locale';
 import Track, { TrackFeature } from '~/models/Track';
+import { off as appOff, on as appOn } from '~/utils';
 import { confirm } from '~/utils/dialogs';
-import { ComponentIds } from './App';
+import { bboxify } from '~/utils/geo';
+import { getGlassesImagesFolder, getWorkingDir } from '~/utils/utils';
+import { backgroundColor, textColor } from '~/variables';
+import { date } from '~/vue.filters';
+import { ComponentIds } from '~/vue.prototype';
 import { BaseVueComponentRefs } from './BaseVueComponent';
 import DeviceSelect from './DeviceSelect';
 import Map from './Map';
@@ -59,6 +79,9 @@ export interface HomeRefs extends BaseVueComponentRefs {
     }
 })
 export default class Home extends BgServiceComponent {
+    date = date;
+    backgroundColor = backgroundColor;
+    textColor = textColor;
     navigateUrl = ComponentIds.Activity;
     $refs: HomeRefs;
     public isWatchingLocation: boolean = false;
@@ -72,7 +95,9 @@ export default class Home extends BgServiceComponent {
     public glassesSerialNumber = null;
     public glassesVersion = null;
     bluetoothEnabled = true;
+    appVersion = __APP_VERSION__ + '.' + __APP_BUILD_NUMBER__;
 
+    bigImage = false;
     aimingAngle: number = 0;
     eventsLog: string = '';
     selectedTrack: Track = null;
@@ -81,6 +106,51 @@ export default class Home extends BgServiceComponent {
 
     viewedFeatures = null;
 
+    glassesDataUpdateDate = ApplicationSettings.getNumber('GLASSES_DATA_LASTDATE', null);
+    mapDataUpdateDate = ApplicationSettings.getNumber('MAP_DATA_LASTDATE', null);
+    geojsonDataUpdateDate = ApplicationSettings.getNumber('GEOJSON_DATA_LASTDATE', null);
+    needsImportOldSessionsOnLoaded = false;
+
+    menuItems = new ObservableArray([
+        {
+            title: this.$t('map'),
+            icon: 'mdi-map',
+            component: async () => (await import('~/components/Home')).default,
+            url: ComponentIds.Activity,
+            activated: false
+        },
+        {
+            title: this.$t('tracks'),
+            icon: 'mdi-map-marker-path',
+            component: async () => (await import('~/components/Tracks')).default,
+            url: ComponentIds.Tracks,
+            activated: false
+        },
+        // {
+        //     title: this.$t('create_track'),
+        //     icon: 'mdi-map-marker-distance',
+        //     url: ComponentIds.Leaflet,
+        //     activated: false
+        // },
+        {
+            title: this.$t('settings'),
+            icon: 'mdi-cogs',
+            component: async () => (await import('~/components/Settings')).default,
+            url: ComponentIds.Settings,
+            activated: false
+        },
+        {
+            title: this.$t('images'),
+            icon: 'mdi-image',
+            component: async () => (await import('~/components/Images.vue')).default,
+            url: ComponentIds.Images,
+            activated: false
+        }
+    ]);
+
+    get drawer() {
+        return this.getRef<Drawer>('drawer');
+    }
     get map() {
         const mapComp = this.$refs.mapComp as MapComponent;
         return mapComp && mapComp.cartoMap;
@@ -98,9 +168,30 @@ export default class Home extends BgServiceComponent {
         }
         return result;
     }
-
+    onGlassesDataUpdateDate(event) {
+        this.glassesDataUpdateDate = event.data;
+    }
+    onMapDataUpdateDate(event) {
+        this.mapDataUpdateDate = event.data;
+    }
+    onGeojsonDataUpdateDate(event) {
+        this.geojsonDataUpdateDate = event.data;
+    }
     mounted() {
         super.mounted();
+        this.$onAppMounted();
+        appOn('GLASSES_DATA_LASTDATE', this.onGlassesDataUpdateDate, this);
+        appOn('MAP_DATA_LASTDATE', this.onMapDataUpdateDate, this);
+        appOn('GEOJSON_DATA_LASTDATE', this.onGeojsonDataUpdateDate, this);
+    }
+    destroyed() {
+        appOff('GLASSES_DATA_LASTDATE', this.onGlassesDataUpdateDate, this);
+        appOff('MAP_DATA_LASTDATE', this.onMapDataUpdateDate, this);
+        appOff('GEOJSON_DATA_LASTDATE', this.onGeojsonDataUpdateDate, this);
+        super.destroyed();
+        if (__ANDROID__) {
+            Application.android.off(AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
+        }
     }
     eLog(...args) {
         console.log.apply(
@@ -114,7 +205,7 @@ export default class Home extends BgServiceComponent {
     }
     onFeatureViewed(event: EventData) {
         this.viewedFeatures = event['data'].featureViewed;
-        console.log('onFeatureViewed', this.viewedFeatures);
+        DEV_LOG && console.log('onFeatureViewed', this.viewedFeatures);
     }
     onTrackPositionState(event: EventData) {
         const events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[] = event['data'].events;
@@ -136,17 +227,26 @@ export default class Home extends BgServiceComponent {
         if (track && map) {
             map.moveToFitBounds(track.bounds, undefined, true, true, false, 200);
         }
-    }
-
-    destroyed() {
-        super.destroyed();
-        if (__ANDROID__) {
-            application.android.off(application.AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
-        }
+        this.$checkForGlassesDataUpdate();
     }
 
     async onServiceStarted(handlers: BgServiceMethodParams) {
-        // this.tracks.push(geoHandler.currentTrack);
+        // console.log('onServiceStarted', this.needsImportOldSessionsOnLoaded);
+        if (this.needsImportOldSessionsOnLoaded) {
+            this.needsImportOldSessionsOnLoaded = false;
+            this.importDevSessions();
+        }
+    }
+    onLoaded() {
+        // GC();
+        // console.log('onLoaded', this.needsImportOldSessionsOnLoaded);
+        Vue.prototype.$drawer = this.drawer;
+        if (this.dbHandler && this.dbHandler.started) {
+            this.importDevSessions();
+        } else {
+            this.needsImportOldSessionsOnLoaded = true;
+        }
+        this.$checkForMapDataUpdate();
     }
     // updateMapWithSession() {
     //     const map = this._cartoMap;
@@ -168,25 +268,24 @@ export default class Home extends BgServiceComponent {
     }
 
     protected onSessionStateEvent(e: SessionEventData) {
-        console.log('onSessionStateEvent', e.data);
+        DEV_LOG && console.log('onSessionStateEvent', e.data);
         this.currentSessionState = e.data.state;
     }
     inFront = false;
     onNavigatingTo() {
         this.inFront = true;
-
-        // if (__ANDROID__) {
-        //     application.android.on(application.AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
-        // }
+        if (__ANDROID__) {
+            Application.android.on(AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
+        }
     }
     onNavigatingFrom() {
         this.inFront = false;
 
-        // if (__ANDROID__) {
-        //     application.android.off(application.AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
-        // }
+        if (__ANDROID__) {
+            Application.android.off(AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
+        }
     }
-    onAndroidBackButton(data: application.AndroidActivityBackPressedEventData) {
+    onAndroidBackButton(data: AndroidActivityBackPressedEventData) {
         if (__ANDROID__) {
             if (!this.inFront) {
                 return;
@@ -242,6 +341,7 @@ export default class Home extends BgServiceComponent {
         if (!handlers.geoHandler) {
             return;
         }
+        DEV_LOG && console.log('Home', 'setup');
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
         this.geoHandlerOn(TrackSelecteEvent, this.onTrackSelected, this);
         this.geoHandlerOn(UserRawLocationEvent, this.onNewLocation, this);
@@ -259,12 +359,22 @@ export default class Home extends BgServiceComponent {
         this.bluetoothHandlerOn('drawBitmap', this.onDrawImage);
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
         this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
+        this.bluetoothHandlerOn(SerialEvent, this.onGlassesSerialNumber);
+        this.bluetoothHandlerOn(VersionEvent, this.onGlassesVersion);
         this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
         this.bluetoothHandlerOn(StatusChangedEvent, this.onBLEStatus);
 
         this.connectingToGlasses = handlers.bluetoothHandler.connectingToGlasses;
-        if (!handlers.bluetoothHandler.glasses) {
-            this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
+        if (handlers.bluetoothHandler.glasses) {
+            this.onGlassesBattery({
+                data: handlers.bluetoothHandler.glassesBattery
+            } as any);
+            this.onGlassesSerialNumber({
+                data: handlers.bluetoothHandler.glasses.serialNumber
+            } as any);
+            this.onGlassesVersion({
+                data: handlers.bluetoothHandler.glasses.firmwareVersion
+            } as any);
         }
         handlers.bluetoothHandler.isEnabled().then((r) => {
             this.bluetoothEnabled = r;
@@ -300,6 +410,64 @@ export default class Home extends BgServiceComponent {
         this.lastLocation = data.location;
         this.aimingAngle = data.aimingAngle;
         this.searchingLocation = false;
+    }
+
+    async importDevSessions() {
+        try {
+            let geojsonPath = path.join(getWorkingDir(false), 'map.geojson');
+            await this.$checkForGeoJSONUpdate(geojsonPath);
+            DEV_LOG && console.log('importDevSessions', geojsonPath, File.exists(geojsonPath));
+            if (!File.exists(geojsonPath)) {
+                geojsonPath = path.join(knownFolders.currentApp().path, 'assets/data/map.geojson');
+            }
+            if (!File.exists(geojsonPath)) {
+                return;
+            }
+            // this.showLoading({ text: this.$t('importing_data'), progress: 0 });
+            const file = File.fromPath(geojsonPath);
+            const lastChecked = ApplicationSettings.getNumber('map.geojson_date', 0);
+            console.log('importDevSessions', lastChecked, file.lastModified.getTime(), geojsonPath);
+            if (file.lastModified.getTime() <= lastChecked) {
+                return;
+            }
+            const importData = file.readTextSync();
+            const data = JSON.parse(importData);
+            const existing = (await this.dbHandler.trackRepository.searchItem()).map((t) => t.id);
+            for (let index = 0; index < data.length; index++) {
+                const d = data[index];
+                const track = { ...d, id: (d.name || Date.now()) + '' };
+                const geojson = bboxify(track.geometry);
+                track.geometry = geojson as any;
+                // track.geometry = reader.readFeatureCollection(JSON.stringify(d.geometry));
+                track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.bbox[3], lon: geojson.bbox[2] }, { lat: geojson.bbox[1], lon: geojson.bbox[0] });
+
+                let newTrack;
+                if (existing.indexOf(track.id) === -1) {
+                    newTrack = await this.dbHandler.trackRepository.createItem(track);
+                } else {
+                    newTrack = await this.dbHandler.trackRepository.updateItem(track);
+                }
+                if (this.geoHandler.currentTrack?.id === newTrack.id) {
+                    this.geoHandler.currentTrack = newTrack;
+                }
+            }
+            ApplicationSettings.setNumber('map.geojson_date', file.lastModified.getTime());
+        } catch (err) {
+            this.showError(err);
+        } finally {
+            // this.hideLoading();
+        }
+    }
+
+    quitApp() {
+        this.$bgService.stop().then(() => {
+            if (__IOS__) {
+                //@ts-ignore
+                exit(0);
+            } else {
+                Application.android.startActivity.finish();
+            }
+        });
     }
 
     async onTap(command: string, ...args) {
@@ -351,10 +519,10 @@ export default class Home extends BgServiceComponent {
                         .catch(this.showError);
                     break;
                 case 'menu':
-                    this.$getAppComponent().drawer.open();
+                    this.drawer.open();
                     break;
                 case 'settings':
-                    this.$getAppComponent().navigateToUrl(ComponentIds.Settings);
+                    this.$navigateToUrl(ComponentIds.Settings);
                     break;
                 case 'connectGlasses':
                     if (this.connectedGlasses) {
@@ -369,20 +537,22 @@ export default class Home extends BgServiceComponent {
 
                     break;
                 case 'playStory':
-                    await this.bluetoothHandler.playStory(args[0]);
+                    await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                    // await this.bluetoothHandler.playInstruction('starting_story');
+                    this.bluetoothHandler.playRideauAndStory(args[0]);
                     break;
-                case 'hello':
-                    await this.bluetoothHandler.playInstruction('start', { randomize: true });
+                case 'start':
+                    await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                    await this.bluetoothHandler.playInstruction(command);
                     break;
-                case 'rideau':
-                    console.log('rideau');
-                    await this.bluetoothHandler.playRideauAndStory();
-                    break;
-                case 'demitour':
-                    await this.bluetoothHandler.playInstruction('uturn', { frameDuration: 400 });
+                case 'exit':
+                case 'uturn':
+                case 'right':
+                    await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                    await this.bluetoothHandler.playNavigationInstruction(command);
                     break;
                 case 'stopPlaying':
-                    this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                    await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
                     break;
                 case 'changeDeviceName':
                     prompt({
@@ -415,6 +585,19 @@ export default class Home extends BgServiceComponent {
             }
         } catch (err) {
             this.showError(err);
+        }
+    }
+
+    async onNavItemTap(item) {
+        console.log('$onNavItemTap', item.url);
+        let component = item.component;
+        if (typeof component === 'function') {
+            component = await (component as () => Promise<VueConstructor>)();
+        }
+        try {
+            this.$navigateToUrl(item.url, { component });
+        } catch (error) {
+            this.showError(error);
         }
     }
     enableForScan() {
@@ -497,26 +680,15 @@ export default class Home extends BgServiceComponent {
         }
     }
 
-    onGlassesConnected(e: GlassesConnectionEventData) {
-        const glasses = (this.connectedGlasses = e.data);
-        this.connectingToGlasses = false;
-        this.glassesVersion = glasses.firmwareVersion;
-        this.glassesSerialNumber = glasses.serialNumber;
-        setTimeout(() => {
-            this.hideLoading();
-        }, 200);
-    }
-    onGlassesDisconnected(e: BLEConnectionEventData) {
-        console.log(TAG, 'onGlassesDisconnected', e.manualDisconnect);
-        this.connectedGlasses = null;
-        this.connectingToGlasses = false;
-        this.glassesBattery = -1;
-        this.glassesVersion = null;
-        this.glassesSerialNumber = null;
-        this.hideLoading();
-    }
     onGlassesBattery(e: BLEBatteryEventData) {
         this.updateGlassesBattery(e.data);
+    }
+
+    openDrawer() {
+        this.drawer.open();
+    }
+    closeDrawer() {
+        this.drawer && this.drawer.close();
     }
     tryToAutoConnect() {
         if (this.bluetoothHandler.isEnabled() && this.bluetoothHandler.hasSavedGlasses() && !this.bluetoothHandler.connectingToGlasses) {
@@ -547,5 +719,62 @@ export default class Home extends BgServiceComponent {
         // console.log('onDrawImage', event.bitmap);
         this.$refs.imageView.nativeView.src = event.bitmap;
         // this.currentDrawImage = event.bitmap;
+    }
+
+    onGlassesDisconnected(e: BLEConnectionEventData) {
+        console.log(TAG, 'onGlassesDisconnected', e.manualDisconnect);
+        this.connectedGlasses = null;
+        this.connectingToGlasses = false;
+        this.glassesBattery = -1;
+        this.glassesVersion = null;
+        this.glassesSerialNumber = null;
+        this.hideLoading();
+        // if not manual disconnect we are going to try and reconnect
+
+        this.$crashReportService.setExtra('glasses', null);
+        if (this.devMode) {
+            const vibrator = new Vibrate();
+            vibrator.vibrate(2000);
+        }
+    }
+    onGlassesConnected(e: BLEConnectionEventData) {
+        const glasses = (this.connectedGlasses = e.data as GlassesDevice);
+        this.connectingToGlasses = false;
+        this.glassesVersion = glasses.firmwareVersion;
+        this.glassesSerialNumber = glasses.serialNumber;
+        this.updateSentryInfos();
+        this.hideLoading();
+    }
+    updateSentryInfos() {
+        const glasses = this.connectedGlasses;
+        if (glasses) {
+            this.$crashReportService.setExtra(
+                'glasses',
+                JSON.stringify({
+                    name: glasses.localName,
+                    uuid: glasses.UUID,
+                    firmware: this.glassesVersion,
+                    serial: this.glassesSerialNumber
+                })
+            );
+        } else {
+            this.$crashReportService.setExtra('glasses', null);
+        }
+    }
+    onGlassesReconnecting() {
+        this.showLoading(this.$t('connection_lost_reconnecting'));
+    }
+    onGlassesReconnectingFailed() {
+        this.hideLoading();
+    }
+    onGlassesVersion(e) {
+        this.glassesVersion = e.data;
+        console.log('onGlassesVersion', this.glassesVersion);
+        this.$checkFirmwareUpdateOnline(this.glassesVersion);
+        this.updateSentryInfos();
+    }
+    onGlassesSerialNumber(e) {
+        this.glassesSerialNumber = e.data;
+        this.updateSentryInfos();
     }
 }

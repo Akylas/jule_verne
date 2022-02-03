@@ -82,7 +82,7 @@
                         <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto,auto,auto">
                             <Label row="0" class="settings-section-title" :text="item.title | uppercase" />
                             <Label row="1" v-show="item.subtitle" class="settings-section-desc" :text="item.subtitle" />
-                            <MDButton variant="outline" rowSpan="2" col="1" :text="item.buttonTitle" @tap="onButtonTap(item.id, item, $event)" :color="accentColor" :rippleColor="accentColor" />
+                            <MDButton variant="text" rowSpan="2" col="1" :text="item.buttonTitle" @tap="onButtonTap(item.id, item, $event)" :color="accentColor" :rippleColor="accentColor" />
                         </GridLayout>
                     </GridLayout>
                 </v-template>

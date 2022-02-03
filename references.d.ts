@@ -16,10 +16,11 @@ declare const PRODUCTION: boolean;
 declare const NO_CONSOLE: boolean;
 declare const SENTRY_DSN: string;
 declare const SENTRY_PREFIX: string;
-declare const GLASSES_DATA_DEFAULT_URL: string;
-declare const MAP_DATA_DEFAULT_URL: string;
-declare const GEOJSON_DATA_DEFAULT_URL: string;
+declare const UPDATE_DATA_DEFAULT_URL: string;
 declare const SUPPORTED_LOCALES: string[];
+declare const __APP_ID__: string;
+declare const __APP_VERSION__: string;
+declare const __APP_BUILD_NUMBER__: string;
 // declare const process: { env: any };
 
 // Augment the NodeJS global type with our own extensions

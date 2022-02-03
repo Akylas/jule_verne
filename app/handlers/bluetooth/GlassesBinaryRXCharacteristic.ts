@@ -108,8 +108,8 @@ export class GlassesBinaryRXCharacteristic extends BufferSendingCharacteristic<U
         // only for debug purpose!
         // options.timestamp = options.timestamp || Date.now()
         const messageData = buildMessageData<T>(commandType, options);
-        // console.log('sendBinaryCommand', commandType, CommandType[commandType], options.timestamp, Array.from(messageData));
-        if (this.sendingCommand || this.sendingSlice || !this.canSendData) {
+        const shouldStack = this.sendingCommand || this.sendingSlice || !this.canSendData;
+        if (shouldStack) {
             this.pendingCommands.push({ data: messageData, progressCallback: options.progressCallback });
             return;
         }

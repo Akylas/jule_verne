@@ -7,6 +7,7 @@ export const ACTION_STOP = '.action.STOP';
 export const ACTION_RESUME = '.action.RESUME';
 export const ACTION_PAUSE = '.action.PAUSE';
 export const NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL = 'juleverne_service';
+export const NOTIFICATION_CHANEL_ID_DOWNLOAD_CHANNEL = 'juleverne_download';
 
 import { primaryColor } from '~/variables';
 import { $tc } from '~/helpers/locale';
@@ -21,7 +22,7 @@ function titlecase(value) {
 export class NotificationHelper {
     public static getNotification(context: android.content.Context, builder: androidx.core.app.NotificationCompat.Builder) {
         const color = android.graphics.Color.parseColor(new Color(primaryColor).hex);
-        NotificationHelper.createNotificationChannel(context);
+        NotificationHelper.createNotificationChannels(context);
 
         const activityClass = (com as any).tns.NativeScriptActivity.class;
         // ACTION: NOTIFICATION TAP & BUTTON SHOW
@@ -54,9 +55,10 @@ export class NotificationHelper {
         builder.setOngoing(true);
         builder.setColor(color);
         builder.setOnlyAlertOnce(true);
+        builder.setSound(null);
         builder.setPriority(androidx.core.app.NotificationCompat.PRIORITY_MIN);
         builder.setContentIntent(tapActionPendingIntent);
-        builder.setSmallIcon(ad.resources.getDrawableId('ic_stat'));
+        builder.setSmallIcon(ad.resources.getDrawableId('ic_notification'));
         // builder.setLargeIcon(NotificationHelper.getNotificationIconLarge(context, tracking));
         NotificationHelper.updateBuilderTexts(builder);
         return builder.build();
@@ -78,20 +80,24 @@ export class NotificationHelper {
     }
 
     /* Create a notification channel */
-    public static createNotificationChannel(context) {
+    public static createNotificationChannels(context) {
         const color = android.graphics.Color.parseColor(new Color(primaryColor).hex);
         if (android.os.Build.VERSION.SDK_INT >= 26) {
             // API level 26 ("Android O") supports notification channels.
-            const channelName = 'Session State';
-            const channelDescription = 'Display duration and distance. Option to stop session.';
+            const service = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager;
 
             // create channel
-            const channel = new android.app.NotificationChannel(NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, channelName, android.app.NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription(channelDescription);
+            const channel = new android.app.NotificationChannel(NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, $tc('session_state'), android.app.NotificationManager.IMPORTANCE_MIN);
+            channel.setDescription($tc('notification_state_desc'));
             channel.setLightColor(color);
 
-            const service = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager;
             service.createNotificationChannel(channel);
+            const channelDownloads = new android.app.NotificationChannel(NOTIFICATION_CHANEL_ID_DOWNLOAD_CHANNEL, $tc('download'), android.app.NotificationManager.IMPORTANCE_HIGH);
+
+            channelDownloads.setDescription($tc('notification_download_desc'));
+            channelDownloads.setLightColor(color);
+            channelDownloads.setSound(null, null);
+            service.createNotificationChannel(channelDownloads);
             return true;
         } else {
             return false;

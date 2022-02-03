@@ -57,6 +57,18 @@ module.exports = (env, params = {}) => {
             },
             env
         );
+    } else if (env.timeline) {
+        env = Object.assign(
+            {},
+            {
+                production: true,
+                sentry: false,
+                uploadSentry: false,
+                sourceMap: false,
+                uglify: false
+            },
+            env
+        );
     }
     const nconfig = require('./nativescript.config');
     const {
@@ -105,11 +117,22 @@ module.exports = (env, params = {}) => {
         '@nativescript/core': `${coreModulesPackageName}`,
         'tns-core-modules': `${coreModulesPackageName}`
     });
-
-    const package = require('./package.json');
     const isIOS = platform === 'ios';
     const isAndroid = platform === 'android';
-    const APP_STORE_ID = process.env.IOS_APP_ID;
+    let appVersion;
+    let buildNumber;
+    if (isAndroid) {
+        const gradlePath = resolve(projectRoot, appResourcesPath, 'Android/app.gradle');
+        const gradleData = readFileSync(gradlePath, 'utf8');
+        appVersion = gradleData.match(/versionName "((?:[0-9]+\.?)+)"/)[1];
+        buildNumber = gradleData.match(/versionCode ([0-9]+)/)[1];
+    } else if (platform === 'ios') {
+        const plistPath = resolve(projectRoot, appResourcesPath, 'iOS/Info.plist');
+        const plistData = readFileSync(plistPath, 'utf8');
+        appVersion = plistData.match(/<key>CFBundleShortVersionString<\/key>[\s\n]*<string>(.*?)<\/string>/)[1];
+        buildNumber = plistData.match(/<key>CFBundleVersion<\/key>[\s\n]*<string>([0-9]*)<\/string>/)[1];
+    }
+
     const locales = readdirSync(join(projectRoot, appPath, 'i18n'))
         .filter((s) => s.endsWith('.json'))
         .map((s) => s.replace('.json', ''));
@@ -118,18 +141,19 @@ module.exports = (env, params = {}) => {
         PRODUCTION: !!production,
         process: 'global.process',
         'global.TNS_WEBPACK': 'true',
-        'global.isIOS': platform === 'ios',
-        'global.isAndroid': platform === 'android',
+        'global.isIOS': isIOS,
+        'global.isAndroid': isAndroid,
         'global.autoLoadPolyfills': false,
         __UI_USE_EXTERNAL_RENDERER__: true,
         __UI_USE_XML_PARSER__: false,
+        __APP_ID__: `"${nconfig.id}"`,
+        __APP_VERSION__: `"${appVersion}"`,
+        __APP_BUILD_NUMBER__: `"${buildNumber}"`,
         'global.__AUTO_REGISTER_UI_MODULES__': false,
         TNS_ENV: JSON.stringify(mode),
         'gVars.sentry': !!sentry,
         SENTRY_DSN: `"${process.env.SENTRY_DSN}"`,
-        GLASSES_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/Ci9CHLTngBY8ePj/download/glasses_images.zip"',
-        MAP_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/LqYLkRmFoGrMixi/download/tiles.zip"',
-        GEOJSON_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/TCKXP59bgzix6eR/download/map.geojson"',
+        UPDATE_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/dB8weHEM5EzxNW7/download"',
         SENTRY_PREFIX: `"${!!sentry ? process.env.SENTRY_PREFIX : ''}"`,
         NO_CONSOLE: noconsole,
         DEV_LOG: !!devlog,
@@ -147,7 +171,7 @@ module.exports = (env, params = {}) => {
     //         appIcons[v.name.replace('$icon-', '')] = String.fromCharCode(parseInt(v.value.slice(2), 16));
     //     });
 
-    const scssPrepend = `$mdi-fontFamily: ${platform === 'android' ? 'materialdesignicons-webfont' : 'Material Design Icons'};`;
+    const scssPrepend = `$mdi-fontFamily: ${isAndroid ? 'materialdesignicons-webfont' : 'Material Design Icons'};`;
 
     const scssLoaderRuleIndex = config.module.rules.findIndex((r) => r.test && r.test.toString().indexOf('scss') !== -1);
     config.module.rules.splice(
@@ -340,17 +364,6 @@ module.exports = (env, params = {}) => {
                     filename: join(process.env.SOURCEMAP_REL_DIR, '[name].js.map')
                 })
             );
-            let appVersion;
-            let buildNumber;
-            if (platform === 'android') {
-                appVersion = readFileSync('app/App_Resources/Android/app.gradle', 'utf8').match(/versionName "((?:[0-9]+\.?)+)"/)[1];
-                buildNumber = readFileSync('app/App_Resources/Android/app.gradle', 'utf8').match(/versionCode ([0-9]+)/)[1];
-            } else if (platform === 'ios') {
-                appVersion = readFileSync('app/App_Resources/iOS/Info.plist', 'utf8').match(/<key>CFBundleShortVersionString<\/key>[\s\n]*<string>(.*?)<\/string>/)[1];
-                buildNumber = readFileSync('app/App_Resources/iOS/Info.plist', 'utf8').match(/<key>CFBundleVersion<\/key>[\s\n]*<string>([0-9]*)<\/string>/)[1];
-            }
-            console.log('appVersion', appVersion, buildNumber);
-
             config.plugins.push(
                 new SentryCliPlugin({
                     release: appVersion,

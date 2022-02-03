@@ -447,6 +447,7 @@
 -keep,allowoptimization public class com.akylas.juleverne.** { public protected *; }
 -keep,allowoptimization public class net.lingala.zip4j.** { public protected *; }
 -keep,allowoptimization public class android.app.WallpaperManager** { public  *; }
+-keep,allowoptimization public class androidx.core.content.res.ResourcesCompat** { public  *; }
 -keep,allowoptimization public class androidx.appcompat.app.AppCompatDelegate** { public  *; }
 -keep,allowoptimization public class android.content.ServiceConnection** { public  *; }
 -keep,allowoptimization public class android.os.Binder** { public  *; }

@@ -25,11 +25,11 @@ import { CommandType, ConfigListData, FreeSpaceData } from '~/handlers/Message';
 import { $t, $tc } from '~/helpers/locale';
 import { MessageError } from '~/services/CrashReportService';
 import { timeout } from '~/utils';
-import { ComponentIds } from './App';
 import FirmwareUpdate from './FirmwareUpdate';
 import OptionSelect from './OptionSelect';
 import { getGlassesImagesFolder } from '~/utils/utils';
 import { Application } from '@akylas/nativescript';
+import { ComponentIds } from '~/vue.prototype';
 
 @Component({
     components: {}
@@ -217,23 +217,24 @@ export default class Settings extends BgServiceComponent {
     }
     sessionStopped = true;
     async setup({ bluetoothHandler, geoHandler }: { bluetoothHandler: BluetoothHandler; geoHandler: GeoHandler }) {
+        this.refresh();
         this.levelLuminance = bluetoothHandler.levelLuminance;
         this.gestureEnabled = bluetoothHandler.isGestureOn;
         this.sensorEnabled = bluetoothHandler.isSensorOn;
         this.connectedGlasses = bluetoothHandler.glasses;
         this.sessionStopped = true;
-        if (this.connectedGlasses) {
-            this.updateGlassesBattery(bluetoothHandler.glassesBattery);
-            this.onGlassesSettings({ data: this.connectedGlasses.settings } as any);
-        }
+
         this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
         this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
         this.bluetoothHandlerOn(GlassesSettingsEvent, this.onGlassesSettings);
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
-
-        await this.getConfigs(false);
-        await this.getMemory(false);
-        this.refresh();
+        if (this.connectedGlasses) {
+            this.updateGlassesBattery(bluetoothHandler.glassesBattery);
+            this.onGlassesSettings({ data: this.connectedGlasses.settings } as any);
+            await this.getConfigs(false);
+            await this.getMemory(false);
+            this.refresh();
+        }
     }
     onGlassesConnected(e: BLEConnectionEventData) {
         this.connectedGlasses = e.data as GlassesDevice;
@@ -263,13 +264,11 @@ export default class Settings extends BgServiceComponent {
         }
     }
     async pickFile(ext: string) {
-        console.log('pickFile', ext);
         if (__IOS__) {
             const r = await knownFolders
                 .documents()
                 .getEntities()
                 .then((result) => result.filter((s) => s.path.endsWith(ext)));
-            console.log('r', r);
             if (r && r.length > 0) {
                 const options = {
                     props: {
@@ -316,7 +315,6 @@ export default class Settings extends BgServiceComponent {
     }
 
     async pickConfig() {
-        console.log('pickConfig');
         const r = (await Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories')).getEntities()).concat([
             { path: path.join(getGlassesImagesFolder(), 'navigation'), name: 'navigation' }
         ] as any);
@@ -350,13 +348,18 @@ export default class Settings extends BgServiceComponent {
                     const config = await this.pickConfig();
                     if (config) {
                         await new Promise<void>(async (resolve) => {
-                            const size = File.fromPath(path.join(config, 'images.bin')).size;
-                            console.log('addConfig', config, this.memory, size);
+                            let size;
+                            try {
+                                size = JSON.parse(File.fromPath(path.join(config, 'info.json')).readTextSync()).totalImageSize;
+                            } catch (error) {
+                                console.error(error);
+                                size = File.fromPath(path.join(config, 'images.txt')).size / 2;
+                            }
                             if (size >= this.memory.freeSpace) {
                                 throw new MessageError({ message: $tc('not_enough_memory', size, this.memory.freeSpace) });
                             }
                             const promise = this.bluetoothHandler.sendLayoutConfig(path.join(config, 'images.txt'), (progress, current, total) => {
-                                console.log('sendLayoutConfig progress', progress, current, total);
+                                // console.log('sendLayoutConfig progress', progress, current, total);
                                 this.updateLoadingProgress({ progress: progress * 100, text: $tc('sending_config_progress', Math.ceil(progress * 100) + '%', fileSize(total)) });
                                 if (progress === 1) {
                                     resolve();
@@ -397,7 +400,7 @@ export default class Settings extends BgServiceComponent {
                     }
                     break;
                 case 'checkBetaFirmware':
-                    this.$getAppComponent().checkFirmwareUpdateOnline(this.devMode);
+                    // this.$getAppComponent().checkFirmwareUpdateOnline(this.devMode);
                     break;
 
                 case 'refreshMemory':
@@ -408,7 +411,7 @@ export default class Settings extends BgServiceComponent {
                     const pickedFile = await this.pickFile('.img');
                     console.log('pickedFile', pickedFile);
                     if (pickedFile) {
-                        this.$getAppComponent().navigateTo(FirmwareUpdate, { props: { firmwareFile: File.fromPath(pickedFile) } });
+                        this.$navigateTo(FirmwareUpdate, { props: { firmwareFile: File.fromPath(pickedFile) } });
                     }
                     break;
                 case 'drawTestImage':
@@ -431,7 +434,12 @@ export default class Settings extends BgServiceComponent {
     async setWalppaper() {
         const context = Application.android.context;
         const identifier = context.getResources().getIdentifier('wallpaper', 'drawable', context.getPackageName());
+        // console.log('wallpaper id', identifier);
+        // const bitmap = androidx.core.content.res.ResourcesCompat.getDrawable(context.getResources(), identifier, null) as android.graphics.drawable.BitmapDrawable;
+        // console.log('bitmap', bitmap, bitmap.getBitmap());
+
         const wallpaperManager = android.app.WallpaperManager.getInstance(context);
         wallpaperManager.setResource(identifier);
+        // wallpaperManager.setBitmap(bitmap.getBitmap());
     }
 }

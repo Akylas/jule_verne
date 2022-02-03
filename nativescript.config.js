@@ -3,7 +3,6 @@ module.exports = {
     ignoredNativeDependencies: ['@nativescript-community/sentry'],
     appResourcesPath: 'App_Resources',
     forceLog: true,
-    profiling:'timeline',
     android: {
         maxLogcatObjectSize: 2048,
         markingMode: 'none',

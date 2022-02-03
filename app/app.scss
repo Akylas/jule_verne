@@ -1,6 +1,6 @@
-@use 'sass:color';
-@use 'sass:math';
-@import './variables';
+@use "sass:color";
+@use "sass:math";
+@import "./variables";
 // @import "./animations";
 
 Page {
@@ -76,7 +76,7 @@ TabViewItem {
     font-size: 16;
 }
 
-.menu[active='true'] {
+.menu[active="true"] {
     background-color: color.adjust($accent-color, $alpha: -0.4);
 }
 .menuInfos {

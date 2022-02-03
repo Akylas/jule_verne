@@ -56,14 +56,18 @@ export default class ActionBar extends BaseVueComponent {
 
     mounted() {
         setTimeout(() => {
-            this.canGoBack = this.modal || this.$getAppComponent().canGoBack();
+            this.canGoBack = this.modal || this.$canGoBack();
         }, 0);
     }
     onMenuIcon() {
         if (this.modal) {
             this.$modal.close();
         } else {
-            this.$getAppComponent().onMenuIcon();
+            if (this.$canGoBack()) {
+                this.$navigateBack();
+            } else {
+                this.$openDrawer();
+            }
         }
     }
 

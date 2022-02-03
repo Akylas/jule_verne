@@ -1,4 +1,3 @@
-import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { CollectionView } from '@nativescript-community/ui-collectionview';
 import { openFilePicker } from '@nativescript-community/ui-document-picker';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
@@ -11,12 +10,8 @@ import { Component } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import OptionSelect from '~/components/OptionSelect';
 import TrackDetails from '~/components/TrackDetails';
-import { GeoHandler } from '~/handlers/GeoHandler';
-import Leaflet from '~/components/Leaflet.vue';
-import Track, { TrackFeatureCollection } from '~/models/Track';
-import { confirm } from '~/utils/dialogs';
-import { bboxify } from '~/utils/geo';
-import { ComponentIds } from './App';
+import Track from '~/models/Track';
+import { ComponentIds } from '~/vue.prototype';
 
 interface Item {
     track: Track;
@@ -248,7 +243,7 @@ export default class Tracks extends BgServiceComponent {
         if (this.selectedSessions.length > 0) {
             this.onItemLongPress(item);
         } else {
-            this.$getAppComponent().navigateTo(TrackDetails, { props: { track: item.track } });
+            this.$navigateTo(TrackDetails, { props: { track: item.track } });
         }
     }
 

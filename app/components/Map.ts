@@ -1,9 +1,9 @@
 import { Component } from 'vue-property-decorator';
 import BgServiceComponent from '~/components/BgServiceComponent';
 import { GeoHandler, SessionEventData } from '~/handlers/GeoHandler';
-import { ComponentIds } from './App';
 import MapComponent from './MapComponent';
 import { BaseVueComponentRefs } from './BaseVueComponent';
+import { ComponentIds } from '~/vue.prototype';
 
 export interface HomeRefs extends BaseVueComponentRefs {
     [key: string]: any;
