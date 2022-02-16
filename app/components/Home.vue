@@ -22,6 +22,21 @@
                 </StackLayout> -->
 
                 <Image ref="imageView" :width="bigImage ? '90%' : 100" horizontalAlignment="left" verticalAlignment="bottom" row="1" marginBottom="70" @tap="bigImage = !bigImage" />
+
+                <MDButton
+                    row="1"
+                    @tap="onTap('toggleMusicPlayPause', $event)"
+                    verticalTextAlignment="bottom"
+                    textAlignment="center"
+                    v-show="storyPlaying"
+                    horizontalAlignment="center"
+                    verticalAlignment="bottom"
+                    padding="15"
+                    marginBottom="90"
+                >
+                    <Span :fontFamily="mdiFontFamily" :text="'mdi-music' + ' '" fontSize="24" />
+                    <Span fontWeight="bold" :text="storyPaused ? $tc('play') : $tc('pause')" verticalAlignment="center" fontSize="20" />
+                </MDButton>
                 <StackLayout orientation="horizontal" horizontalAlignment="center" verticalAlignment="bottom" row="1">
                     <MDButton class="floating-btn" :text="sessionRunning ? 'mdi-pause' : 'mdi-play'" @tap="onTap('startSession')" />
                     <MDButton class="floating-btn" v-show="sessionPaused" :text="'mdi-stop'" @tap="onTap('stopSession')" />

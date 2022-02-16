@@ -167,12 +167,13 @@ export default class Lyric {
         this.isPlay = false;
         this.isOffseted = false;
         timeoutTools.clear();
-        if (this.curLineNum === this.maxLine) return;
-        const curLineNum = this._findCurLineNum(this._currentTime());
-        if (this.curLineNum !== curLineNum) {
-            this.curLineNum = curLineNum;
-            this.onPlay(curLineNum, this.lines[curLineNum].text);
-        }
+        // if (this.curLineNum === this.maxLine) return;
+        // const curLineNum = this._findCurLineNum(this._currentTime());
+        // if (this.curLineNum !== curLineNum) {
+        //     this.curLineNum = curLineNum;
+        //     this.onPlay(curLineNum, this.lines[curLineNum].text);
+        // }
+        return this._currentTime();
     }
     // setLyric(lyric) {
     //     if (this.isPlay) this.pause();

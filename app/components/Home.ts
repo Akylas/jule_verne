@@ -52,7 +52,7 @@ import { off as appOff, on as appOn } from '~/utils';
 import { confirm } from '~/utils/dialogs';
 import { bboxify } from '~/utils/geo';
 import { getGlassesImagesFolder, getWorkingDir } from '~/utils/utils';
-import { backgroundColor, textColor } from '~/variables';
+import { backgroundColor, mdiFontFamily, textColor } from '~/variables';
 import { date } from '~/vue.filters';
 import { ComponentIds } from '~/vue.prototype';
 import { BaseVueComponentRefs } from './BaseVueComponent';
@@ -80,6 +80,7 @@ export interface HomeRefs extends BaseVueComponentRefs {
 })
 export default class Home extends BgServiceComponent {
     date = date;
+    mdiFontFamily = mdiFontFamily;
     backgroundColor = backgroundColor;
     textColor = textColor;
     navigateUrl = ComponentIds.Activity;
@@ -103,6 +104,9 @@ export default class Home extends BgServiceComponent {
     selectedTrack: Track = null;
     selectedTracks: Track[] = null;
     insideFeature: TrackFeature = null;
+
+    storyPlaying = false;
+    storyPaused = false;
 
     viewedFeatures = null;
 
@@ -176,6 +180,11 @@ export default class Home extends BgServiceComponent {
     }
     onGeojsonDataUpdateDate(event) {
         this.geojsonDataUpdateDate = event.data;
+    }
+    onStoryPlayingEvent(event) {
+        console.log('onStoryPlayingEvent', event.data);
+        this.storyPlaying = event.data !== 'stop';
+        this.storyPaused = event.data === 'pause';
     }
     mounted() {
         super.mounted();
@@ -363,6 +372,7 @@ export default class Home extends BgServiceComponent {
         this.bluetoothHandlerOn(VersionEvent, this.onGlassesVersion);
         this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
         this.bluetoothHandlerOn(StatusChangedEvent, this.onBLEStatus);
+        this.bluetoothHandlerOn('storyPlayback', this.onStoryPlayingEvent);
 
         this.connectingToGlasses = handlers.bluetoothHandler.connectingToGlasses;
         if (handlers.bluetoothHandler.glasses) {
@@ -503,7 +513,7 @@ export default class Home extends BgServiceComponent {
 
                     break;
                 case 'stopSession':
-                    confirm({
+                    await confirm({
                         title: this.$t('stop_session'),
                         message: this.$t('stop_session_are_you_sure'),
                         okButtonText: this.$t('stop'),
@@ -519,14 +529,14 @@ export default class Home extends BgServiceComponent {
                         .catch(this.showError);
                     break;
                 case 'menu':
-                    this.drawer.open();
+                    this.drawer.toggle('left');
                     break;
                 case 'settings':
-                    this.$navigateToUrl(ComponentIds.Settings);
+                    await this.$navigateToUrl(ComponentIds.Settings);
                     break;
                 case 'connectGlasses':
                     if (this.connectedGlasses) {
-                        this.$refs.drawer.nativeView.toggle();
+                        this.drawer.toggle('right');
                     } else {
                         if (!this.bluetoothHandler.isEnabled()) {
                             this.bluetoothHandler.enable();
@@ -555,7 +565,7 @@ export default class Home extends BgServiceComponent {
                     await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
                     break;
                 case 'changeDeviceName':
-                    prompt({
+                    await prompt({
                         title: $tc('change_glasses_name'),
                         // message: $tc('change_glasses_name'),
                         okButtonText: $tc('change'),
@@ -581,6 +591,16 @@ export default class Home extends BgServiceComponent {
                             }
                         })
                         .catch(this.showError);
+                    break;
+                case 'toggleMusicPlayPause':
+                    console.log('toggleMusicPlayPause');
+                    if (this.storyPlaying) {
+                        if (this.storyPaused) {
+                            this.bluetoothHandler.resumeStory();
+                        } else {
+                            this.bluetoothHandler.pauseStory();
+                        }
+                    }
                     break;
             }
         } catch (err) {

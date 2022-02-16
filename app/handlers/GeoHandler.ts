@@ -976,6 +976,7 @@ export class GeoHandler extends Observable {
     }
     async askForSessionPerms() {
         await this.enableLocation();
+        await this.checkBattery();
     }
 
     async askAndStartSession() {
@@ -985,7 +986,9 @@ export class GeoHandler extends Observable {
     async startSession() {
         this.actualSessionStart(true);
         await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
-        this.bluetoothHandler.playInstruction('start', { force: true });
+        if (PRODUCTION) {
+            return this.bluetoothHandler.playInstruction('start', { force: true });
+        }
     }
 
     async resumeSession() {

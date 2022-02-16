@@ -5,7 +5,7 @@ import { AdditiveTweening } from 'additween';
 import * as appSettings from '@nativescript/core/application-settings';
 import { EventData, Observable } from '@nativescript/core/data/observable';
 import { Folder, knownFolders, path } from '@nativescript/core/file-system';
-import { TNSPlayer } from 'nativescript-audio';
+import { TNSPlayer } from '@akylas/nativescript-audio';
 import { GeoHandler, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
 import { $t, $tc } from '~/helpers/locale';
 import { MessageError } from '~/services/CrashReportService';
@@ -1034,6 +1034,7 @@ export class BluetoothHandler extends Observable {
     }
     currentLoop: string = null;
     isPlaying = false;
+    isPlayingPaused = false;
     isPlayingStory = 0;
     isPlayingMusic = false;
     isPlayingNavigationInstruction = false;
@@ -1061,11 +1062,16 @@ export class BluetoothHandler extends Observable {
         // if (!this.isPlaying) {
         //     return;
         // }
-        DEV_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this._player.isAudioPlaying(), new Error().stack);
-        if (instruction && this.isPlayingNavigationInstruction && (this.isPlayingMusic || this.isPlayingStory)) {
+        DEV_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this._player.isAudioPlaying());
+        if (instruction && !this.isPlayingNavigationInstruction) {
             return;
         }
         this.isPlaying = false;
+        this.isPlayingPaused = false;
+        if (this.isPlayingStory) {
+            this.isPlayingStory = 0;
+            this.notify({ eventName: 'storyPlayback', data: 'stop' });
+        }
         if (this.lyric) {
             this.lyric.pause();
             this.lyric = null;
@@ -1159,7 +1165,7 @@ export class BluetoothHandler extends Observable {
         // this.fadein();
         let loopIndex = 0;
         const iterations = options?.hasOwnProperty('iterations') ? options.iterations : 1;
-        const imageMap = this.navigationMap;
+        const imageMap = this.navigationImageMap;
         DEV_LOG && console.log('playOfImages', images, imagesFolder, myLoop, this.currentLoop, options, this.isFaded, iterations, loopIndex);
         if (this.glasses) {
             this.setConfig('nav');
@@ -1311,7 +1317,7 @@ export class BluetoothHandler extends Observable {
         return this._imagesMap[cfgId];
     }
     _navigationMapImagesMap: { [k: string]: [number, number, number, number, number] };
-    get navigationMap() {
+    get navigationImageMap() {
         if (!this._navigationMapImagesMap) {
             const filePath = path.join(getGlassesImagesFolder(), 'navigation/image_map.json');
             this._navigationMapImagesMap = JSON.parse(File.fromPath(filePath).readTextSync());
@@ -1341,19 +1347,20 @@ export class BluetoothHandler extends Observable {
         }
     }
     async playNavigationInstruction(instruction: string, options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
+        DEV_LOG && console.log('playNavigationInstruction', instruction, this.isPlaying, options);
         if (instruction === 'exit') {
             instruction = 'uturn';
             options = options || {};
             options.audioFolder = options.audioFolder || path.join(getGlassesImagesFolder(), 'navigation', 'exit');
         }
-        return this.playInstruction(instruction, { iterations: 0, frameDuration: 300, instruction: true, queue: true, randomAudio: true, ...options });
+        return this.playInstruction(instruction, { iterations: 0, frameDuration: 300, instruction: true, queue: false, randomAudio: true, ...options });
     }
     async playInstruction(instruction: string, options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio?; randomAudio?: boolean; instruction? }) {
         DEV_LOG && console.log('playInstruction', instruction, this.isPlaying, options);
         if (this.isPlaying) {
             if (options?.force === true) {
                 await this.stopPlayingLoop({ fade: false, ignoreNext: true });
-            } else if (options?.queue === true) {
+            } else if (options?.queue !== false) {
                 return new Promise<void>((resolve) => {
                     this.toPlayNext = async () => {
                         await this.playInstruction(instruction, options);
@@ -1422,6 +1429,7 @@ export class BluetoothHandler extends Observable {
         if (this.isPlayingStory === storyIndex) {
             return;
         }
+        // finish what we are playing first
         if (this.isPlaying) {
             return new Promise<void>((resolve) => {
                 this.toPlayNext = async () => {
@@ -1435,6 +1443,24 @@ export class BluetoothHandler extends Observable {
         this.isPlayingStory = storyIndex;
         await this.playInstruction('rideau', { iterations: 1 });
         this.playStory(storyIndex);
+    }
+
+    currentLyricsTime = 0;
+    async pauseStory() {
+        if (this.isPlayingStory) {
+            this._player.pause();
+            this.currentLyricsTime = this.lyric.pause();
+            this.isPlayingPaused = true;
+            this.notify({ eventName: 'storyPlayback', data: 'pause' });
+        }
+    }
+    async resumeStory() {
+        if (this.isPlayingStory && this.isPlayingPaused) {
+            this._player.resume();
+            this.lyric.play(this.currentLyricsTime);
+            this.isPlayingPaused = false;
+            this.notify({ eventName: 'storyPlayback', data: 'play' });
+        }
     }
     async playStory(index = 1) {
         DEV_LOG && console.log('playStory', index, this.isPlaying);
@@ -1487,6 +1513,8 @@ export class BluetoothHandler extends Observable {
             });
             this.clearFadeout();
             this.lyric.play();
+            console.log('notify storyPlayback');
+            this.notify({ eventName: 'storyPlayback', data: 'play' });
             await this.playAudio(path.join(storyFolder, 'audio.mp3'));
             DEV_LOG && console.log('playStory done ', index, this.isPlaying);
             // mark story as played
@@ -1494,7 +1522,8 @@ export class BluetoothHandler extends Observable {
             this.geoHandler.playedStory(index + '');
             this.playInstruction('story_finished');
         } finally {
-            this.isPlayingStory = 0;
+            this.currentLyricsTime = 0;
+            console.log('finished playing story');
             this.stopPlayingLoop();
         }
     }

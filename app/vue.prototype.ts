@@ -492,9 +492,9 @@ const Plugin = {
         }
         let updatingStories = false;
         Vue.prototype.$checkForGlassesDataUpdate = async function () {
-            if (!PRODUCTION) {
-                return;
-            }
+            // if (!PRODUCTION) {
+            //     return;
+            // }
             if (updatingStories) {
                 return;
             }
@@ -513,9 +513,9 @@ const Plugin = {
         };
         Vue.prototype.$checkForMapDataUpdate = async function () {
             const progressNotificationId = 52305;
-            if (!PRODUCTION) {
-                return;
-            }
+            // if (!PRODUCTION) {
+            //     return;
+            // }
             try {
                 const url = ApplicationSettings.getString('UPDATE_DATA_DEFAULT_URL', UPDATE_DATA_DEFAULT_URL) + '?path=/&files=tiles.zip';
                 const headers = await getHEAD(url);
