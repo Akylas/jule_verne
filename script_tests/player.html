@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0" />
+        <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+    </head>
+
+    <body>
+        <div id="app">
+            <label for="myfile">Select a file:</label>
+            <input type="file" id="conpositionPicker" name="Choisir un fichier de composition.json" />
+            <lottie-player style="width: 100%;height: 700px" src="/animation.json" controls preserveAspectRatio="xMidYMid meet"></lottie-player>
+
+            <script>
+                // function base64_encode(file) {
+                //     // read binary data
+                //     const bitmap = readFileSync(file);
+                //     // convert binary data to base64 encoded string
+                //     return Buffer.from(bitmap).toString('base64');
+                // }
+
+                // function prepareLottie(data) {
+                //     // const data = require(path.join(storyFolder, 'composition.json'));
+                //     // const imagesMap = require(path.join(storyFolder, 'image_map.json'));
+                //     const assets = {};
+                //     const assetsToAdd = [];
+                //     data.w = 228;
+                //     data.h = 192;
+                //     data.assets.forEach((a) => {
+                //         assets[a.id] = a.layers;
+                //         a.layers.forEach((layer) => {
+                //             const cleaned = layer.nm.split('.')[0];
+                //             if ( !assets[layer.refId]) {
+                //                 const asset = (assets[layer.refId] = {
+                //                     id: layer.refId,
+                //                     w: 228,
+                //                     h: 192,
+                //                     // e: 1,
+                //                     // u: '',
+                //                     // p: `data:image/png;base64,${base64_encode(path.join(storyImagesFolder, cleaned + '.png'))}`
+                //                     e: 0,
+                //                     u: 'images/',
+                //                     p: cleaned + '.png'
+                //                 });
+                //                 assetsToAdd.push(asset);
+                //             }
+                //         });
+                //     });
+
+                //     data.layers.forEach((layer) => {
+                //         if (!assets[layer.refId]) {
+                //             const cleaned = layer.nm.split('.')[0];
+                //             if (imagesMap[cleaned]) {
+                //                 const asset = (assets[layer.refId] = {
+                //                     id: layer.refId,
+                //                     w: 228,
+                //                     h: 192,
+                //                     // e: 1,
+                //                     // u: '',
+                //                     // p: `data:image/png;base64,${base64_encode(path.join(storyImagesFolder, cleaned + '.png'))}`
+                //                     e: 0,
+                //                     u: 'images/',
+                //                     p: cleaned + '.png'
+                //                 });
+                //                 assetsToAdd.push(asset);
+                //             }
+                //         }
+                //     });
+                //     data.assets.push(...assetsToAdd);
+                //     return data;
+                // }
+
+                const player = document.querySelector('lottie-player');
+                let audioPlayer;
+                player.addEventListener('play', () => {
+                    console.log('play');
+                    if (!audioPlayer) {
+                        audioPlayer = new Audio('/static/audio.mp3');
+                    }
+                    audioPlayer.play();
+                });
+                player.addEventListener('pause', () => {
+                    console.log('pause');
+                    if (audioPlayer) {
+                        audioPlayer.pause();
+                    }
+                });
+                // player.addEventListener('frame', (e) => {
+                //     console.log('frame', e)
+                // });
+                player.addEventListener('stop', () => {
+                    console.log('stop');
+                    if (audioPlayer) {
+                        audioPlayer.pause();
+                        audioPlayer.currentTime = 0;
+                    }
+                });
+
+                // document.getElementById('conpositionPicker').onchange = function (e) {
+                //     var fileToLoad = e.target.files[0];
+                //     console.log('fileToLoad', fileToLoad)
+                //     var fileReader = new FileReader();
+                //     fileReader.onload = function (fileLoadedEvent) {
+                //         var textFromFileLoaded = fileLoadedEvent.target.result;
+                //         console.log('textFromFileLoaded', textFromFileLoaded)
+                //         const data = prepareLottie(JSON.parse(textFromFileLoaded));
+                //         player.load(data);
+                //         // document.getElementById('inputTextToSave').value = textFromFileLoaded;
+                //     };
+                //     fileReader.readAsText(fileToLoad, 'UTF-8');
+                //     document.getElementById('conpositionPicker').value = null;
+                // };
+            </script>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0"
+    />
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@0.3.0/dist/lottie-player.js"></script>
+  </head>
+
+  <body>
+    <div id="app">
+      <h3>Play from remote URL with controls displayed</h3>
+      <lottie-player
+        src="animation.json"
+        style="width: 400px;"
+        autoplay
+        loop
+        controls
+      ></lottie-player>
+
+     
+      <script>
+        const player = document.querySelector("#playerHandler");
+        player.addEventListener("play", () => {
+
+        });
+        player.addEventListener("pause", () => {
+
+        });
+        player.addEventListener("stop", () => {
+
+        });
+      </script>
+    </div>
+  </body>
+</html>
