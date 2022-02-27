@@ -38,3 +38,4 @@ pnpm-lock.yaml
 /report
 /jules_verne
 *.zip
+/.vscode/settings.json

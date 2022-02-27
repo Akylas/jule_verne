@@ -9,6 +9,7 @@ declare module '*.vue' {
 }
 declare module '*.scss';
 
+declare const GITLAB_TOKEN: string;
 declare const TNS_ENV: string;
 declare const DEV_LOG: boolean;
 declare const TEST_LOGS: boolean;

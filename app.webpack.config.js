@@ -152,6 +152,7 @@ module.exports = (env, params = {}) => {
         'global.__AUTO_REGISTER_UI_MODULES__': false,
         TNS_ENV: JSON.stringify(mode),
         'gVars.sentry': !!sentry,
+        GITLAB_TOKEN: `"${process.env.GITLAB_TOKEN}"`,
         SENTRY_DSN: `"${process.env.SENTRY_DSN}"`,
         UPDATE_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/dB8weHEM5EzxNW7/download"',
         SENTRY_PREFIX: `"${!!sentry ? process.env.SENTRY_PREFIX : ''}"`,
