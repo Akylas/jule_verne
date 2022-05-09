@@ -144,7 +144,7 @@ export class BgService extends android.app.Service {
 
     removeForeground() {
         try {
-            console.log('removeForeground', this.recording, this.bluetoothHandler.glasses);
+            console.log('removeForeground', this.recording, !!this.bluetoothHandler.glasses);
             if (!this.recording || !this.bluetoothHandler.glasses) {
                 this.stopForeground(false);
                 this.notificationManager.cancel(NOTIFICATION_ID);

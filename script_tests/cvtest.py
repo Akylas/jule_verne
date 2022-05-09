@@ -73,6 +73,8 @@ def get_size(filename="dd.png"):
     return size
 
 img = cv2.imread("/Volumes/data/dev/nativescript/jule_verne/app/assets/data/waiting/stories/2/images/chambredhotel1.bmp")
+
+cropImage();
 # img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 shape=img.shape
 encoded = RLE_encoding(img, bits=8, binary=False)

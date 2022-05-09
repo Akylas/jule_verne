@@ -1,21 +1,26 @@
-import { File } from '@nativescript/core';
+import { TNSPlayer } from '@akylas/nativescript-audio';
 import { Bluetooth, StartScanningOptions as IStartScanningOptions, Peripheral, ReadResult, StartNotifyingOptions } from '@nativescript-community/ble';
 import { isSimulator } from '@nativescript-community/extendedinfo';
-import { AdditiveTweening } from 'additween';
+import { showSnack } from '@nativescript-community/ui-material-snackbar';
+import { File } from '@nativescript/core';
 import * as appSettings from '@nativescript/core/application-settings';
 import { EventData, Observable } from '@nativescript/core/data/observable';
-import { Folder, knownFolders, path } from '@nativescript/core/file-system';
-import { TNSPlayer } from '@akylas/nativescript-audio';
+import { Folder, path } from '@nativescript/core/file-system';
+import { AdditiveTweening } from 'additween';
+import dayjs from 'dayjs';
+import fileSize from 'filesize';
 import { GeoHandler, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
+import { CommandType, ConfigListData, FreeSpaceData, InputCommandType, Message } from '~/handlers/Message';
+import { formatDuration } from '~/helpers/formatter';
 import { $t, $tc } from '~/helpers/locale';
 import { MessageError } from '~/services/CrashReportService';
-import { versionCompare } from '~/utils';
+import { hashCode, versionCompare } from '~/utils';
 import { alert, confirm } from '~/utils/dialogs';
+import * as ProgressNotification from '~/utils/progress-notifications';
+import { getGlassesImagesFolder } from '~/utils/utils';
 import { Characteristic } from './bluetooth/Characteristic';
 import { GlassesDevice } from './bluetooth/GlassesDevice';
 import Lyric from './Lyric';
-import { CommandType, InputCommandType, Message } from './Message';
-import { getGlassesImagesFolder } from '~/utils/utils';
 
 export { Peripheral };
 
@@ -61,11 +66,13 @@ export const GlassesReconnectingFailedEvent = 'GlassesReconnectingFailed';
 export const BLEDisconnectedEvent = 'disconnected';
 export const GlassesBatteryEvent = 'glassesBattery';
 export const GlassesScreenChangeEvent = 'glassesScreenChange';
+export const GlassesMemoryChangeEvent = 'glassesMemory';
 export const GlassesScreenStateChangeEvent = 'glassesScreenStateChange';
 export const VersionEvent = 'version';
 export const SerialEvent = 'serial';
 export const GlassesSettingsEvent = 'settings';
 export const DevLogMessageEvent = 'devlogmessage';
+export const AvailableConfigsEvent = 'availableConfigs';
 
 export function timeout(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,6 +90,8 @@ export function hexToBytes(hex) {
     for (let c = 2; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
     return bytes;
 }
+
+export type CancelPromise = Promise<void> & { cancel() };
 
 // function pictureDimensionToByteArray(height, width) {
 //     const result = [];
@@ -222,10 +231,13 @@ export class BluetoothHandler extends Observable {
     connectingToSavedGlasses = false;
     manualDisconnect: { [k: string]: boolean } = {};
     _devMode = false;
+    currentGlassesMemory: FreeSpaceData;
 
     geoHandler: GeoHandler;
 
     devLog: Message<any>[];
+    canDrawOnGlasses: boolean = true;
+    currentConfigs: ConfigListData = null;
 
     get devMode() {
         return this._devMode;
@@ -242,9 +254,6 @@ export class BluetoothHandler extends Observable {
         if (!bluetooth) {
             bluetooth = new Bluetooth('myCentralManagerIdentifier');
         }
-    }
-    log(...args) {
-        console.log('[BluetoothHandler]', ...args);
     }
 
     async stop() {
@@ -437,6 +446,7 @@ export class BluetoothHandler extends Observable {
                 this.isScreenOn = true;
                 this.needsPowerOn = true;
                 this.savedGlassesUUID = data.UUID;
+                this.canDrawOnGlasses = true;
                 // if the session is paused it must have been an unwanted disconnection
                 // dont change the user page
 
@@ -510,8 +520,11 @@ export class BluetoothHandler extends Observable {
 
         if (this.glasses && data.UUID === this.glasses.UUID) {
             this.geoHandler.setReadableStories(null);
+            this.notify({ eventName: AvailableConfigsEvent, data: null });
             this.glasses.onDisconnected();
             this.glasses = null;
+            this.currentGlassesMemory = null;
+            this.currentConfigs = null;
             bluetooth.isBluetoothEnabled().then((enabled) => {
                 const manualDisconnect = !!this.manualDisconnect[data.UUID] || !enabled;
                 this.notify({
@@ -646,6 +659,8 @@ export class BluetoothHandler extends Observable {
         switch (message.commandType) {
             case CommandType.cfgList:
                 const list = (message as Message<CommandType.cfgList>).data;
+                this.currentConfigs = list.sort((a, b) => a.name.localeCompare(b.name));
+                this.notify({ eventName: AvailableConfigsEvent, data: this.currentConfigs });
                 this.geoHandler.setReadableStories(
                     list
                         .map((c) => parseInt(c.name, 10))
@@ -682,10 +697,10 @@ export class BluetoothHandler extends Observable {
     isSensorOn = true;
     isGestureOn = true;
     levelLuminance = 10;
-    _player = new TNSPlayer();
+    mPlayer = new TNSPlayer();
 
     createPlayer() {
-        this._player = new TNSPlayer();
+        this.mPlayer = new TNSPlayer();
     }
     setScreenOn(value) {
         if (this.isScreenOn === value) {
@@ -993,7 +1008,7 @@ export class BluetoothHandler extends Observable {
             this.clearFullScreen();
         });
         promise['cancel'] = () => (cancelled = true);
-        return promise as Promise<void> & { cancel() };
+        return promise as CancelPromise;
     }
 
     async startLoop() {
@@ -1037,11 +1052,12 @@ export class BluetoothHandler extends Observable {
     isPlayingPaused = false;
     isPlayingStory = 0;
     isPlayingMusic = false;
+    isPlayingPastille = false;
     isPlayingNavigationInstruction = false;
     toPlayNext: Function = null;
 
     async stopPlayingInstruction(fade = true) {
-        if (this.isPlaying && !this.isPlayingMusic && !this.isPlayingStory) {
+        if (this.isPlaying && !this.isPlayingMusic && !this.isPlayingStory && !this.isPlayingPastille) {
             return this.stopPlayingLoop({ fade });
         }
     }
@@ -1062,12 +1078,14 @@ export class BluetoothHandler extends Observable {
         // if (!this.isPlaying) {
         //     return;
         // }
-        DEV_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this._player.isAudioPlaying());
+        DEV_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this.mPlayer.isAudioPlaying());
         if (instruction && !this.isPlayingNavigationInstruction) {
             return;
         }
         this.isPlaying = false;
         this.isPlayingPaused = false;
+        this.isPlayingMusic = false;
+        this.isPlayingPastille = false;
         if (this.isPlayingStory) {
             this.isPlayingStory = 0;
             this.notify({ eventName: 'storyPlayback', data: 'stop' });
@@ -1081,27 +1099,26 @@ export class BluetoothHandler extends Observable {
             // await this.fadeout();
         }
         const onDone = async () => {
-            DEV_LOG && console.log('stopPlayingLoop onDone');
-            this._player.pause();
-            this._player['_options']?.errorCallback();
+            this.mPlayer.pause();
+            this.mPlayer['_options']?.errorCallback();
             try {
-                await this._player.dispose();
+                await this.mPlayer.dispose();
             } catch (err) {
-                console.log('error disposing player', err);
+                console.error('error disposing player', err);
             }
-            this._player = new TNSPlayer();
+            this.mPlayer = new TNSPlayer();
             if (!ignoreNext && this.toPlayNext) {
                 this.toPlayNext();
             }
             this.toPlayNext = null;
         };
-        if (this._player.isAudioPlaying()) {
+        if (this.mPlayer.isAudioPlaying()) {
             if (fade) {
                 try {
                     await new Promise((resolve) => {
                         const anim = new AdditiveTweening({
                             onRender: (obj) => {
-                                this._player.volume = obj.value;
+                                this.mPlayer.volume = obj.value;
                             },
                             onFinish: resolve
                         });
@@ -1118,7 +1135,6 @@ export class BluetoothHandler extends Observable {
         } else {
             await onDone();
         }
-        DEV_LOG && console.log('stopPlayingLoop done', this.isPlaying);
         this.notify({ eventName: 'drawBitmap', bitmap: null });
         if (fade) {
             this.fadeout();
@@ -1154,6 +1170,9 @@ export class BluetoothHandler extends Observable {
         }
     }
     async playOfImages(images: string[], imagesFolder, options?: { frameDuration?; randomize?; iterations? }) {
+        if (!this.canDrawOnGlasses) {
+            return;
+        }
         const myLoop = images.join('');
         // DEV_LOG && console.log('playOfImages', images, imagesFolder, myLoop, this.currentLoop, options, this.isFaded);
         if (images.length === 0 || this.currentLoop === myLoop) {
@@ -1326,24 +1345,37 @@ export class BluetoothHandler extends Observable {
     }
 
     async playAudio(audio: string, loop = false) {
+        if (!File.exists(audio)) {
+            throw new Error($tc('file_not_found', audio));
+        }
+        const file = File.fromPath(audio);
+        DEV_LOG && console.log('playAudio', audio, loop, file.size);
         return new Promise<void>(async (resolve, reject) => {
-            await this._player.playFromFile({
-                audioFile: audio, // ~ = app directory
-                loop,
-                completeCallback: () => {
-                    resolve();
-                },
-                errorCallback: () => {
-                    reject();
-                }
-            });
+            try {
+                await this.mPlayer.playFromFile({
+                    autoPlay: true,
+                    audioFile: audio, // ~ = app directory
+                    loop,
+                    completeCallback: () => {
+                        DEV_LOG && console.log('playAudio completeCallback', audio, loop);
+                        resolve();
+                    },
+                    errorCallback: () => {
+                        DEV_LOG && console.log('playAudio errorCallback', audio, loop);
+                        reject();
+                    }
+                });
+            } catch (error) {
+                console.error(error);
+                reject(error);
+            }
         });
     }
 
-    async playAudios(audios: string[]) {
+    async playAudios(audios: string[], loop = false) {
         for (let index = 0; index < audios.length; index++) {
             const audio = audios[index];
-            await this.playAudio(audio);
+            await this.playAudio(audio, loop);
         }
     }
     async playNavigationInstruction(instruction: string, options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
@@ -1355,7 +1387,10 @@ export class BluetoothHandler extends Observable {
         }
         return this.playInstruction(instruction, { iterations: 0, frameDuration: 300, instruction: true, queue: false, randomAudio: true, ...options });
     }
-    async playInstruction(instruction: string, options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio?; randomAudio?: boolean; instruction? }) {
+    async playInstruction(
+        instruction: string,
+        options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio?; randomAudio?: boolean; loop?: boolean; instruction? }
+    ) {
         DEV_LOG && console.log('playInstruction', instruction, this.isPlaying, options);
         if (this.isPlaying) {
             if (options?.force === true) {
@@ -1398,7 +1433,7 @@ export class BluetoothHandler extends Observable {
                   .sort();
         DEV_LOG && console.log('images', images);
         DEV_LOG && console.log('audios', audios);
-        if (audios && audios.length) {
+        if (audios?.length) {
             await new Promise<void>((resolve, reject) => {
                 if (options?.delay) {
                     setTimeout(() => {
@@ -1407,7 +1442,7 @@ export class BluetoothHandler extends Observable {
                 } else {
                     this.playOfImages(images, instFolder, options);
                 }
-                this.playAudios(options?.randomAudio ? [getRandomFromArray(audios)] : audios)
+                this.playAudios(options?.randomAudio ? [getRandomFromArray(audios)] : audios, options?.loop)
                     .then(() => {
                         DEV_LOG && console.log('instruction played done');
                         resolve();
@@ -1425,6 +1460,9 @@ export class BluetoothHandler extends Observable {
     lyric: Lyric = null;
 
     async playRideauAndStory(storyIndex = 1) {
+        if (!this.canDrawOnGlasses) {
+            return;
+        }
         DEV_LOG && console.log('playRideauAndStory', storyIndex, this.isPlayingStory, this.isPlaying);
         if (this.isPlayingStory === storyIndex) {
             return;
@@ -1448,7 +1486,7 @@ export class BluetoothHandler extends Observable {
     currentLyricsTime = 0;
     async pauseStory() {
         if (this.isPlayingStory) {
-            this._player.pause();
+            this.mPlayer.pause();
             this.currentLyricsTime = this.lyric.pause();
             this.isPlayingPaused = true;
             this.notify({ eventName: 'storyPlayback', data: 'pause' });
@@ -1456,15 +1494,18 @@ export class BluetoothHandler extends Observable {
     }
     async resumeStory() {
         if (this.isPlayingStory && this.isPlayingPaused) {
-            this._player.resume();
+            this.mPlayer.resume();
             this.lyric.play(this.currentLyricsTime);
             this.isPlayingPaused = false;
             this.notify({ eventName: 'storyPlayback', data: 'play' });
         }
     }
     async playStory(index = 1) {
+        if (!this.canDrawOnGlasses) {
+            return;
+        }
         DEV_LOG && console.log('playStory', index, this.isPlaying);
-        if (this.isPlaying) {
+        if (this.isPlaying || !this.canDrawOnGlasses) {
             return new Promise<void>((resolve) => {
                 this.toPlayNext = async () => {
                     await this.playStory(index);
@@ -1527,21 +1568,120 @@ export class BluetoothHandler extends Observable {
             this.stopPlayingLoop();
         }
     }
-
-    async playMusic(index) {
-        // this.isPlaying = true;
-        this.isPlayingMusic = true;
-        // story will play right after so store the playing index
-        // so we know what s about to play
-        // this.isPlayingStory = index;
+    async playPastille(index) {
+        DEV_LOG && console.log('playPastille', index, this.isPlaying);
+        if (this.isPlaying) {
+            return new Promise<void>((resolve) => {
+                this.toPlayNext = async () => {
+                    await this.playPastille(index);
+                    resolve();
+                };
+            });
+        }
         try {
-            // const storyFolder = path.join(getGlassesImagesFolder(), `stories/${index}`);
-            // DEV_LOG && console.log('playMusic', storyFolder);
-            await this.playInstruction('music', { randomAudio: true });
-            // await this.playAudio(path.join(storyFolder, 'musique.mp3'));
+            this.isPlaying = true;
+            this.isPlayingPastille = index;
+            const storyFolder = path.join(getGlassesImagesFolder(), 'pastilles');
+            console.log('tes1t pastille', storyFolder, Folder.exists(storyFolder), Folder.fromPath(storyFolder).getEntitiesSync());
+            this.clearFadeout();
+            await this.playAudio(path.join(storyFolder, `pastille_${index}.mp3`));
+            DEV_LOG && console.log('playPastille done ', index, this.isPlaying);
+            this.geoHandler.playedPastille(index + '');
+        } catch (error) {
+            console.error('playPastille error', error);
+        } finally {
+            console.log('finished playing playPastille');
+            this.stopPlayingLoop();
+        }
+    }
+
+    async playMusic(index, loop = false) {
+        this.isPlayingMusic = true;
+        try {
+            await this.playInstruction('music', { randomAudio: true, loop });
         } finally {
             this.isPlayingMusic = false;
             this.stopPlayingLoop();
         }
+    }
+
+    async getMemory(force = false) {
+        if (!this.currentGlassesMemory || force) {
+            const result = await this.sendCommand({ command: CommandType.cfgFreeSpace, timestamp: Date.now() });
+            this.currentGlassesMemory = result?.data || ({} as FreeSpaceData);
+            this.notify({ eventName: GlassesMemoryChangeEvent, data: this.currentGlassesMemory });
+        }
+        return this.currentGlassesMemory;
+    }
+    sendConfigPromise: CancelPromise = null;
+    async sendConfigToGlasses(config: string, memory: FreeSpaceData, onStart?: (promise: CancelPromise) => void, onProgress?: (progress, current, total) => void) {
+        let progressNotificationId;
+        DEV_LOG && console.log('sendConfigToGlasses', config, memory);
+        try {
+            progressNotificationId = 52347 + hashCode(config);
+            if (this.sendConfigPromise) {
+                throw new Error('sending_config');
+            }
+            this.canDrawOnGlasses = false;
+            const startTime = Date.now();
+            const configId = config.slice(-1);
+            await new Promise<void>(async (resolve, reject) => {
+                try {
+                    let size;
+                    try {
+                        size = JSON.parse(File.fromPath(path.join(config, 'info.json')).readTextSync()).totalImageSize;
+                    } catch (error) {
+                        console.error(error);
+                        size = File.fromPath(path.join(config, 'images.txt')).size / 2;
+                    }
+                    DEV_LOG && console.log('sendConfigToGlasses size ', size, memory.freeSpace);
+                    if (size >= memory.freeSpace) {
+                        throw new MessageError({ message: $tc('not_enough_memory', size, memory.freeSpace) });
+                    }
+                    const progressNotification = ProgressNotification.show({
+                        id: progressNotificationId, //required
+                        title: $tc('uploading_story_to_glasses', configId),
+                        message: '',
+                        ongoing: true,
+                        indeterminate: false,
+                        progressValue: 0
+                    });
+                    this.sendConfigPromise = this.sendLayoutConfig(path.join(config, 'images.txt'), (progress, current, total) => {
+                        onProgress?.(progress, current, total);
+                        const perc = Math.round((current / total) * 100);
+                        ProgressNotification.update(progressNotification, {
+                            message: `${fileSize(Math.round(current))}/${fileSize(total)} (${perc}%)`,
+                            progressValue: perc
+                        });
+                        if (progress === 1) {
+                            resolve();
+                        }
+                    });
+                    onStart?.(this.sendConfigPromise);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+            DEV_LOG && console.log('sendConfigToGlasses done ', config, formatDuration(dayjs.duration(Date.now() - startTime)));
+            showSnack({
+                message: $tc('story_sent_glasses', configId, formatDuration(dayjs.duration(Date.now() - startTime)))
+            });
+        } catch (error) {
+            throw error;
+        } finally {
+            ProgressNotification.dismiss(progressNotificationId);
+            this.askConfigs();
+            this.canDrawOnGlasses = true;
+            this.sendConfigPromise = null;
+            if (this.toPlayNext) {
+                this.toPlayNext();
+            }
+        }
+    }
+
+    async deleteConfig(config: string) {
+        DEV_LOG && console.log('deleteConfig', config);
+        await this.sendCommand({ command: CommandType.cfgDelete, params: { name: config } });
+        this.askConfigs();
     }
 }

@@ -3,11 +3,13 @@ import { getString } from '@nativescript/core/application-settings';
 import { Device } from '@nativescript/core/platform';
 import dayjs from 'dayjs';
 import LocalizedFormat from 'dayjs/plugin/localizedFormat';
+import duration from 'dayjs/plugin/duration';
 import updateLocale from 'dayjs/plugin/updateLocale';
 export { l as $t, lc as $tc, lt as $tt, lu as $tu } from '@nativescript-community/l';
 const supportedLanguages = SUPPORTED_LOCALES;
 dayjs.extend(LocalizedFormat);
 dayjs.extend(updateLocale);
+dayjs.extend(duration);
 
 function setLang(newLang) {
     newLang = getOwmLanguage(newLang);
@@ -41,7 +43,7 @@ function setLang(newLang) {
     } catch (err) {
         console.log('failed to load lang json', lang, `~/i18n/${lang}.json`, err);
     }
-    onLanguageChangedCallbacks.forEach(c => c(lang));
+    onLanguageChangedCallbacks.forEach((c) => c(lang));
 }
 const onLanguageChangedCallbacks = [];
 export function onLanguageChanged(callback) {
@@ -70,7 +72,6 @@ function getOwmLanguage(language) {
     }
 }
 export let lang;
-
 
 export function convertTime(date, formatStr: string) {
     if (date) {

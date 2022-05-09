@@ -5,7 +5,7 @@ import { TNSTextToSpeech } from '@nativescript-community/texttospeech';
 import { AndroidActivityResultEventData, AndroidApplication, ApplicationEventData, android as androidApp, off as applicationOff, on as applicationOn } from '@nativescript/core/application';
 import * as appSettings from '@nativescript/core/application-settings';
 import { EventData, Observable } from '@nativescript/core/data/observable';
-import { File, path } from '@nativescript/core/file-system';
+import { File, Folder, path } from '@nativescript/core/file-system';
 import { CoreTypes } from '@nativescript/core/ui/enums/enums';
 import { isNumber } from '@nativescript/core/utils/types';
 import { Feature, LineString, Point, Polygon } from 'geojson';
@@ -62,6 +62,7 @@ export const InsideFeatureEvent = 'insideFeature';
 export const FeatureViewedEvent = 'storyPlayed';
 export const OuterRingEvent = 'outer_ring';
 export const AimingFeatureEvent = 'aimingFeature';
+export const AvailableStoriesEvent = 'availableStories';
 
 const TAG = '[Geo]';
 
@@ -103,6 +104,7 @@ export class GeoHandler extends Observable {
     _isInTrackBounds = false;
     _aimingFeature: Feature<TrackGeometry, GeometryProperties> = null;
     _playedHistory: number[] = [];
+    _playedPastille: number[] = [];
     _featuresViewed: string[] = [];
     aimingAngle = 0;
     gpsEnabled = true;
@@ -127,6 +129,7 @@ export class GeoHandler extends Observable {
     setReadableStories(arg0: number[]) {
         console.log('setReadableStories', arg0);
         this.mReadableStories = arg0;
+        this.notify({ eventName: AvailableStoriesEvent, data: arg0 });
     }
 
     setSessionState(state: SessionState) {
@@ -170,8 +173,8 @@ export class GeoHandler extends Observable {
         await this.stopSession(true);
         this.launched = false;
         geolocation.off(GPS.gps_status_event, this.onGPSStateChange, this);
-        applicationOff(backgroundEvent, this.onAppPause, this);
-        applicationOff(foregroundEvent, this.onAppResume, this);
+        applicationOff(backgroundEvent, this.onAppBackgrounded, this);
+        applicationOff(foregroundEvent, this.onAppForgrounded, this);
         await this.dbHandler.stop();
         DEV_LOG && console.log(TAG, 'stop done');
     }
@@ -237,8 +240,8 @@ export class GeoHandler extends Observable {
         const gpsEnabled = await this.checkLocationPerm();
         // set to true if not allowed yet for the UI
         this.gpsEnabled = !gpsEnabled || geolocation.isEnabled();
-        applicationOn(backgroundEvent, this.onAppPause, this);
-        applicationOn(foregroundEvent, this.onAppResume, this);
+        applicationOn(backgroundEvent, this.onAppBackgrounded, this);
+        applicationOn(foregroundEvent, this.onAppForgrounded, this);
         try {
             await this.dbHandler.start();
             const selectedTrackId = appSettings.getString('selectedTrackId');
@@ -255,7 +258,7 @@ export class GeoHandler extends Observable {
         }
     }
 
-    onAppResume(args: ApplicationEventData) {
+    onAppForgrounded(args: ApplicationEventData) {
         if (args.ios) {
             this._isIOSBackgroundMode = false;
             // For iOS applications, args.ios is UIApplication.
@@ -269,7 +272,7 @@ export class GeoHandler extends Observable {
             // }
         }
     }
-    onAppPause(args: ApplicationEventData) {
+    onAppBackgrounded(args: ApplicationEventData) {
         if (args.ios) {
             this._isIOSBackgroundMode = true;
             // For iOS applications, args.ios is UIApplication.
@@ -380,24 +383,12 @@ export class GeoHandler extends Observable {
         }
         const activity = androidApp.foregroundActivity || androidApp.startActivity;
         if (this.isBatteryOptimized(activity) && android.os.Build.VERSION.SDK_INT >= 22) {
-            // return confirm({
-            //     message: $tc('battery_not_optimized'),
-            //     okButtonText: $t('disable'),
-            //     cancelButtonText: $t('cancel')
-            // }).then(result => {
-            //     if (!!result) {
             return new Promise<void>((resolve, reject) => {
                 const REQUEST_CODE = 6645;
                 const onActivityResultHandler = (data: AndroidActivityResultEventData) => {
                     if (data.requestCode === REQUEST_CODE) {
                         androidApp.off(AndroidApplication.activityResultEvent, onActivityResultHandler);
                         resolve();
-                        // wait a bit for the setting to actually be updated
-                        // setTimeout(() => {
-                        //     if (!this.isBatteryOptimized(activity)) {
-                        //         showSnack({ message: $tc('battery_not_optimized') });
-                        //     }
-                        // }, 1000);
                     }
                 };
                 androidApp.on(AndroidApplication.activityResultEvent, onActivityResultHandler);
@@ -405,11 +396,6 @@ export class GeoHandler extends Observable {
                 intent.setData(android.net.Uri.parse('package:' + activity.getPackageName()));
                 activity.startActivityForResult(intent, REQUEST_CODE);
             });
-            //     }
-            // });
-
-            // const name = resources.getString(R.string.app_name)
-            // Toast.makeText(applicationContext, "Battery optimization -> All apps -> $name -> Don't optimize", Toast.LENGTH_LONG).show()
         }
         return Promise.resolve();
     }
@@ -473,44 +459,113 @@ export class GeoHandler extends Observable {
             this._insideFeature = value;
             DEV_LOG && console.log('insideFeature', value?.properties.name);
 
-            const playing = this.bluetoothHandler.isPlayingStory || this.bluetoothHandler.isPlayingMusic;
+            const playing = this.bluetoothHandler.isPlayingStory || this.bluetoothHandler.isPlayingMusic || this.bluetoothHandler.isPlayingPastille;
+
             if (value && !playing) {
-                let nextStoryIndex;
-                if (this.mReadableStories) {
-                    nextStoryIndex = Math.max(0, Math.min(...this.mReadableStories.filter((item) => this._playedHistory.indexOf(item) === -1)));
-                } else {
-                    nextStoryIndex = Math.max(0, ...this._playedHistory) + 1;
-                    for (let index = nextStoryIndex; index > 0; index--) {
-                        if (this._playedHistory.indexOf(index) === -1) {
-                            nextStoryIndex = index;
-                        }
-                    }
-                }
-                DEV_LOG && console.log('nextStoryIndex', this._playedHistory, this.mReadableStories, nextStoryIndex);
-
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
-
-                const featuresViewed = this.featuresViewed;
-                let needsToplayMusic = false;
-                if (name.endsWith('_out')) {
-                    needsToplayMusic = true;
-                }
-                const featureId = (name + '').split('_')[0];
-                if (featuresViewed.indexOf(featureId) === -1) {
-                    featuresViewed.push(featureId);
-                    featuresViewed.push(featureId + '_out');
-                }
-                this.featuresViewed = featuresViewed;
-
-                (async () => {
-                    await this.bluetoothHandler.stopPlayingInstruction();
-                    await this.bluetoothHandler.playInstruction('starting_story');
-                    if (needsToplayMusic) {
-                        // story will be queued after
-                        this.bluetoothHandler.playMusic(nextStoryIndex);
+                if (name.startsWith('pastille_')) {
+                    const featuresViewed = this.featuresViewed;
+                    const featureId = (name + '').split('_')[1];
+                    if (featuresViewed.indexOf(name) === -1) {
+                        featuresViewed.push(name);
                     }
-                    this.bluetoothHandler.playRideauAndStory(nextStoryIndex);
-                })();
+                    this.featuresViewed = featuresViewed;
+                    const nextStoryIndex = parseInt(featureId, 10);
+                    (async () => {
+                        try {
+                            console.log('about to start pastille', nextStoryIndex);
+                            await this.bluetoothHandler.stopPlayingInstruction();
+                            this.bluetoothHandler.playPastille(nextStoryIndex);
+                        } catch (error) {
+                            console.error(error);
+                        }
+                    })();
+                } else {
+                    const featureId = (name + '').split('_')[0];
+                    const nextStoryIndex = parseInt(featureId, 10);
+                    DEV_LOG && console.log('nextStoryIndex', nextStoryIndex);
+                    const playableStories = Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories'))
+                        .getEntitiesSync()
+                        .map((e) => parseInt(e.name, 10));
+                    DEV_LOG && console.log('playableStories', playableStories);
+                    if (playableStories.indexOf(nextStoryIndex) !== -1) {
+                        const featuresViewed = this.featuresViewed;
+                        let needsToplayMusic = false;
+
+                        const currentConfigs = this.bluetoothHandler.currentConfigs;
+                        const configurationAlreadyLoaded = currentConfigs?.findIndex((c) => c.name === featureId) !== -1;
+                        if (name.endsWith('_out') || !configurationAlreadyLoaded) {
+                            needsToplayMusic = true;
+                        }
+                        DEV_LOG && console.log('nextStoryIndex', this._playedHistory, nextStoryIndex, featuresViewed, currentConfigs, configurationAlreadyLoaded, needsToplayMusic);
+                        if (featuresViewed.indexOf(featureId) === -1) {
+                            featuresViewed.push(featureId);
+                            featuresViewed.push(featureId + '_out');
+                        }
+                        this.featuresViewed = featuresViewed;
+
+                        (async () => {
+                            try {
+                                console.log('about to start', nextStoryIndex, configurationAlreadyLoaded);
+                                await this.bluetoothHandler.stopPlayingInstruction();
+                                if (configurationAlreadyLoaded) {
+                                    await this.bluetoothHandler.playInstruction('starting_story');
+                                } else {
+                                    this.bluetoothHandler.playInstruction('starting_story');
+                                }
+                                if (needsToplayMusic) {
+                                    // story will be queued after
+                                    this.bluetoothHandler.playMusic(nextStoryIndex, !configurationAlreadyLoaded);
+                                }
+                                console.log('playRideauAndStory', configurationAlreadyLoaded);
+                                if (!configurationAlreadyLoaded) {
+                                    const configsInMemory = currentConfigs
+                                        .map((c) => c.name)
+                                        .map((s) => parseInt(s, 10))
+                                        .filter((s) => !isNaN(s));
+                                    const alreadyPlayedStoriesInMemory = configsInMemory.filter((value) => this._playedHistory.includes(value));
+                                    DEV_LOG && console.log('alreadyPlayedStoriesInMemory', alreadyPlayedStoriesInMemory);
+
+                                    let memory = await this.bluetoothHandler.getMemory();
+                                    const storyFolder = path.join(getGlassesImagesFolder(), 'stories', featureId);
+                                    for (let index = 0; index < alreadyPlayedStoriesInMemory.length; index++) {
+                                        await this.bluetoothHandler.deleteConfig(alreadyPlayedStoriesInMemory[index] + '');
+                                    }
+                                    let availableSpace = memory.freeSpace;
+                                    const newStorySize = JSON.parse(File.fromPath(path.join(storyFolder, 'info.json')).readTextSync()).totalImageSize;
+                                    let needToGetMemoryAgain = false;
+                                    while (newStorySize >= availableSpace) {
+                                        // we need more space!
+                                        needToGetMemoryAgain = true;
+                                        const configToRemove = configsInMemory.shift();
+                                        const configData = currentConfigs.find((d) => d.name === `${configToRemove}`);
+                                        console.log('deleting config to get space', availableSpace, configToRemove, configData);
+                                        await this.bluetoothHandler.deleteConfig(configData.name);
+                                        availableSpace += configData.size;
+                                    }
+                                    if (needToGetMemoryAgain) {
+                                        memory = await this.bluetoothHandler.getMemory();
+                                    }
+                                    await this.bluetoothHandler.sendConfigToGlasses(storyFolder, memory);
+                                }
+                                this.bluetoothHandler.playRideauAndStory(nextStoryIndex);
+                            } catch (error) {
+                                console.error(error);
+                            }
+                        })();
+                    }
+                }
+
+                // if (this.mReadableStories) {
+                //     nextStoryIndex = Math.max(0, Math.min(...this.mReadableStories.filter((item) => this._playedHistory.indexOf(item) === -1)));
+                // } else {
+                //     nextStoryIndex = Math.max(0, ...this._playedHistory) + 1;
+                //     for (let index = nextStoryIndex; index > 0; index--) {
+                //         if (this._playedHistory.indexOf(index) === -1) {
+                //             nextStoryIndex = index;
+                //         }
+                //     }
+                // }
             } else {
                 // this.bluetoothHandler.stopPlayingLoop();
             }
@@ -530,8 +585,14 @@ export class GeoHandler extends Observable {
     async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {
         const insideFeatures = events.filter((e) => e.state !== 'leaving');
         // if (DEV_LOG) {
-        // console.log('handleFeatureEvent', events);
+        // DEV_LOG &&
+        //     console.log(
+        //         'insideFeatures',
+        //         insideFeatures.length,
+        //         insideFeatures.map((f) => [f.state, f.feature.properties.name])
+        //     );
         // }
+        let featureToEnter;
         if (insideFeatures.length > 1) {
             let minIndex = 0;
             let minArea = Number.MAX_SAFE_INTEGER;
@@ -542,12 +603,23 @@ export class GeoHandler extends Observable {
                     minArea = area;
                 }
             });
-            this.insideFeature = insideFeatures[minIndex].feature;
+            featureToEnter = insideFeatures[minIndex].feature;
         } else if (insideFeatures.length === 1) {
-            this.insideFeature = insideFeatures[0].feature;
+            featureToEnter = insideFeatures[0].feature;
         } else {
             this.insideFeature = null;
         }
+        if (featureToEnter) {
+            if (!this._insideFeature) {
+                this.insideFeature = featureToEnter;
+            } else {
+                // we already are in a feature we will enter the new one when the story/pastille is finished
+                // console.log('we already are in a feature', 'we will enter the new one when the story/pastille is finished');
+            }
+        } else {
+            this.insideFeature = null;
+        }
+
         this.notify({
             eventName: PositionStateEvent,
             object: this,
@@ -598,6 +670,18 @@ export class GeoHandler extends Observable {
     //     });
     // }
 
+    playedPastille(index: string) {
+        const rindex = parseInt(index, 10);
+        if (this._playedPastille.indexOf(rindex) === -1) {
+            this._playedPastille.push(rindex);
+        }
+        console.log('playedPastille', index, rindex, this._playedPastille, !!this.insideFeature);
+        if (this.insideFeature) {
+            // we clear insideFeature as this feature is now played and thus
+            // we should ignore it and notify of next aiming feature
+            this.insideFeature = null;
+        }
+    }
     playedStory(index: string) {
         const rindex = parseInt(index, 10);
         if (this._playedHistory.indexOf(rindex) === -1) {
@@ -614,9 +698,7 @@ export class GeoHandler extends Observable {
     mLastPlayedAimingDirection: string;
     mLastPlayedAimingDirectionTime: number;
     updateTrackWithLocation(loc: GeoLocation) {
-        // if (DEV_LOG) {
-        //     console.log('updateTrackWithLocation', JSON.stringify(loc));
-        // }
+        // DEV_LOG && console.log('updateTrackWithLocation', JSON.stringify(loc));
         if (this.currentTrack) {
             const features = this.currentTrack.geometry.features;
 
@@ -636,24 +718,25 @@ export class GeoHandler extends Observable {
 
             // the aiming algorithm will tend to get you to the next story
             // except if you are very close(closestStoryStep) to another story
-            let nextPotentialIndex = Math.max(0, ...this._playedHistory) + 1;
-            for (let index = nextPotentialIndex; index > 0; index--) {
-                if (this._playedHistory.indexOf(index) === -1) {
-                    nextPotentialIndex = index;
-                }
-            }
+            // let nextPotentialIndex = Math.max(0, ...this._playedHistory) + 1;
+            // for (let index = nextPotentialIndex; index > 0; index--) {
+            //     if (this._playedHistory.indexOf(index) === -1) {
+            //         nextPotentialIndex = index;
+            //     }
+            // }
             const currentPosition = [loc.lon, loc.lat];
             const events = [];
             features.forEach((feature) => {
                 const properties = feature.properties;
                 const name = 'index' in properties ? properties.index : properties.name;
-                if (name === 'outer_ring' || this._featuresViewed.indexOf((name + '').split('_')[0]) !== -1) {
+                if (name === 'outer_ring' || this._featuresViewed.indexOf(name) !== -1 || this._featuresViewed.indexOf((name + '').split('_')[0]) !== -1) {
                     return;
                 }
 
                 // used to compute aiming feature
                 if (feature.properties.isStory === true || isNumber(name)) {
                     const dist = computeDistanceBetween(feature.geometry.center, currentPosition);
+                    // DEV_LOG && console.log('updateTrackWithLocation in bounds!', name, feature.id, dist, minDist);
                     if (dist < minDist) {
                         minDist = dist;
                         minFeature = feature;
@@ -662,9 +745,6 @@ export class GeoHandler extends Observable {
                 // add a bit of delta (m)
                 const isInBounds = isLocactionInBbox(loc, feature.bbox, 0);
 
-                // if (DEV_LOG) {
-                //     console.log('updateTrackWithLocation in bounds!', name, feature.id);
-                // }
                 if (!isInBounds) {
                     if (this.positionState[feature.id]) {
                         delete this.positionState[feature.id];
@@ -1043,7 +1123,7 @@ export class GeoHandler extends Observable {
 
     // async importGPXString(value: string) {
     //     if (!value || value.length === 0) {
-    //         throw new Error($t('empty_file'));
+    //         throw new Error(('empty_file'));
     //     }
     //     // if (DEV_LOG) {
     //     // console.log(TAG,'importGPXString', value);

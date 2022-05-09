@@ -1,8 +1,16 @@
-import fs from 'fs';
-import path from 'path';
 import noble from '@abandonware/noble';
+import { program } from '@caporal/core';
+import cv2 from '@u4/opencv4nodejs';
 import { EventEmitter } from 'events';
+import fs from 'fs';
+import inquirer from 'inquirer';
+import inquirerFileTreeSelection from 'inquirer-file-tree-selection-prompt';
+import keypress from 'keypress';
+import * as player from 'node-wav-player';
+import path from 'path';
+import SerialPort from 'serialport';
 import Lyric from '../app/handlers/Lyric';
+import ora from 'ora';
 import {
     CONFIG_NAME,
     CONFIG_PASSWORD,
@@ -14,18 +22,12 @@ import {
     ParseResult,
     ParsingState,
     ProgressData,
-    buildMessageData,
+    buildMessageData
 } from '../app/handlers/Message';
-import SerialPort from 'serialport';
-import ora from 'ora';
-import inquirer from 'inquirer';
-import cv2 from 'opencv4nodejs';
-const player = require('node-wav-player');
-import { buildDataSet, createBitmapData, getFolder, pictureDimensionToByteArray } from './common';
+import { buildDataSet, getFolder, pictureDimensionToByteArray } from './common';
 let isInDemo = false;
 let connectThroughBLE = true;
 
-import { program } from '@caporal/core';
 let configId = '1';
 program
     .option('--id [id]', 'config id', { default: '1' })
@@ -45,7 +47,6 @@ const CONFIG_PARAMS = {
     password: CONFIG_PASSWORD
 };
 
-const inquirerFileTreeSelection = require('inquirer-file-tree-selection-prompt');
 inquirer.registerPrompt('file-tree-selection', inquirerFileTreeSelection);
 const ui = new inquirer.ui.BottomBar({ bottomBar: 'searching for your glasses' });
 
@@ -671,7 +672,6 @@ function onDeviceMessage(device: MicrooledDevice, results: ParseResult[]) {
         }
     });
 }
-const keypress = require('keypress');
 
 const keyListeners = [];
 function addKeyListener(listener) {
@@ -688,7 +688,7 @@ function removeKeyListener(listener) {
 }
 
 process.stdin.on('keypress', function (ch, key) {
-    log('got "keypress"', JSON.stringify(key));
+    // log('got "keypress"', JSON.stringify(key));
     if (!key) {
         return;
     }
@@ -740,7 +740,9 @@ async function connectSerial() {
 }
 
 function main() {
+    log('main');
     if (connectThroughBLE) {
+        log('discover');
         noble.on('discover', (peripheral) => {
             if (!connecting && peripheral.advertisement) {
                 const manufacturerId = peripheral.advertisement.manufacturerData && new DataView(new Uint8Array(peripheral.advertisement.manufacturerData).buffer, 0).getUint16(0, true);
@@ -889,7 +891,7 @@ async function sendRawCommands(commandsToSend: number[][], message) {
         await createPromise();
         // console.log('finished sendRawCommands');
         bluetoothDevice.clearFullScreen();
-        spinner.succeed('sendRawCommands sent!');
+        spinner.succeed(`sendRawCommands sent,  ${Date.now() - startTime} ms`);
     } catch (err) {
         console.log('catched sendRawCommands error', err);
         spinner.fail(err);
@@ -1262,13 +1264,16 @@ async function storyDemo() {
                 }
             }
         });
-        await new Promise((resolve) => {
+        await new Promise<void>((resolve) => {
             player
                 .play({
                     path: path.join(storyFolder, 'audio.mp3'),
                     sync: true
                 })
-                .then(resolve);
+                .then(() => {
+                    lyric.pause();
+                    resolve();
+                });
             lyric.play();
         });
     } catch (error) {

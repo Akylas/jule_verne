@@ -1,14 +1,14 @@
 import { HttpsRequestOptions, cancelRequest, request, setCache } from '@nativescript-community/https';
 import { AlertDialog, confirm } from '@nativescript-community/ui-material-dialogs';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
-import { ApplicationSettings, Device, Frame, GestureEventData, NavigationEntry, Page, Screen, knownFolders, path } from '@nativescript/core';
+import { ApplicationSettings, Device, File, Frame, GestureEventData, NavigationEntry, Page, Screen, knownFolders, path } from '@nativescript/core';
 import { setBoolean } from '@nativescript/core/application-settings';
 import { Folder } from '@nativescript/core/file-system';
 import { Zip } from '@nativescript/zip';
 import fileSize from 'filesize';
 import VueType, { VueConstructor } from 'vue';
 import { $t, $tc, $tt, $tu } from '~/helpers/locale';
-import { notify as appNotify, timeout, versionCompare } from '~/utils';
+import { notify as appNotify, hashCode, timeout, versionCompare } from '~/utils';
 import { getWorkingDir, throttle } from '~/utils/utils';
 import Home from '~/components/Home';
 import LoadingIndicator from '~/components/LoadingIndicator.vue';
@@ -78,9 +78,12 @@ const Plugin = {
         };
 
         let navigating = false;
-        const routes: { [k: string]: { component: typeof Vue } } = {
+        const routes: { [k: string]: { component: typeof Vue | Function } } = {
             [ComponentIds.Activity]: {
                 component: Home
+            },
+            [ComponentIds.Settings]: {
+                component: async () => (await import('~/components/Settings')).default
             }
         };
 
@@ -164,7 +167,7 @@ const Plugin = {
         //     (options as any).frame = options['frame'] || innerFrame.id;
         //     return super.navigateTo(component, options, cb);
         // };
-        Vue.prototype.$navigateToUrl = async function navigateToUrl(url: ComponentIds, options?: NavigationEntry & { props?: any; component?: VueConstructor }, cb?: () => Page) {
+        Vue.prototype.$navigateToUrl = async function navigateToUrl(url: ComponentIds, options?: NavigationEntry & { props?: any; component?: VueConstructor | Function }, cb?: () => Page) {
             console.log('$navigateToUrl', url, navigating);
             if (isActiveUrl(url) || navigating) {
                 closeDrawer();
@@ -172,10 +175,12 @@ const Plugin = {
             }
             navigating = true;
             const index = findNavigationUrlIndex(url);
-            console.log('$navigateToUrl', url, index);
+            console.log('$navigateToUrl', url, index, options, routes[url]);
             if (index === -1) {
-                const component = options.component || routes[url].component;
-
+                let component = options?.component || routes[url].component;
+                if (typeof component === 'function') {
+                    component = await (component as () => Promise<VueConstructor>)();
+                }
                 return Vue.prototype.$navigateTo(component, options);
             } else {
                 return navigateBackToUrl(url);
@@ -411,14 +416,8 @@ const Plugin = {
                     console.error('Https.request error', error);
                 });
         };
-        const hashCode = (s) =>
-            s.split('').reduce((a, b) => {
-                a = (a << 5) - a + b.charCodeAt(0);
-                return a & a;
-            }, 0);
 
         async function checkForStoryUpdate(storyId) {
-            console.log('checkForStoryUpdate', storyId);
             let progressNotificationId;
             try {
                 progressNotificationId = 52346 + hashCode(storyId + '');
@@ -426,7 +425,13 @@ const Plugin = {
                 const headers = await getHEAD(url);
                 const lastSize = ApplicationSettings.getString('GLASSES_DATA_SIZE_' + storyId, '');
                 console.log(url, lastSize, headers);
-                if (lastSize !== headers['content-length']) {
+                let workingDir = path.join(getWorkingDir() , 'glasses_images');
+                if (storyId === 'navigation' || storyId === 'pastilles') {
+                } else {
+                    workingDir += '/stories';
+                }
+                DEV_LOG && console.log('checkForStoryUpdate', storyId, workingDir, lastSize !== headers['content-length'], Folder.exists(path.join(workingDir, storyId + '')));
+                if (lastSize !== headers['content-length'] || !Folder.exists(path.join(workingDir, storyId + ''))) {
                     const requestTag = Date.now() + '';
 
                     const progressNotification = ProgressNotification.show({
@@ -462,27 +467,29 @@ const Plugin = {
                         },
                         filePath
                     );
-
-                    ProgressNotification.update(progressNotification, {
-                        title: $tc('uncompress_glasses_data', storyId),
-                        message: '',
-                        progressValue: 0
-                    });
-                    await Zip.unzip({
-                        archive: file.path,
-                        directory: getWorkingDir() + '/glasses_images' + (storyId === 'navigation' ? '' : '/stories'),
-                        overwrite: true,
-                        onProgress: (percent) => {
-                            ProgressNotification.update(progressNotification, {
-                                message: `${Math.round(percent)}%`,
-                                progressValue: percent
-                            });
-                        }
-                    });
-                    glassesDataUpdateDate = Date.now();
-                    appNotify({ eventName: 'GLASSES_DATA_LASTDATE', data: glassesDataUpdateDate });
-                    ApplicationSettings.setNumber('GLASSES_DATA_LASTDATE', glassesDataUpdateDate);
-                    ApplicationSettings.setString('GLASSES_DATA_SIZE_' + storyId, headers['content-length'] as string);
+                    console.log('file', file.path, file.size, headers['content-length']);
+                    if (File.exists(file.path) && file.size > 0) {
+                        ProgressNotification.update(progressNotification, {
+                            title: $tc('uncompress_glasses_data', storyId),
+                            message: '',
+                            progressValue: 0
+                        });
+                        await Zip.unzip({
+                            archive: file.path,
+                            directory: workingDir,
+                            overwrite: true,
+                            onProgress: (percent) => {
+                                ProgressNotification.update(progressNotification, {
+                                    message: `${Math.round(percent)}%`,
+                                    progressValue: percent
+                                });
+                            }
+                        });
+                        glassesDataUpdateDate = Date.now();
+                        appNotify({ eventName: 'GLASSES_DATA_LASTDATE', data: glassesDataUpdateDate });
+                        ApplicationSettings.setNumber('GLASSES_DATA_LASTDATE', glassesDataUpdateDate);
+                        ApplicationSettings.setString('GLASSES_DATA_SIZE_' + storyId, headers['content-length']);
+                    }
                 }
             } catch (error) {
                 console.error(error);
@@ -501,6 +508,7 @@ const Plugin = {
             updatingStories = true;
 
             await checkForStoryUpdate('navigation');
+            await checkForStoryUpdate('pastilles');
             const track = bgService?.geoHandler?.currentTrack;
             if (track) {
                 const storyIds = [...new Set(track.geometry.features.map((f) => parseInt('index' in f.properties ? f.properties.index : f.properties.name, 10)).filter((f) => !isNaN(f)))].sort();
@@ -566,7 +574,7 @@ const Plugin = {
                     });
                     mapDataUpdateDate = Date.now();
                     appNotify({ eventName: 'MAP_DATA_LASTDATE', data: mapDataUpdateDate });
-                    ApplicationSettings.setString('MAP_DATA_SIZE', headers['content-length'] as string);
+                    ApplicationSettings.setString('MAP_DATA_SIZE', headers['content-length']);
                     ApplicationSettings.setNumber('MAP_DATA_LASTDATE', mapDataUpdateDate);
                 }
             } catch (error) {
@@ -592,7 +600,7 @@ const Plugin = {
 
                     geojsonDataUpdateDate = Date.now();
                     appNotify({ eventName: 'GEOJSON_DATA_LASTDATE', data: geojsonDataUpdateDate });
-                    ApplicationSettings.setString('GEOJSON_DATA_SIZE', headers['content-length'] as string);
+                    ApplicationSettings.setString('GEOJSON_DATA_SIZE', headers['content-length']);
                     ApplicationSettings.setNumber('GEOJSON_DATA_LASTDATE', geojsonDataUpdateDate);
                 }
             } catch (error) {

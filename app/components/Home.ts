@@ -15,6 +15,7 @@ import {
     knownFolders,
     path
 } from '@nativescript/core';
+import fileSize from 'filesize';
 import { bind } from 'helpful-decorators';
 import { Vibrate } from 'nativescript-vibrate';
 import Vue from 'nativescript-vue';
@@ -23,11 +24,13 @@ import { Component } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
 import {
+    AvailableConfigsEvent,
     BLEBatteryEventData,
     BLEConnectionEventData,
     GlassesBatteryEvent,
     GlassesConnectedEvent,
     GlassesDisconnectedEvent,
+    GlassesMemoryChangeEvent,
     Peripheral,
     SPOTA_SERVICE_UUID,
     SerialEvent,
@@ -35,6 +38,7 @@ import {
     VersionEvent
 } from '~/handlers/BluetoothHandler';
 import {
+    AvailableStoriesEvent,
     FeatureViewedEvent,
     GeoLocation,
     InsideFeatureEvent,
@@ -46,6 +50,7 @@ import {
     UserLocationdEventData,
     UserRawLocationEvent
 } from '~/handlers/GeoHandler';
+import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
 import { $tc } from '~/helpers/locale';
 import Track, { TrackFeature } from '~/models/Track';
 import { off as appOff, on as appOn } from '~/utils';
@@ -95,6 +100,7 @@ export default class Home extends BgServiceComponent {
     public glassesBattery: number = 0;
     public glassesSerialNumber = null;
     public glassesVersion = null;
+    glassesMemory: FreeSpaceData = null;
     bluetoothEnabled = true;
     appVersion = __APP_VERSION__ + '.' + __APP_BUILD_NUMBER__;
 
@@ -104,6 +110,7 @@ export default class Home extends BgServiceComponent {
     selectedTrack: Track = null;
     selectedTracks: Track[] = null;
     insideFeature: TrackFeature = null;
+    availableConfigs: ConfigListData = null;
 
     storyPlaying = false;
     storyPaused = false;
@@ -172,6 +179,12 @@ export default class Home extends BgServiceComponent {
         }
         return result;
     }
+    get availableConfigsLabel() {
+        if (this.availableConfigs) {
+            return `${$tc('configs')}:\n${this.availableConfigs.map((c) => `${c.name}: ${fileSize(c.size)}`).join('\n')}`;
+        }
+        return null;
+    }
     onGlassesDataUpdateDate(event) {
         this.glassesDataUpdateDate = event.data;
     }
@@ -211,6 +224,9 @@ export default class Home extends BgServiceComponent {
     }
     onInsideFeature(event: EventData) {
         this.insideFeature = event['data'].feature;
+    }
+    onAvailableConfigs(event: EventData) {
+        this.availableConfigs = event['data'];
     }
     onFeatureViewed(event: EventData) {
         this.viewedFeatures = event['data'].featureViewed;
@@ -366,11 +382,13 @@ export default class Home extends BgServiceComponent {
         this.geoHandlerOn(FeatureViewedEvent, this.onFeatureViewed, this);
 
         this.bluetoothHandlerOn('drawBitmap', this.onDrawImage);
+        this.bluetoothHandlerOn(AvailableConfigsEvent, this.onAvailableConfigs, this);
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
         this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
         this.bluetoothHandlerOn(SerialEvent, this.onGlassesSerialNumber);
         this.bluetoothHandlerOn(VersionEvent, this.onGlassesVersion);
         this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
+        this.bluetoothHandlerOn(GlassesMemoryChangeEvent, this.onGlassesMemory);
         this.bluetoothHandlerOn(StatusChangedEvent, this.onBLEStatus);
         this.bluetoothHandlerOn('storyPlayback', this.onStoryPlayingEvent);
 
@@ -610,12 +628,8 @@ export default class Home extends BgServiceComponent {
 
     async onNavItemTap(item) {
         console.log('$onNavItemTap', item.url);
-        let component = item.component;
-        if (typeof component === 'function') {
-            component = await (component as () => Promise<VueConstructor>)();
-        }
         try {
-            this.$navigateToUrl(item.url, { component });
+            this.$navigateToUrl(item.url, { component: item.component });
         } catch (error) {
             this.showError(error);
         }
@@ -702,6 +716,10 @@ export default class Home extends BgServiceComponent {
 
     onGlassesBattery(e: BLEBatteryEventData) {
         this.updateGlassesBattery(e.data);
+    }
+
+    onGlassesMemory(e: { data: FreeSpaceData }) {
+        this.glassesMemory = e.data;
     }
 
     openDrawer() {

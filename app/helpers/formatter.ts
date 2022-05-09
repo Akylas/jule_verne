@@ -1,5 +1,6 @@
 import { convertDuration, convertTime } from './locale';
 export { convertDuration, convertTime } from './locale';
+import duration from 'dayjs/plugin/duration';
 
 export enum UNITS {
     Duration = 'duration',
@@ -31,7 +32,6 @@ export function toImperialUnit(unit: UNITS, imperial = false) {
             return unit;
     }
 }
-
 
 export function convertValueToUnit(value: any, unit: UNITS, imperial: boolean, options: { roundedTo05?: boolean } = {}): [string, string] {
     if (value === undefined || value === null) {
@@ -105,4 +105,45 @@ export function formatValueToUnit(value: any, unit: UNITS, imperial: boolean, op
         result = options.prefix + result;
     }
     return result;
+}
+
+export enum DURATION_FORMAT {
+    LONG,
+    SHORT,
+    VERY_SHORT
+}
+
+export function formatDuration(duration: duration.Duration, format: DURATION_FORMAT = DURATION_FORMAT.LONG) {
+    if (duration === undefined) {
+        return undefined;
+    }
+    const hours = duration.get('hours');
+    if (isNaN(hours)) {
+        return undefined;
+    }
+    const minutes = duration.get('minutes');
+    let mintext;
+    if (minutes !== 0) {
+        mintext = minutes + '';
+        switch (format) {
+            case DURATION_FORMAT.LONG:
+                mintext += ' min';
+                break;
+            case DURATION_FORMAT.SHORT:
+                mintext += 'm';
+                break;
+            case DURATION_FORMAT.VERY_SHORT:
+                if (hours === 0) {
+                    mintext += 'm';
+                }
+                break;
+        }
+    }
+    if (hours === 0) {
+        return mintext;
+    }
+    if (hours !== 0 && minutes === 0) {
+        return hours + (format === DURATION_FORMAT.LONG ? ' h' : 'h');
+    }
+    return hours + 'h ' + mintext;
 }

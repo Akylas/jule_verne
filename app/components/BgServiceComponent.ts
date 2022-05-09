@@ -1,5 +1,5 @@
-import { backgroundEvent, foregroundEvent } from '@akylas/nativescript/application';
-import { ApplicationEventData, off as applicationOff, on as applicationOn } from '@nativescript/core/application';
+import { ApplicationEventData, off as applicationOff, on as applicationOn, backgroundEvent, foregroundEvent } from '@nativescript/core/application';
+import { inBackground } from '@akylas/nativescript/application/application-common';
 import { BluetoothHandler } from '~/handlers/BluetoothHandler';
 import { DBHandler } from '~/handlers/DBHandler';
 import { GeoHandler } from '~/handlers/GeoHandler';
@@ -14,7 +14,7 @@ export interface BgServiceMethodParams {
 }
 
 export default abstract class BgServiceComponent extends BaseVueComponent {
-    appPaused = false;
+    backgrounded = false;
     mounted() {
         super.mounted();
         if (this.$bgService.loaded) {
@@ -28,24 +28,25 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         } else {
             this.$bgService.once(BgServiceStartedEvent, this.callOnServiceStarted, this);
         }
-        applicationOn(backgroundEvent, this.onAppPause, this);
-        applicationOn(foregroundEvent, this.onAppResume, this);
+        DEV_LOG && console.log('inBackground', inBackground);
+        this.backgrounded = inBackground;
+        applicationOn(backgroundEvent, this.onAppBackgrounded, this);
+        applicationOn(foregroundEvent, this.onAppForgrounded, this);
     }
     destroyed() {
         super.destroyed();
-
-        applicationOff(backgroundEvent, this.onAppPause, this);
-        applicationOff(foregroundEvent, this.onAppResume, this);
+        applicationOff(backgroundEvent, this.onAppBackgrounded, this);
+        applicationOff(foregroundEvent, this.onAppForgrounded, this);
         this.unloadService();
     }
 
     inSetup = false;
-    onAppResume(args: ApplicationEventData) {
-        DEV_LOG && console.log('onAppResume', this.appPaused);
-        if (!this.appPaused) {
+    onAppForgrounded(args: ApplicationEventData) {
+        DEV_LOG && console.log('onAppForgrounded', this.backgrounded);
+        if (!this.backgrounded) {
             return;
         }
-        this.appPaused = false;
+        this.backgrounded = false;
         if (this.setup && this.$bgService.loaded) {
             this.inSetup = true;
             const params = this.getParams();
@@ -53,12 +54,12 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
             this.inSetup = false;
         }
     }
-    onAppPause(args: ApplicationEventData) {
-        DEV_LOG && console.log('onAppPause', this.appPaused);
-        if (this.appPaused) {
+    onAppBackgrounded(args: ApplicationEventData) {
+        DEV_LOG && console.log('onAppBackgrounded', this.backgrounded);
+        if (this.backgrounded) {
             return;
         }
-        this.appPaused = true;
+        this.backgrounded = true;
         if (this.unsetup) {
             const params = this.getParams();
             this.unsetup.call(this, params);
@@ -90,7 +91,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         const params = this.getParams();
         console.log('callOnServiceStarted', this.constructor.name);
 
-        if (this.setup && !this.appPaused) {
+        if (this.setup && !this.backgrounded) {
             this.inSetup = true;
             this.setup.call(this, params);
             this.inSetup = false;

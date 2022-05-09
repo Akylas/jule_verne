@@ -1,19 +1,13 @@
-import { ActivityIndicator } from '@nativescript-community/ui-material-activityindicator';
 import { AlertDialog } from '@nativescript-community/ui-material-dialogs';
-import { Progress } from '@nativescript-community/ui-material-progress';
 import { ShareFile } from '@nativescript-community/ui-share-file';
-import { Frame, Label, Page, View } from '@nativescript/core';
+import { Frame, Page, View } from '@nativescript/core';
 import { knownFolders } from '@nativescript/core/file-system';
-import { Screen } from '@nativescript/core/platform';
-import { ad } from '@nativescript/core/utils/utils';
-import { bind } from 'helpful-decorators';
 import Vue, { NativeScriptVue, NavigationEntryVue } from 'nativescript-vue';
 import { VueConstructor } from 'vue';
 import { Prop } from 'vue-property-decorator';
-import LoadingIndicator from './LoadingIndicator.vue';
-import { $tc } from '~/helpers/locale';
-import { accentColor, actionBarHeight, darkColor, primaryColor } from '../variables';
 import { ShowLoadingOptions } from '~/vue.prototype';
+import { accentColor, actionBarHeight, darkColor, primaryColor } from '../variables';
+import LoadingIndicator from './LoadingIndicator.vue';
 
 function timeout(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));

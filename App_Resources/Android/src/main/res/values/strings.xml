@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <string name="uploading_story_to_glasses">"Envoi de l\'histoire \"%1$s\""</string>
   <string name="update_firmware">"mettre à jour le firmware\\"</string>
   <string name="update">"mise à jour"</string>
   <string name="uncompress_map_data">"décompression des données de carte"</string>
@@ -7,6 +8,8 @@
   <string name="tracks">"tracés"</string>
   <string name="total">"total"</string>
   <string name="tap_to_open">"appuyez pour ouvrir"</string>
+  <string name="story_sent_glasses">"histoire %1$s envoyé aux lunettes! (%%2$1)"</string>
+  <string name="stories">"histoires"</string>
   <string name="stop_session_are_you_sure">"êtes-vous sur de vouloir arréter la session?"</string>
   <string name="stop_session">"arréter la session"</string>
   <string name="stop">"arrêter"</string>
@@ -42,6 +45,8 @@
   <string name="importing_data">"import en cours"</string>
   <string name="importing">"import en cours"</string>
   <string name="images">"images"</string>
+  <string name="gps_not_enabled">"GPS désactivé"</string>
+  <string name="gps_not_authorized">"Notre application n\'a pas l\'autorisation d\'utiliser le GPS"</string>
   <string name="glasses_updated">"Lunettes mises à jour!"</string>
   <string name="glasses">"lunettes"</string>
   <string name="gesture_desc">"activez le capteur de gestes"</string>
@@ -50,6 +55,7 @@
   <string name="firmware_update_available_desc">"une mise à jour du firmware est disponible pour vos lunettes"</string>
   <string name="firmware_update">"mise à jour de firmware"</string>
   <string name="firmware">"firmware"</string>
+  <string name="file_not_found">"fichier non trouvé: %1$s"</string>
   <string name="entering_feature">"vous entrez dans %1$s"</string>
   <string name="downloading_update">"téléchargement de la mise à jour"</string>
   <string name="downloading_map_update">"téléchargement des données de carte"</string>

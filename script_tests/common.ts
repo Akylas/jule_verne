@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import cv2 from 'opencv4nodejs';
+import cv2 from '@u4/opencv4nodejs';
 import { CommandType, buildMessageData } from '../app/handlers/Message';
 export function pictureDimensionToByteArray(height, width) {
     const result = [];
@@ -17,10 +17,46 @@ export function pictureDimensionToByteArray(height, width) {
     return result;
 }
 
-export function createBitmapData(id: number, filePath: string): [number[][], number, number, number, number, number] {
+export function createBitmapData(id: number, filePath: string, crop = false): [number[][], number, number, number, number, number] {
     let gray = cv2.imread(filePath).cvtColor(cv2.COLOR_BGR2GRAY);
-    const imgHeight = gray.sizes[0];
-    const imgWidth = gray.sizes[1];
+    let imgHeight = gray.sizes[0];
+    let imgWidth = gray.sizes[1];
+    if (crop) {
+        const match = gray.findNonZero();
+        let minx = imgWidth;
+        let miny = imgHeight;
+        let maxx = 0;
+        let maxy = 0;
+        match.forEach((point) => {
+            if (point.x < minx) {
+                minx = point.x;
+            }
+            if (point.x > maxx) {
+                maxx = point.x;
+            }
+            if (point.y < miny) {
+                miny = point.y;
+            }
+            if (point.y > maxy) {
+                maxy = point.y;
+            }
+        });
+        minx = Math.max(0, minx - 1);
+        miny = Math.max(0, miny - 1);
+        maxx = Math.max(0, maxx + 1);
+        maxy = Math.max(0, maxy + 1);
+        console.log(filePath, minx, miny, maxx, maxy);
+        if (minx > 0 || miny > 0 || maxx < imgWidth || maxy < imgHeight) {
+            gray = gray.getRegion(new cv2.Rect(minx, miny, maxx - minx, maxy - miny));
+            gray = gray.rotate(cv2.ROTATE_180);
+            imgHeight = gray.sizes[0];
+            imgWidth = gray.sizes[1];
+        } else {
+            gray = gray.rotate(cv2.ROTATE_180);
+        }
+    } else {
+        gray = gray.rotate(cv2.ROTATE_180);
+    }
     // let match = gray.findNonZero();
     // let minx = imgWidth;
     // let miny = imgHeight;
@@ -120,7 +156,7 @@ export function getFolder(configId: string) {
 }
 
 const nmReg = new RegExp('"nm":\\s*"(.*?)"', 'gm');
-export function buildDataSet(configId: string) {
+export function buildDataSet(configId: string, crop = false) {
     const folder = getFolder(configId);
     // const filePath = path.resolve(path.join(__dirname, storyFolder));
     // const filePath = '/Volumes/data/mguillon/Downloads/Illustrations Flore';
@@ -178,7 +214,7 @@ export function buildDataSet(configId: string) {
         const item = files[index];
         const key = item.split('/').slice(-1)[0].split('.')[0].replace(/\s/g, '-');
         if (!jsonOrderData[key]) {
-            const [imgData, x, y, width, height, size] = createBitmapData(imgIndex, item);
+            const [imgData, x, y, width, height, size] = createBitmapData(imgIndex, item, crop);
             totalImageSize += size;
             jsonOrderData[key] = [imgIndex, x, y, width, height];
             data.push(...imgData);

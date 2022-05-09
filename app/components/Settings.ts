@@ -10,6 +10,7 @@ import { Component } from 'vue-property-decorator';
 import BgServiceComponent from '~/components/BgServiceComponent';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
 import {
+    AvailableConfigsEvent,
     BLEBatteryEventData,
     BLEConnectionEventData,
     BLEEventData,
@@ -28,7 +29,7 @@ import { timeout } from '~/utils';
 import FirmwareUpdate from './FirmwareUpdate';
 import OptionSelect from './OptionSelect';
 import { getGlassesImagesFolder } from '~/utils/utils';
-import { Application } from '@akylas/nativescript';
+import { Application, EventData } from '@akylas/nativescript';
 import { ComponentIds } from '~/vue.prototype';
 
 @Component({
@@ -215,6 +216,11 @@ export default class Settings extends BgServiceComponent {
         }
         this.refresh();
     }
+
+    onAvailableConfigs(e: BLEEventData) {
+        this.configs = e.data;
+        this.refresh();
+    }
     sessionStopped = true;
     async setup({ bluetoothHandler, geoHandler }: { bluetoothHandler: BluetoothHandler; geoHandler: GeoHandler }) {
         this.refresh();
@@ -226,14 +232,14 @@ export default class Settings extends BgServiceComponent {
 
         this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
         this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
+        this.bluetoothHandlerOn(AvailableConfigsEvent, this.onAvailableConfigs, this);
         this.bluetoothHandlerOn(GlassesSettingsEvent, this.onGlassesSettings);
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
+        this.configs = bluetoothHandler.currentConfigs;
         if (this.connectedGlasses) {
             this.updateGlassesBattery(bluetoothHandler.glassesBattery);
             this.onGlassesSettings({ data: this.connectedGlasses.settings } as any);
-            await this.getConfigs(false);
-            await this.getMemory(false);
-            this.refresh();
+            this.getMemory();
         }
     }
     onGlassesConnected(e: BLEConnectionEventData) {
@@ -245,19 +251,19 @@ export default class Settings extends BgServiceComponent {
         this.glassesBattery = -1;
         this.hideLoading();
     }
-    async getConfigs(refresh = true) {
-        try {
-            const result = await this.bluetoothHandler.sendCommand({ command: CommandType.cfgList, timestamp: Date.now() });
-            this.configs = result?.data || [];
-            refresh && this.refresh();
-        } catch (error) {
-            this.showError(error);
-        }
-    }
+    // async getConfigs(refresh = true) {
+    //     try {
+    //         const result = await this.bluetoothHandler.askConfigs();
+    //         this.configs = result?.data || [];
+    //         refresh && this.refresh();
+    //     } catch (error) {
+    //         this.showError(error);
+    //     }
+    // }
     async getMemory(refresh = true) {
         try {
-            const result = await this.bluetoothHandler.sendCommand({ command: CommandType.cfgFreeSpace, timestamp: Date.now() });
-            this.memory = result?.data || ({} as any);
+            this.memory = await this.bluetoothHandler.getMemory(true);
+            console.log('getMemory', this.memory);
             refresh && this.refresh();
         } catch (error) {
             this.showError(error);
@@ -337,8 +343,7 @@ export default class Settings extends BgServiceComponent {
             return undefined;
         }
     }
-    async onButtonTap(command, item) {
-        console.log('onButtonTap', command, item);
+    async onButtonTap(command, item?, event?) {
         try {
             switch (command) {
                 case 'wallpaper':
@@ -347,33 +352,21 @@ export default class Settings extends BgServiceComponent {
                 case 'addConfig':
                     const config = await this.pickConfig();
                     if (config) {
-                        await new Promise<void>(async (resolve) => {
-                            let size;
-                            try {
-                                size = JSON.parse(File.fromPath(path.join(config, 'info.json')).readTextSync()).totalImageSize;
-                            } catch (error) {
-                                console.error(error);
-                                size = File.fromPath(path.join(config, 'images.txt')).size / 2;
-                            }
-                            if (size >= this.memory.freeSpace) {
-                                throw new MessageError({ message: $tc('not_enough_memory', size, this.memory.freeSpace) });
-                            }
-                            const promise = this.bluetoothHandler.sendLayoutConfig(path.join(config, 'images.txt'), (progress, current, total) => {
-                                // console.log('sendLayoutConfig progress', progress, current, total);
-                                this.updateLoadingProgress({ progress: progress * 100, text: $tc('sending_config_progress', Math.ceil(progress * 100) + '%', fileSize(total)) });
-                                if (progress === 1) {
-                                    resolve();
-                                }
-                            });
-                            this.showLoading({
-                                title: $tc('sending_config', config.split('/').slice(-1)[0]),
-                                text: '',
-                                progress: 0,
-                                onButtonTap: () => promise.cancel()
-                            });
-                        });
-                        console.log('config sent');
-                        await this.getConfigs(false);
+                        await this.bluetoothHandler.sendConfigToGlasses(
+                            config,
+                            this.memory
+                            // (promise) => {
+                            //     this.showLoading({
+                            //         title: $tc('sending_config', config.split('/').slice(-1)[0]),
+                            //         text: '',
+                            //         progress: 0,
+                            //         onButtonTap: () => promise.cancel()
+                            //     });
+                            // },
+                            // (progress, current, total) => {
+                            //     this.updateLoadingProgress({ progress: progress * 100, text: $tc('sending_config_progress', Math.ceil(progress * 100) + '%', fileSize(total)) });
+                            // }
+                        );
                         await this.getMemory(false);
                         this.refresh();
                     }
@@ -386,15 +379,15 @@ export default class Settings extends BgServiceComponent {
                     });
                     if (result) {
                         this.showLoading();
-                        const done = await this.bluetoothHandler.sendCommand({ command: CommandType.cfgDelete, params: { name: item.name } });
-                        let index = this.items.findIndex((i) => i === item);
-                        if (index !== -1) {
-                            this.items.splice(index, 1);
-                        }
-                        index = this.configs.findIndex((i) => i.name === item.name);
-                        if (index !== -1) {
-                            this.configs.splice(index, 1);
-                        }
+                        await this.bluetoothHandler.deleteConfig(item.name);
+                        // let index = this.items.findIndex((i) => i === item);
+                        // if (index !== -1) {
+                        //     this.items.splice(index, 1);
+                        // }
+                        // index = this.configs.findIndex((i) => i.name === item.name);
+                        // if (index !== -1) {
+                        //     this.configs.splice(index, 1);
+                        // }
                         showSnack({ message: $tc('config_deleted', item.name) });
                         await this.getMemory();
                     }

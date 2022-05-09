@@ -24,6 +24,7 @@
   "downloading_map_update": "téléchargement des données de carte",
   "downloading_update": "téléchargement de la mise à jour",
   "entering_feature": "vous entrez dans %s",
+  "file_not_found": "fichier non trouvé: %1$s",
   "firmware": "firmware",
   "firmware_update": "mise à jour de firmware",
   "firmware_update_available_desc": "une mise à jour du firmware est disponible pour vos lunettes",
@@ -32,6 +33,8 @@
   "gesture_desc": "activez le capteur de gestes",
   "glasses": "lunettes",
   "glasses_updated": "Lunettes mises à jour!",
+  "gps_not_authorized": "Notre application n'a pas l'autorisation d'utiliser le GPS",
+  "gps_not_enabled": "GPS désactivé",
   "images": "images",
   "importing": "import en cours",
   "importing_data": "import en cours",
@@ -77,11 +80,14 @@
   "stop": "arrêter",
   "stop_session": "arréter la session",
   "stop_session_are_you_sure": "êtes-vous sur de vouloir arréter la session?",
+  "stories": "histoires",
+  "story_sent_glasses": "histoire %1$s envoyé aux lunettes! (%2$1)",
   "tap_to_open": "appuyez pour ouvrir",
   "total": "total",
   "tracks": "tracés",
   "uncompress_glasses_data": "décompression de l'histoire \"%1$s\"",
   "uncompress_map_data": "décompression des données de carte",
   "update": "mise à jour",
-  "update_firmware": "mettre à jour le firmware\\"
+  "update_firmware": "mettre à jour le firmware\\",
+  "uploading_story_to_glasses": "Envoi de l'histoire \"%1$s\""
 }

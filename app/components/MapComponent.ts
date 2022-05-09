@@ -19,6 +19,7 @@ import { Point } from '@nativescript-community/ui-carto/vectorelements/point';
 import { Polygon } from '@nativescript-community/ui-carto/vectorelements/polygon';
 import { Text } from '@nativescript-community/ui-carto/vectorelements/text';
 import { MBVectorTileDecoder } from '@nativescript-community/ui-carto/vectortiles';
+import { Tween } from '@nativescript-community/ui-chart/animation/Tween';
 import {
     Application,
     ApplicationSettings,
@@ -53,7 +54,9 @@ export default class MapComponent extends BgServiceComponent {
     mRasterLayer: RasterTileLayer = null;
     mLastUserLocation: GeoLocation = null;
     mLocalVectorDataSource: LocalVectorDataSource;
+    mLocalBackVectorDataSource: LocalVectorDataSource;
     mLocalVectorLayer: VectorLayer;
+    mLocalBackVectorLayer: VectorLayer;
     mGeoJSONVectorDataSource: GeoJSONVectorTileDataSource;
     mGeoJSONLayer: VectorTileLayer;
     mUserBackMarker: Point<LatLonKeys>;
@@ -249,12 +252,25 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         }
         return this.mLocalVectorDataSource;
     }
+    get localBackVectorDataSource() {
+        if (!this.mLocalBackVectorDataSource && this.mCartoMap) {
+            this.mLocalBackVectorDataSource = new LocalVectorDataSource({ projection: this.mMapProjection });
+        }
+        return this.mLocalBackVectorDataSource;
+    }
     getOrCreateLocalVectorLayer() {
+        console.log('getOrCreateLocalVectorLayer');
         if (!this.mLocalVectorLayer && this.mCartoMap) {
             this.mLocalVectorLayer = new VectorLayer({ visibleZoomRange: [0, 24], dataSource: this.localVectorDataSource });
             this.mLocalVectorLayer.setVectorElementEventListener(this);
+            const projection = this.mCartoMap.projection;
+            this.mLocalBackVectorDataSource = new LocalVectorDataSource({ projection });
 
-            // always add it at 1 to respect local order
+            this.mLocalBackVectorLayer = new VectorLayer({
+                visibleZoomRange: [0, 24],
+                dataSource: this.localBackVectorDataSource
+            });
+            this.mCartoMap.addLayer(this.mLocalBackVectorLayer);
             this.mCartoMap.addLayer(this.mLocalVectorLayer);
         }
     }
@@ -279,20 +295,34 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         }
         return this.mGeoJSONLayer;
     }
+    moveToUserLocation() {
+        if (!this.mLastUserLocation) {
+            return;
+        }
+        this.mCartoMap.setZoom(Math.max(this.mCartoMap.zoom, 14), LOCATION_ANIMATION_DURATION);
+        this.mCartoMap.setFocusPos(this.mLastUserLocation, LOCATION_ANIMATION_DURATION);
+    }
     updateUserLocation(geoPos: GeoLocation) {
         if (!geoPos) {
             return;
         }
+        const position = {
+            ...geoPos
+        };
         if (
             !this.mCartoMap ||
             (this.mLastUserLocation &&
-                this.mLastUserLocation.lat === geoPos.lat &&
-                this.mLastUserLocation.lon === geoPos.lon &&
-                this.mLastUserLocation.horizontalAccuracy === geoPos.horizontalAccuracy)
+                this.mLastUserLocation.lat === position.lat &&
+                this.mLastUserLocation.lon === position.lon &&
+                this.mLastUserLocation.horizontalAccuracy === position.horizontalAccuracy)
         ) {
-            this.mLastUserLocation = geoPos;
+            this.mLastUserLocation = position;
+            if (this.userFollow) {
+                this.moveToUserLocation();
+            }
             return;
         }
+        console.log('updateUserLocation');
 
         let accuracyColor = '#0e7afe';
         const accuracy = geoPos.horizontalAccuracy || 0;
@@ -304,42 +334,12 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         } else if (accuracy > 20) {
             accuracyColor = 'orange';
         }
-
-        const position = { lat: geoPos.lat, lon: geoPos.lon, horizontalAccuracy: geoPos.horizontalAccuracy };
-        DEV_LOG && console.log('updateUserLocation', position, this.userFollow, accuracyColor, !!this.mUserMarker, accuracy);
-        if (this.mUserMarker) {
-            const currentLocation = { lat: this.mLastUserLocation.lat, lon: this.mLastUserLocation.lon, horizontalAccuracy: this.mLastUserLocation.horizontalAccuracy };
-            const styleBuilder = this.mUserMarker.styleBuilder;
-            styleBuilder.color = accuracyColor;
-            this.mUserMarker.styleBuilder = styleBuilder;
-            // if (this.mAccuracyMarker) {
-            //     this.mAccuracyMarker.visible = accuracy > 10;
-            // }
-            // const anim = new AdditiveTweening<GenericMapPos<LatLonKeys>>({
-            //     onRender: (newPos) => {
-            //         if (this.mUserBackMarker) {
-            //             this.mUserBackMarker.position = newPos;
-            //             this.mUserMarker.position = newPos;
-            //         }
-            //         if (this.mAccuracyMarker) {
-            //             this.mAccuracyMarker.positions = this.getCirclePoints(newPos);
-            //         }
-            //     }
-            // });
-            // anim.tween(currentLocation, position, LOCATION_ANIMATION_DURATION);
-            if (this.mUserBackMarker) {
-                this.mUserBackMarker.position = position;
-                this.mUserMarker.position = position;
-            }
-            if (this.mAccuracyMarker) {
-                this.mAccuracyMarker.positions = this.getCirclePoints(position);
-            }
-        } else {
+        if (!this.mUserMarker) {
+            const posWithoutAltitude = { lat: position.lat, lon: position.lon };
             this.getOrCreateLocalVectorLayer();
-            // const projection = this.mapView.projection;
 
             this.mAccuracyMarker = new Polygon<LatLonKeys>({
-                positions: this.getCirclePoints(geoPos),
+                positions: this.getCirclePoints(position),
                 styleBuilder: {
                     size: 16,
                     color: new Color(70, 14, 122, 254),
@@ -349,33 +349,57 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
                     }
                 }
             });
-            this.localVectorDataSource.add(this.mAccuracyMarker);
 
             this.mUserBackMarker = new Point<LatLonKeys>({
-                position,
+                position: posWithoutAltitude,
                 styleBuilder: {
                     size: 17,
                     color: '#ffffff'
                 }
             });
-            this.localVectorDataSource.add(this.mUserBackMarker);
             this.mUserMarker = new Point<LatLonKeys>({
-                position,
+                metaData: {
+                    userMarker: 'true'
+                },
+                position: posWithoutAltitude,
                 styleBuilder: {
                     size: 14,
                     color: accuracyColor
                 }
             });
+            this.localBackVectorDataSource.add(this.mAccuracyMarker);
+            this.localVectorDataSource.add(this.mUserBackMarker);
             this.localVectorDataSource.add(this.mUserMarker);
             // this.userBackMarker.position = position;
             // this.userMarker.position = position;
-        }
-        if (this.userFollow) {
-            this.mCartoMap.setZoom(Math.max(this.mCartoMap.zoom, 16), position, LOCATION_ANIMATION_DURATION);
-            this.mCartoMap.setFocusPos(position, LOCATION_ANIMATION_DURATION);
-        }
+        } else {
+            // const currentLocation = { lat: this.lastUserLocation.latitude, lon: this.lastUserLocation.longitude, horizontalAccuracy: this.lastUserLocation.horizontalAccuracy };
+            this.mUserMarker.color = accuracyColor;
+            this.mAccuracyMarker.visible = accuracy > 20;
 
-        this.mLastUserLocation = geoPos;
+            // const currentPosition = { ...this.mLastUserLocation };
+            // try {
+            //     new Tween({
+            //         onRender: (newPos: any) => {
+            //             if (this.mUserMarker) {
+            //                 this.mAccuracyMarker.positions = this.getCirclePoints(newPos);
+            //                 this.mUserBackMarker.position = newPos;
+            //                 this.mUserMarker.position = newPos;
+            //             }
+            //         }
+            //     }).tween({ lat: currentPosition.lat, lon: currentPosition.lon }, { lat: position.lat, lon: position.lon }, LOCATION_ANIMATION_DURATION);
+            // } catch (err) {
+            //     console.error(err);
+            // }
+
+            this.mUserBackMarker.position = position;
+            this.mUserMarker.position = position;
+            this.mAccuracyMarker.positions = this.getCirclePoints(position);
+        }
+        this.mLastUserLocation = position;
+        if (this.userFollow) {
+            this.moveToUserLocation();
+        }
     }
     onLocation(data: UserLocationdEventData) {
         this.searchingForUserLocation = false;
