@@ -35,6 +35,7 @@ declare namespace com {
         export namespace juleverne {
             class BgService extends globalAndroid.app.Service {}
             class BgServiceBinder extends globalAndroid.os.Binder {}
+            class ActionReceiver extends globalAndroid.content.BroadcastReceiver {}
         }
     }
 }

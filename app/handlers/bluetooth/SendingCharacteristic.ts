@@ -9,7 +9,14 @@ export abstract class SendingCharacteristic<T extends ArrayBuffer | string = Typ
     sliceSize = DEFAULT_MTU;
     writeTimeout = DEFAULT_WRITE_TIMEOUT;
     currentCommandListener: ProgressListener;
-    sendWithResponse = false;
+    mSendWithResponse = false;
+
+    get sendWithResponse() {
+        return this.mSendWithResponse;
+    }
+    set sendWithResponse(value) {
+        this.mSendWithResponse = value;
+    }
     get mtu() {
         return this._mtu;
     }
@@ -97,7 +104,7 @@ export abstract class SendingCharacteristic<T extends ArrayBuffer | string = Typ
                 const sliceRemainingLength = this.getLength(slice);
                 const isLast = slice === null;
                 // DEV_LOG && console.log('sendSliceData', this.sendWithResponse, sliceLength, this.getLength(subSlice),  subSlice.constructor.name);
-                if (this.sendWithResponse) {
+                if (this.mSendWithResponse) {
                     await this.write(subSlice);
                 } else {
                     await this.writeWithoutResponse(subSlice);

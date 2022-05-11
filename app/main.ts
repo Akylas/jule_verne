@@ -9,17 +9,17 @@
 // Trace.enable();
 import { setMapPosKeys } from '@nativescript-community/ui-carto/core';
 import { themer } from '@nativescript-community/ui-material-core';
-import Vue from 'nativescript-vue';
-import Home from './components/Home';
-import CrashReportService from './services/CrashReportService';
-import { primaryColor } from './variables';
-// importing filters
-import FiltersPlugin from './vue.filters';
-import MixinsPlugin from './vue.mixins';
-// adding to Vue prototype
-import PrototypePlugin from './vue.prototype';
-import ViewsPlugin from './vue.views';
 import { time } from '@nativescript/core/profiling';
+import Vue from 'nativescript-vue';
+import App from '~/components/App.vue';
+import CrashReportService from '~/services/CrashReportService';
+import { primaryColor } from '~/variables';
+// importing filters
+import FiltersPlugin from '~/vue.filters';
+import MixinsPlugin from '~/vue.mixins';
+// adding to Vue prototype
+import PrototypePlugin from '~/vue.prototype';
+import ViewsPlugin from '~/vue.views';
 
 if (!global.window) {
     window = global.window = {
@@ -85,5 +85,5 @@ themer.createShape('round', {
 });
 
 new Vue({
-    render: (h) => h('frame', [h(Home)])
+    render: (h) => h(App)
 }).$start();

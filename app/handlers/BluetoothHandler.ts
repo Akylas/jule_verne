@@ -9,14 +9,15 @@ import { Folder, path } from '@nativescript/core/file-system';
 import { AdditiveTweening } from 'additween';
 import dayjs from 'dayjs';
 import fileSize from 'filesize';
+import { getUint32 } from '~/handlers/bluetooth/SuotaCharacteristic';
 import { GeoHandler, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
 import { CommandType, ConfigListData, FreeSpaceData, InputCommandType, Message } from '~/handlers/Message';
-import { formatDuration } from '~/helpers/formatter';
+import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
 import { $t, $tc } from '~/helpers/locale';
+import * as ProgressNotification from '~/services/android/ProgressNotifications';
 import { MessageError } from '~/services/CrashReportService';
 import { hashCode, versionCompare } from '~/utils';
 import { alert, confirm } from '~/utils/dialogs';
-import * as ProgressNotification from '~/utils/progress-notifications';
 import { getGlassesImagesFolder } from '~/utils/utils';
 import { Characteristic } from './bluetooth/Characteristic';
 import { GlassesDevice } from './bluetooth/GlassesDevice';
@@ -59,6 +60,7 @@ export const DEFAULT_WRITE_TIMEOUT = 0;
 export const FinishSendingEvent = 'finishSending';
 export const StatusChangedEvent = 'status';
 export const GlassesConnectedEvent = 'glassesConnected';
+export const GlassesReadyEvent = 'glassesReady';
 export const BLEConnectedEvent = 'connected';
 export const GlassesDisconnectedEvent = 'glassesDisconnected';
 export const GlassesReconnectingEvent = 'GlassesReconnecting';
@@ -71,6 +73,7 @@ export const GlassesScreenStateChangeEvent = 'glassesScreenStateChange';
 export const VersionEvent = 'version';
 export const SerialEvent = 'serial';
 export const GlassesSettingsEvent = 'settings';
+export const GlassesErrorEvent = 'error';
 export const DevLogMessageEvent = 'devlogmessage';
 export const AvailableConfigsEvent = 'availableConfigs';
 
@@ -88,10 +91,10 @@ function getRandomFromArray(array) {
 export function hexToBytes(hex) {
     const bytes = [];
     for (let c = 2; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
-    return bytes;
+    return new Uint8Array(bytes);
 }
 
-export type CancelPromise = Promise<void> & { cancel() };
+export type CancelPromise<T = void> = Promise<T> & { cancel() };
 
 // function pictureDimensionToByteArray(height, width) {
 //     const result = [];
@@ -253,6 +256,9 @@ export class BluetoothHandler extends Observable {
 
         if (!bluetooth) {
             bluetooth = new Bluetooth('myCentralManagerIdentifier');
+            bluetooth.on('mtu', (e: BluetoothEvent) => {
+                console.log('device mtu changed', e.data.mtu, e.data.device);
+            });
         }
     }
 
@@ -463,6 +469,7 @@ export class BluetoothHandler extends Observable {
                 glasses.on('swipe', this.onGlassesGesture.bind(this));
                 glasses.on('tap', this.onGlassesTap.bind(this));
 
+                // TODO test not setting mtu. Right now we cant because without it we dont know the mtu we can use
                 await this.requestMtu();
 
                 if (this.glasses.hasFlowControl) {
@@ -491,10 +498,23 @@ export class BluetoothHandler extends Observable {
                     this.activateGesture(this.isGestureOn);
                     this.changeLuminance(this.levelLuminance);
                 }
-                this.askConfigs();
+
+                // This improve latency in sending messages
+                this.setBLEConnectParam({
+                    intervalMinMs: 7.5,
+                    intervalMaxMs: 7.5,
+                    slaveLatency: 0,
+                    supTimeoutMs: 5000
+                });
                 this.sendDim(100);
                 this.setConfig('nav');
                 this.clearScreen();
+                this.askConfigs();
+                this.notify({
+                    eventName: GlassesReadyEvent,
+                    object: this,
+                    data: glasses
+                } as BLEEventData);
             }
             this.removeConnectingDeviceUUID(data.UUID);
             this.notify({
@@ -503,7 +523,7 @@ export class BluetoothHandler extends Observable {
                 data
             } as BLEEventData);
         } catch (e) {
-            console.error(e.toString());
+            console.error(e, e.stack);
             this.disconnect(data.UUID, false);
 
             // make sure the error is shown in the UI
@@ -591,7 +611,8 @@ export class BluetoothHandler extends Observable {
             this.connectingDevicesUUIDs[UUID] = options;
             await bluetooth.connect({
                 UUID,
-                autoDiscoverAll: false
+                autoDiscoverAll: false,
+                priority: 1
             });
         } catch (err) {
             this.removeConnectingDeviceUUID(UUID);
@@ -655,7 +676,7 @@ export class BluetoothHandler extends Observable {
     }
 
     onGlassesMessage({ message }: { message: Message<any> }) {
-        // this.addDevLogMessage(message);
+        // DEV_LOG && console.log('onGlassesMessage', message.commandType, message.data);
         switch (message.commandType) {
             case CommandType.cfgList:
                 const list = (message as Message<CommandType.cfgList>).data;
@@ -679,6 +700,13 @@ export class BluetoothHandler extends Observable {
                 this.isGestureOn = this.glasses.gestureOn = settings.gesture;
                 this.isSensorOn = this.glasses.alsOn = settings.als;
                 break;
+            case CommandType.Error:
+                console.error('GlassesErrorEvent', message.data);
+                this.notify({
+                    eventName: GlassesErrorEvent,
+                    object: this,
+                    data: message.data
+                });
         }
     }
 
@@ -805,7 +833,11 @@ export class BluetoothHandler extends Observable {
     async askSettings() {
         return this.sendCommand({ command: CommandType.Settings });
     }
+    async setBLEConnectParam(params: InputCommandType<CommandType.SetBLEConnectParam>) {
+        return this.sendCommand({ command: CommandType.SetBLEConnectParam, params });
+    }
     async askConfigs() {
+        DEV_LOG && console.log('askConfigs');
         return this.sendCommand({ command: CommandType.cfgList });
     }
     async setGlassesName(name: string) {
@@ -931,15 +963,16 @@ export class BluetoothHandler extends Observable {
             console.error(error);
         }
     }
-    sendRawCommands(commandsToSend: number[][], onProgress: (progress, current, total) => void) {
+    sendRawCommands(commandsToSend: (number[] | Uint8Array)[], onProgress: (progress, current, total) => void) {
         let cancelled = false;
-        const promise = new Promise(async () => {
+        const promise = new Promise<void>((resolveUp, rejectUp) => {
             const datalength = commandsToSend.reduce((accumulator, currentValue) => accumulator + currentValue.length, 0);
             let dataSent = 0;
-
+            this.glasses.rxChar.sendWithResponse = false;
             const promisedCallback = (resolve, reject) => (err, progress, total) => {
                 if (err || cancelled) {
-                    return reject(err);
+                    console.log('reject', err, cancelled);
+                    return reject(err || 'cancelled');
                 }
                 const p = (progress * total + dataSent) / datalength;
                 onProgress(p, progress * total + dataSent, datalength);
@@ -955,60 +988,35 @@ export class BluetoothHandler extends Observable {
                     // console.log('currentCommandToSend', commandsToSend.length);
                     this.sendCommand({ command: CommandType.RawCommand, params: [currentCommandToSend], progressCallback: promisedCallback(resolve, reject) });
                 }).then(() => {
-                    // console.log('command sent', commandsToSend.length);
-                    if (!cancelled && commandsToSend.length > 0) {
+                    if (cancelled) {
+                        console.log('cancelled');
+                        throw new Error('cancelled');
+                    } else if (commandsToSend.length > 0) {
                         return createPromise();
                     }
                 });
-            await createPromise();
-            this.clearFullScreen();
-        });
-        promise['cancel'] = () => (cancelled = true);
-        return promise as Promise<void> & { cancel() };
-    }
-
-    sendLayoutConfig(config: string, onProgress: (progress, current, total) => void) {
-        let cancelled = false;
-        const promise = new Promise(async () => {
-            const r = await File.fromPath(config).readText();
-            const commandsToSend = r.split('\n').filter((s) => s && s.trim().length > 0);
-            const datalength = commandsToSend.reduce((acc, current) => acc + current.length / 2 - 1, 0);
-            let dataSent = 0;
-
-            const promisedCallback = (resolve, reject) => (err, progress, total) => {
-                if (err || cancelled) {
-                    return reject(err);
-                }
-
-                const p = (progress * total + dataSent) / datalength;
-                onProgress(p, progress * total + dataSent, datalength);
-                if (progress === 1) {
-                    dataSent += total;
-                    resolve();
-                }
-            };
-
-            const createPromise = () =>
-                new Promise((resolve, reject) => {
-                    const currentCommandToSend = commandsToSend.shift();
-                    const data = hexToBytes(currentCommandToSend);
-                    this.sendCommand({
-                        command: CommandType.RawCommand,
-                        params: [data],
-                        progressCallback: promisedCallback(resolve, reject)
-                    });
-                }).then(() => {
-                    // console.log('sendLayoutConfig command sent', dataSent, datalength, commandsToSend.length);
-                    if (!cancelled && commandsToSend.length > 0) {
-                        return createPromise();
-                    }
+            createPromise()
+                .then(() => {
+                    this.glasses.rxChar.sendWithResponse = true;
+                    this.clearFullScreen();
+                    resolveUp();
+                })
+                .catch((err) => {
+                    this.glasses.rxChar.sendWithResponse = true;
+                    rejectUp(err);
                 });
-            await createPromise();
-            // console.log('sendLayoutConfig done');
-            this.clearFullScreen();
         });
         promise['cancel'] = () => (cancelled = true);
         return promise as CancelPromise;
+    }
+
+    sendLayoutConfig(config: string, onProgress: (progress, current, total) => void): CancelPromise {
+        const r = File.fromPath(config).readTextSync();
+        const commandsToSend = r
+            .split('\n')
+            .filter((s) => s && s.trim().length > 0)
+            .map(hexToBytes);
+        return this.sendRawCommands(commandsToSend, onProgress);
     }
 
     async startLoop() {
@@ -1535,10 +1543,7 @@ export class BluetoothHandler extends Observable {
                         const cleaned = text.split('.')[0];
                         if (imagesMap[cleaned]) {
                             const [imageId, x, y] = imagesMap[cleaned];
-                            // console.log('playing image', imageId);
                             this.clearFadeout();
-
-                            // console.log('playing image', text, cleaned, imageId);
                             if (this.glasses) {
                                 this.glasses.sendCommand(CommandType.imgDisplay, { params: [imageId, x, y] });
                             }
@@ -1554,7 +1559,6 @@ export class BluetoothHandler extends Observable {
             });
             this.clearFadeout();
             this.lyric.play();
-            console.log('notify storyPlayback');
             this.notify({ eventName: 'storyPlayback', data: 'play' });
             await this.playAudio(path.join(storyFolder, 'audio.mp3'));
             DEV_LOG && console.log('playStory done ', index, this.isPlaying);
@@ -1564,7 +1568,7 @@ export class BluetoothHandler extends Observable {
             this.playInstruction('story_finished');
         } finally {
             this.currentLyricsTime = 0;
-            console.log('finished playing story');
+            DEV_LOG && console.log('finished playing story');
             this.stopPlayingLoop();
         }
     }
@@ -1582,7 +1586,6 @@ export class BluetoothHandler extends Observable {
             this.isPlaying = true;
             this.isPlayingPastille = index;
             const storyFolder = path.join(getGlassesImagesFolder(), 'pastilles');
-            console.log('tes1t pastille', storyFolder, Folder.exists(storyFolder), Folder.fromPath(storyFolder).getEntitiesSync());
             this.clearFadeout();
             await this.playAudio(path.join(storyFolder, `pastille_${index}.mp3`));
             DEV_LOG && console.log('playPastille done ', index, this.isPlaying);
@@ -1644,13 +1647,32 @@ export class BluetoothHandler extends Observable {
                         message: '',
                         ongoing: true,
                         indeterminate: false,
-                        progressValue: 0
+                        progressValue: 0,
+                        actions: [
+                            {
+                                id: 'cancel',
+                                text: $tc('cancel'),
+                                callback: () => {
+                                    if (this.sendConfigPromise) {
+                                        console.log('cancelling sending config', config);
+                                        //if we cancel we need to delete the config to ensure we are good
+                                        this.sendConfigPromise.cancel();
+                                        //we need to delete the broken config on reboot
+                                        this.once(GlassesReadyEvent, () => {
+                                            this.deleteConfig(configId);
+                                        });
+                                        //we need to reboot the glasses in this case :s
+                                        this.rebootGlasses();
+                                    }
+                                }
+                            }
+                        ]
                     });
                     this.sendConfigPromise = this.sendLayoutConfig(path.join(config, 'images.txt'), (progress, current, total) => {
                         onProgress?.(progress, current, total);
                         const perc = Math.round((current / total) * 100);
                         ProgressNotification.update(progressNotification, {
-                            message: `${fileSize(Math.round(current))}/${fileSize(total)} (${perc}%)`,
+                            message: `${fileSize(Math.round(current), { round: 1, pad: true })}/${fileSize(total)} (${perc}%)`,
                             progressValue: perc
                         });
                         if (progress === 1) {
@@ -1658,17 +1680,20 @@ export class BluetoothHandler extends Observable {
                         }
                     });
                     onStart?.(this.sendConfigPromise);
+                    await this.sendConfigPromise;
                 } catch (error) {
                     reject(error);
                 }
             });
-            DEV_LOG && console.log('sendConfigToGlasses done ', config, formatDuration(dayjs.duration(Date.now() - startTime)));
+            const duration = formatDuration(dayjs.duration(Date.now() - startTime), DURATION_FORMAT.SECONDS);
+            DEV_LOG && console.log('sendConfigToGlasses done ', config, Date.now() - startTime, duration);
             showSnack({
-                message: $tc('story_sent_glasses', configId, formatDuration(dayjs.duration(Date.now() - startTime)))
+                message: $tc('story_sent_glasses', configId, duration)
             });
         } catch (error) {
             throw error;
         } finally {
+            DEV_LOG && console.log('sendConfigToGlasses finally ', progressNotificationId);
             ProgressNotification.dismiss(progressNotificationId);
             this.askConfigs();
             this.canDrawOnGlasses = true;
@@ -1683,5 +1708,19 @@ export class BluetoothHandler extends Observable {
         DEV_LOG && console.log('deleteConfig', config);
         await this.sendCommand({ command: CommandType.cfgDelete, params: { name: config } });
         this.askConfigs();
+    }
+
+    rebootGlasses() {
+        if (this.glasses) {
+            showSnack({ message: $tc('rebooting_glasses') });
+            const data = 0xfd000000;
+            const toSend = getUint32(data);
+            console.log('rebootGlasses', data);
+            // ignore write errors. Apparently the glasses can reboot very quickly not letting the time for the write to response correctly
+            return bluetooth.write({ peripheralUUID: this.glasses.UUID, serviceUUID: SPOTA_SERVICE_UUID, characteristicUUID: SPOTA_MEM_DEV_UUID, value: toSend }).then(() => {
+                console.log('about to disconnect glasses');
+                this.disconnectGlasses(false); //false to show reconnecting dialog
+            });
+        }
     }
 }

@@ -252,7 +252,7 @@ export default class Home extends BgServiceComponent {
         if (track && map) {
             map.moveToFitBounds(track.bounds, undefined, true, true, false, 200);
         }
-        this.$checkForGlassesDataUpdate();
+        this.$networkService.checkForGlassesDataUpdate();
     }
 
     async onServiceStarted(handlers: BgServiceMethodParams) {
@@ -271,7 +271,7 @@ export default class Home extends BgServiceComponent {
         } else {
             this.needsImportOldSessionsOnLoaded = true;
         }
-        this.$checkForMapDataUpdate();
+        this.$networkService.checkForMapDataUpdate();
     }
     // updateMapWithSession() {
     //     const map = this._cartoMap;
@@ -443,7 +443,7 @@ export default class Home extends BgServiceComponent {
     async importDevSessions() {
         try {
             let geojsonPath = path.join(getWorkingDir(false), 'map.geojson');
-            await this.$checkForGeoJSONUpdate(geojsonPath);
+            await this.$networkService.checkForGeoJSONUpdate(geojsonPath);
             DEV_LOG && console.log('importDevSessions', geojsonPath, File.exists(geojsonPath));
             if (!File.exists(geojsonPath)) {
                 geojsonPath = path.join(knownFolders.currentApp().path, 'assets/data/map.geojson');
@@ -808,7 +808,7 @@ export default class Home extends BgServiceComponent {
     onGlassesVersion(e) {
         this.glassesVersion = e.data;
         console.log('onGlassesVersion', this.glassesVersion);
-        this.$checkFirmwareUpdateOnline(this.glassesVersion);
+        // this.$networkService.checkFirmwareUpdateOnline(this.glassesVersion);
         this.updateSentryInfos();
     }
     onGlassesSerialNumber(e) {

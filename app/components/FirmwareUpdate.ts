@@ -133,7 +133,7 @@ export default class FirmwareUpdate extends BgServiceComponent {
                 console.log('about to disconnect glasses');
                 this.bluetoothHandler.disconnectGlasses(false); //false to show reconnecting dialog
             })
-            .catch(console.log);
+            .catch(console.error);
     }
 
     fLog(...args) {

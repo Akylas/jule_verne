@@ -189,7 +189,7 @@ export default class CrashReportService extends Observable {
         const title = $tc('error');
         const reporterEnabled = this.sentryEnabled;
         let showSendBugReport = reporterEnabled && !isString && (!realError || !!realError.stack);
-        if (realError.constructor.name === NoNetworkError.name || realError.constructor.name === MessageError.name) {
+        if (realError && (realError.constructor.name === NoNetworkError.name || realError.constructor.name === MessageError.name)) {
             showSendBugReport = false;
         }
         console.log('showError', err, err && err['stack']);

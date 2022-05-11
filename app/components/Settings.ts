@@ -192,14 +192,15 @@ export default class Settings extends BgServiceComponent {
                 buttonTitle: $t('refresh')
             },
             { id: 'addConfig', type: 'header', title: $t('configs'), buttonTitle: $t('add') },
-            ...this.configs.map((c) => ({ ...c, type: 'config' })),
+            ...(this.configs?.map((c) => ({ ...c, type: 'config' })) || []),
             { type: 'header', title: $t('glasses') },
             { id: 'gesture', type: 'switch', title: $t('gesture'), subtitle: $t('gesture_desc'), checked: this.gestureEnabled },
             { id: 'sensor', type: 'switch', title: $t('auto_luminance'), subtitle: $t('sensor_desc'), checked: this.sensorEnabled },
             { id: 'light', type: 'slider', title: $t('light'), subtitle: $t('light_desc'), value: this.levelLuminance },
             { id: 'shift', type: 'shift', description: this.shiftDescription, currentShift: this.currentShift },
-            { id: 'checkBetaFirmware', type: 'button', title: $t('beta_firmware'), buttonTitle: $t('check_update') },
-            { id: 'firmwareUpdate', type: 'button', title: $t('firmware'), subtitle: this.firmwareVersion, buttonTitle: $t('update_firmware') },
+            { id: 'checkBetaFirmware', type: 'button', title: $t('beta_firmware'), buttonTitle: $t('check') },
+            { id: 'firmwareUpdate', type: 'button', title: $t('update_firmware'), subtitle: this.firmwareVersion, buttonTitle: $t('update') },
+            { id: 'reboot', type: 'button', title: $t('reboot_glasses'), subtitle: this.firmwareVersion, buttonTitle: $t('reboot') },
             { type: 'header', title: $t('settings') },
             { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') }
         ]);
@@ -250,6 +251,7 @@ export default class Settings extends BgServiceComponent {
         this.connectedGlasses = null;
         this.glassesBattery = -1;
         this.hideLoading();
+        this.refresh();
     }
     // async getConfigs(refresh = true) {
     //     try {
@@ -393,7 +395,7 @@ export default class Settings extends BgServiceComponent {
                     }
                     break;
                 case 'checkBetaFirmware':
-                    // this.$getAppComponent().checkFirmwareUpdateOnline(this.devMode);
+                    this.$networkService.checkFirmwareUpdateOnline(true);
                     break;
 
                 case 'refreshMemory':
@@ -409,6 +411,9 @@ export default class Settings extends BgServiceComponent {
                     break;
                 case 'drawTestImage':
                     this.showTestImage();
+                    break;
+                case 'reboot':
+                    this.bluetoothHandler.rebootGlasses();
                     break;
             }
         } catch (error) {

@@ -87,7 +87,7 @@ export function createBitmapData(id: number, filePath: string, crop = false): [n
     //     imgHeight = gray.sizes[0];
     //     imgWidth = gray.sizes[1];
     // } else {
-    gray = gray.rotate(cv2.ROTATE_180);
+    // gray = gray.rotate(cv2.ROTATE_180);
     // }
     // let cptImg = 0;
     const commandsToSend = [[0xff, CommandType.SaveBmp, 0x00, 0x0c, id].concat(pictureDimensionToByteArray(imgHeight, imgWidth)).concat([0xaa])];

@@ -84,6 +84,7 @@ export interface ParamsTypeMap {
     [CommandType.cfgWrite]: WriteConfigParams;
     [CommandType.cfgSet]: { name: string };
     [CommandType.cfgDelete]: { name: string };
+    [CommandType.SetBLEConnectParam]: { intervalMinMs: number; intervalMaxMs: number; slaveLatency: number; supTimeoutMs: number };
 }
 type TypedParamCommands = keyof ParamsTypeMap;
 export type ConfigListData = {
@@ -103,7 +104,9 @@ export interface OutputTypeMap {
 type TypedOutputCommands = keyof OutputTypeMap;
 
 export type OutputMessageType<T extends CommandType> = T extends CommandType.cfgFreeSpace | CommandType.cfgList | CommandType.Settings ? OutputTypeMap[T] : any;
-export type InputCommandType<T extends CommandType> = T extends CommandType.cfgWrite | CommandType.cfgDelete | CommandType.cfgSet ? ParamsTypeMap[T] : (string | number | number[])[];
+export type InputCommandType<T extends CommandType> = T extends CommandType.SetBLEConnectParam | CommandType.cfgWrite | CommandType.cfgDelete | CommandType.cfgSet
+    ? ParamsTypeMap[T]
+    : (string | number | number[] | Uint8Array)[];
 export enum CommandType {
     Any = -1,
     Power = 0x00,
@@ -155,6 +158,7 @@ export enum CommandType {
     WriteMdpProm = 0x91,
     ReadMdpData = 0x92,
     Setece = 0xa0,
+    SetBLEConnectParam = 0xa4,
     TDBG = 0xb0,
     cfgWrite = 0xd0,
     cfgRead = 0xd1,
@@ -166,6 +170,7 @@ export enum CommandType {
     cfgFreeSpace = 0xd7,
     cfgGetNb = 0xd8,
     NbConfigs = 0xd8,
+    Error = 0xe2,
     RawCommand = 0xefefef // only used in app to say we want to send raw data
 }
 
@@ -297,7 +302,12 @@ function parseMessagePayload(commandType: CommandType, data: Uint8Array) {
                 als: !!data[3],
                 gesture: !!data[4]
             } as GlassesSettings;
-
+        case CommandType.Error:
+            return {
+                cmdId: data[0],
+                error: data[1],
+                subError: data[2]
+            };
         default:
             return undefined;
     }
@@ -526,7 +536,7 @@ export function buildMessageData<T extends CommandType>(
 ) {
     // DEV_LOG && console.log('buildMessageData', CommandType[commandType], options);
     if (commandType === CommandType.RawCommand) {
-        return new Uint8Array(options.params[0]);
+        return options.params[0];
     }
     const queryIdLength = options.timestamp ? 8 : 0;
     let messageLength =
@@ -561,7 +571,6 @@ export function buildMessageData<T extends CommandType>(
         case CommandType.cfgWrite: {
             const params = getTypeParam(CommandType.cfgWrite, options.params);
             data = [...toUTF8Array(params.name, 12), ...numberToUint32Array(params.version), ...numberToUint32Array(params.password)];
-            console.log('cfgWrite data', params, data);
             break;
         }
         case CommandType.cfgDelete:
@@ -576,6 +585,14 @@ export function buildMessageData<T extends CommandType>(
                 .concat([options.params[2], options.params[3], options.params[4]])
                 .concat(toUTF8Array(options.params[5]));
             break;
+        case CommandType.SetBLEConnectParam: {
+            const params = getTypeParam(CommandType.SetBLEConnectParam, options.params);
+            data = numberToUint16Array(Math.round((params.intervalMinMs * 100) / 125))
+                .concat(numberToUint16Array(Math.round((params.intervalMaxMs * 100) / 125)))
+                .concat(numberToUint16Array(params.slaveLatency))
+                .concat(numberToUint16Array(Math.round(params.supTimeoutMs / 10)));
+            break;
+        }
         default:
             data = options.params;
             break;

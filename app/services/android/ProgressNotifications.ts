@@ -1,8 +1,10 @@
-import { Application } from '@nativescript/core';
+import { Application, Utils } from '@nativescript/core';
 import { NOTIFICATION_CHANEL_ID_DOWNLOAD_CHANNEL, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL } from '~/services/android/NotifcationHelper';
 import { ad } from '@nativescript/core/utils/utils';
 import { Color } from '@nativescript/core/color';
 import { primaryColor } from '~/variables';
+import { addActionCallback, removeNotificationCallbacks } from '~/android/ActionReceiver';
+import { notify } from '~/utils';
 
 export interface ProgressOptions {
     id: number;
@@ -11,6 +13,12 @@ export interface ProgressOptions {
     indeterminate?: boolean;
     progressValue?: number;
     ongoing?: boolean;
+    actions?: {
+        icon?: number;
+        id: string;
+        text: string;
+        callback?: Function;
+    }[];
 }
 export interface CommonNotification {
     id: number;
@@ -23,8 +31,10 @@ export interface UpdateOptions {
     progressValue?: number;
     ongoing?: boolean;
     hideProgressBar?: boolean;
-} // export class ProgressNotification {
+}
+
 export function show(_options: ProgressOptions): CommonNotification {
+    // console.log('show', _options);
     const options: ProgressOptions = {
         id: _options.id,
         title: _options.title ? _options.title : ' ',
@@ -35,10 +45,32 @@ export function show(_options: ProgressOptions): CommonNotification {
     };
     const builder = getBuilder();
     const color = android.graphics.Color.parseColor(new Color(primaryColor).hex);
-    const context = Application.android.context;
     builder.setContentTitle(options.title).setContentText(options.message).setSmallIcon(ad.resources.getDrawableId('ic_notification')).setColor(color);
     builder.setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX);
     builder.setOnlyAlertOnce(true);
+    const REQUEST_CODE = 200;
+    if (_options.actions) {
+        try {
+            // console.log('actions', _options.actions);
+            const context = Utils.ad.getApplicationContext();
+            _options.actions.forEach((action) => {
+                const intent = new android.content.Intent(context, com.akylas.juleverne.ActionReceiver.class);
+                intent.setAction(action.id);
+                intent.putExtra('notificationId', options.id);
+                const actionBuilder = new androidx.core.app.NotificationCompat.Action.Builder(
+                    action.icon || 0,
+                    action.text,
+                    android.app.PendingIntent.getBroadcast(context, 0, intent, android.app.PendingIntent.FLAG_CANCEL_CURRENT)
+                ).build();
+                builder.addAction(actionBuilder);
+                if (action.callback) {
+                    addActionCallback(options.id, action.id, action.callback);
+                }
+            });
+        } catch (error) {
+            console.error(error);
+        }
+    }
     builder.setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC);
     if (options.ongoing) {
         if (options.progressValue >= 100) {
@@ -51,6 +83,20 @@ export function show(_options: ProgressOptions): CommonNotification {
         id: options.id,
         builder
     };
+    notify({
+        eventName: 'appMessage',
+        data: {
+            title: options.title,
+            message: options.message,
+            progress: options.progressValue,
+            action: _options.actions
+                ? {
+                      text: _options.actions[0].text,
+                      callback: _options.actions[0].callback
+                  }
+                : null
+        }
+    });
     return notification;
 }
 export function update(notification: CommonNotification, options: UpdateOptions): CommonNotification {
@@ -79,10 +125,24 @@ export function update(notification: CommonNotification, options: UpdateOptions)
     }
     showNotification(notification.id, builder);
     notification.builder = builder;
+
+    notify({
+        eventName: 'appMessageUpdate',
+        data: {
+            title: options.title,
+            message: options.message,
+            progress: options.progressValue
+        }
+    });
     return notification;
 }
 export function dismiss(id: number) {
     getNotificationManager().cancel(id);
+    removeNotificationCallbacks(id);
+    notify({
+        eventName: 'appMessage',
+        data: null
+    });
 }
 export function showNotification(id: number, builder: androidx.core.app.NotificationCompat.Builder) {
     getNotificationManager().notify(id, builder.build());

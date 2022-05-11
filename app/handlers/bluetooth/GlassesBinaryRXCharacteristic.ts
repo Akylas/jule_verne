@@ -43,6 +43,7 @@ export class GlassesBinaryRXCharacteristic extends BufferSendingCharacteristic<U
         return Promise.resolve();
     }
     sendData(toSend: Uint8Array, progressCallback?: ProgressCallback) {
+        // DEV_LOG &&  console.log(this.constructor.name, 'sendData', this._canSendData, toSend);
         if (this._canSendData) {
             super.sendData(toSend, progressCallback);
         }

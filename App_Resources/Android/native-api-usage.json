@@ -6,12 +6,13 @@
         "net.lingala.zip4j*:*", "java.io:IOException*", "java.lang:Throwable*",
 
         "android.app:WallpaperManager*",
+        "android.content:BroadcastReceiver*",
 
         "androidx.core.content.res:ResourcesCompat*", "android.graphics:Bitmap*", "android.graphics.drawable:BitmapDrawable*",
         "androidx.appcompat.app:AppCompatDelegate*", "android.content:ServiceConnection*", "android.os:Binder*", "android.app:Service*","android.app:NotificationManager*","android.app:NotificationChannel*","android.content.pm:ServiceInfo*",
 
         "androidx.appcompat.widget:AppCompatCheckBox*","androidx.core.widget:CompoundButtonCompat*",
-        "androidx.core.widget:NestedScrollView*", "android.app:Notification*", "androidx.core.app:NotificationCompat*", "androidx.core.app.NotificationCompat:Builder*", "android.app:PendingIntent",
+        "androidx.core.widget:NestedScrollView*", "android.app:Notification*", "androidx.core.app:NotificationCompat*", "androidx.core.app.NotificationCompat:Builder*", "android.app:PendingIntent", "androidx.core.app.NotificationCompat.Action:Builder*",
 
         "android.media:AudioManager*",
         "android.media.AudioManager:OnAudioFocusChangeListener*",

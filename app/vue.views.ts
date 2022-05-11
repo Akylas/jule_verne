@@ -1,6 +1,7 @@
 import { installMixins } from '@nativescript-community/ui-material-core';
 installMixins();
-
+import { overrideSpanAndFormattedString } from '@nativescript-community/text'; // require first to get Font res loading override
+overrideSpanAndFormattedString();
 import { install as installBottomSheets } from '@nativescript-community/ui-material-bottomsheet';
 installBottomSheets();
 import ActivityIndicatorPlugin from '@nativescript-community/ui-material-activityindicator/vue';
@@ -40,6 +41,7 @@ const Plugin = {
         Vue.use(PagerPlugin);
         Vue.use(DrawerPlugin);
 
+        Vue.registerElement('Label', () => require('@nativescript-community/ui-label').Label);
         Vue.registerElement('AWebView', () => require('@nativescript-community/ui-webview').AWebView);
         Vue.registerElement('LineChart', () => require('@nativescript-community/ui-chart/charts/LineChart').LineChart);
         Vue.registerElement('CheckBox', () => require('@akylas/nativescript-checkbox').CheckBox, {

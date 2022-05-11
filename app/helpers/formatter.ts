@@ -110,7 +110,8 @@ export function formatValueToUnit(value: any, unit: UNITS, imperial: boolean, op
 export enum DURATION_FORMAT {
     LONG,
     SHORT,
-    VERY_SHORT
+    VERY_SHORT,
+    SECONDS
 }
 
 export function formatDuration(duration: duration.Duration, format: DURATION_FORMAT = DURATION_FORMAT.LONG) {
@@ -126,9 +127,6 @@ export function formatDuration(duration: duration.Duration, format: DURATION_FOR
     if (minutes !== 0) {
         mintext = minutes + '';
         switch (format) {
-            case DURATION_FORMAT.LONG:
-                mintext += ' min';
-                break;
             case DURATION_FORMAT.SHORT:
                 mintext += 'm';
                 break;
@@ -137,6 +135,15 @@ export function formatDuration(duration: duration.Duration, format: DURATION_FOR
                     mintext += 'm';
                 }
                 break;
+            default:
+                mintext += ' min';
+                break;
+        }
+    }
+    if (format === DURATION_FORMAT.SECONDS) {
+        const seconds = duration.get('seconds');
+        if (seconds !== 0) {
+            mintext += ' ' + seconds + 's';
         }
     }
     if (hours === 0) {

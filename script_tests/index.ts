@@ -6,7 +6,7 @@ import fs from 'fs';
 import inquirer from 'inquirer';
 import inquirerFileTreeSelection from 'inquirer-file-tree-selection-prompt';
 import keypress from 'keypress';
-import * as player from 'node-wav-player';
+import player from 'node-wav-player';
 import path from 'path';
 import SerialPort from 'serialport';
 import Lyric from '../app/handlers/Lyric';
@@ -747,7 +747,7 @@ function main() {
             if (!connecting && peripheral.advertisement) {
                 const manufacturerId = peripheral.advertisement.manufacturerData && new DataView(new Uint8Array(peripheral.advertisement.manufacturerData).buffer, 0).getUint16(0, true);
                 const name = peripheral.advertisement.localName;
-                if (manufacturerId === 56058 || /Microoled/.test(name) || /Cobra/.test(name)) {
+                if (manufacturerId === 56058 && /Jules/.test(name)) {
                     log('discovered', name, manufacturerId, peripheral.id, peripheral.advertisement.toString());
                     if (!glassesName || name.indexOf(glassesName) !== -1) {
                         ui.updateBottomBar(`connecting to your glasses ${name}`);
@@ -862,6 +862,7 @@ async function sendRawCommands(commandsToSend: number[][], message) {
         let dataSent = 0;
         spinner.text = `${message}(0%)`;
         const startTime = Date.now();
+        // bluetoothDevice.rxCharacteristic.writeWithoutResponse = true;
 
         const promisedCallback = (resolve, reject) => (err, progress, total) => {
             if (err) {
@@ -896,6 +897,7 @@ async function sendRawCommands(commandsToSend: number[][], message) {
         console.log('catched sendRawCommands error', err);
         spinner.fail(err);
     } finally {
+        // bluetoothDevice.rxCharacteristic.writeWithoutResponse = false;
         setTimeout(() => {
             spinner.stop();
         }, 500);
