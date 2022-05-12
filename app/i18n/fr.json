@@ -1,9 +1,9 @@
 {
   "add": "ajouter",
-  "app": {
-    "name": "Jules Verne"
-  },
+  "app.name": "Jules Verne",
   "auto_luminance": "luminosité automatique",
+  "battery_saver": "Economiseur de batterie",
+  "battery_saver_desc": "Il essentiel de s'assurer que l'appliction soit sur \"Pas de restriction\"",
   "beta_firmware": "firmware beta",
   "bluetooth_not_enabled": "Bluetooth désactivé",
   "cancel": "annuler",
@@ -28,7 +28,7 @@
   "entering_feature": "vous entrez dans %s",
   "file_not_found": "fichier non trouvé: %1$s",
   "firmware": "firmware",
-  "firmware_update": "mise à jour de firmware",
+  "firmware_update": "mise à jour de firmware %1$s",
   "firmware_update_available_desc": "une mise à jour du firmware est disponible pour vos lunettes",
   "free": "libre",
   "gesture": "gestes",
@@ -40,6 +40,9 @@
   "images": "images",
   "importing": "import en cours",
   "importing_data": "import en cours",
+  "instruction_interval_interval": "intervalle minimum entre 2 instructions différentes",
+  "instruction_repeat_interval": "intervalle de répétition d'une même instruction",
+  "internet_needed": "Une connexion internet est nécessaire",
   "ios": {
     "info": {
       "plist": {
@@ -59,13 +62,14 @@
   "map": "carte",
   "memory": "mémoire",
   "menu": "menu",
-  "name": "npm",
+  "name": "nom",
   "no_config_found": "aucune configuration trouvée",
   "no_file_found": "pas de fichier trouvé",
   "not_enough_memory": "pas assez de mémoire: %1$s / %2$s",
   "notification_download_desc": "utilisées lors des téléchargements de données",
   "notification_state_desc": "notification vous permettant de savoir qu'une session est en cours",
   "ok": "ok",
+  "open": "ouvrir",
   "pick_config_to_send": "choisissez une config a envoyer",
   "pick_firmware": "choisir un firmware",
   "reboot": "redémarrer",
@@ -73,7 +77,11 @@
   "reboot_glasses_required": "un redémarrage des lunettes est nécessaire",
   "rebooting_glasses": "redémarrage des lunettes...",
   "refresh": "rafraichir",
+  "report": "rapport",
   "screen_offset": "décalage écran",
+  "send": "envoyer",
+  "send_story_write_timeout": "BLE Paquet timeout en ms",
+  "send_story_write_timeout_desc": "Plus la valeur est faible, plus ca va vite au risque d'erreurs d'envoi!",
   "sending_config": "envoi de la configuration \"%1$s\"",
   "sending_config_progress": "envoi en cours: %1$s (%2$s)",
   "sensor_desc": "luminosité automatique en fonction de la luminosité ambiente",
@@ -87,7 +95,7 @@
   "stop_session_are_you_sure": "êtes-vous sur de vouloir arréter la session?",
   "stories": "histoires",
   "story": "Histoire: \"%1$s\"",
-  "story_sent_glasses": "histoire %1$s envoyé aux lunettes! (%2$1)",
+  "story_sent_glasses": "histoire %1$s envoyé aux lunettes! (%2$s)",
   "tap_to_open": "appuyez pour ouvrir",
   "total": "total",
   "tracks": "tracés",
@@ -95,6 +103,8 @@
   "uncompress_map_data": "décompression des données de carte",
   "update": "mise à jour",
   "update_firmware": "mettre à jour le firmware avec un fichier",
+  "upload": "envoyer",
+  "upload_logs": "Envoyer les logs",
   "uploading_glasses": "Envoie au lunettes",
-  "uploading_story_to_glasses": "Envoi histoire %1$s"
+  "uploading_story_to_glasses": "Envoi histoire %1$s  %2$s"
 }

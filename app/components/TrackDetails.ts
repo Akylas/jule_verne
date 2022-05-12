@@ -8,7 +8,6 @@ import { getBoundsZoomLevel, getCenter } from '~/helpers/geo';
 import Track, { GeometryProperties, TrackGeometry } from '~/models/Track';
 import { borderColor, mdiFontFamily, textColor } from '~/variables';
 import Editor from './Editor.vue';
-// import {notify as appNotify, HistorySessionUpdatedEvent} from './App';
 import MapComponent from './MapComponent';
 
 @Component({

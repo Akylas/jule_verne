@@ -1,5 +1,5 @@
 import { openFilePicker } from '@nativescript-community/ui-document-picker';
-import { confirm } from '@nativescript-community/ui-material-dialogs';
+import { confirm, prompt } from '@nativescript-community/ui-material-dialogs';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { ObservableArray } from '@nativescript/core/data/observable-array';
 import { File, Folder, knownFolders, path } from '@nativescript/core/file-system';
@@ -29,8 +29,10 @@ import { timeout } from '~/utils';
 import FirmwareUpdate from './FirmwareUpdate';
 import OptionSelect from './OptionSelect';
 import { getGlassesImagesFolder } from '~/utils/utils';
-import { Application, EventData } from '@akylas/nativescript';
+import { Application, ApplicationSettings, EventData } from '@nativescript/core';
 import { ComponentIds } from '~/vue.prototype';
+import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
+import dayjs from 'dayjs';
 
 @Component({
     components: {}
@@ -42,14 +44,13 @@ export default class Settings extends BgServiceComponent {
     public gestureEnabled: boolean = false;
     public sensorEnabled: boolean = false;
     public glassesBattery: number = 0;
-    public levelLuminance: number = 0;
     public settings: GlassesSettings = null;
     public currentShift: { x: number; y: number } = null;
     configs: ConfigListData = [];
     memory: FreeSpaceData;
 
     get firmwareVersion() {
-        return this.connectedGlasses && this.connectedGlasses.firmwareVersion;
+        return this.connectedGlasses?.versions?.firmware;
     }
 
     get shiftDescription() {
@@ -120,17 +121,23 @@ export default class Settings extends BgServiceComponent {
     items = new ObservableArray([]);
 
     @debounce(300)
+    updateLuminance(value) {
+        this.bluetoothHandler.changeLuminance(value);
+    }
+
     onSliderChange(item, args) {
         const slider = args.object;
         const value = Math.round(slider.value);
         if (item.value === value) {
             return;
         }
-        let newValue = value;
+        const newValue = value;
         switch (item.id) {
             case 'luminance':
-                this.bluetoothHandler.changeLuminance(value);
-                this.levelLuminance = newValue = this.bluetoothHandler.levelLuminance;
+                this.updateLuminance(value);
+                break;
+            default:
+                ApplicationSettings.setNumber(item.id, newValue);
                 break;
         }
         const index = this.items.findIndex((i) => i.id === item.id);
@@ -175,35 +182,68 @@ export default class Settings extends BgServiceComponent {
     }
 
     refresh() {
-        if (!this.connectedGlasses) {
-            this.items = new ObservableArray([
-                { type: 'header', title: $t('settings') },
-                { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') }
-            ]) as any;
-            return;
-        }
-        this.items = new ObservableArray([
-            { type: 'header', title: $t('memory') },
-            {
-                id: 'refreshMemory',
-                type: 'button',
-                title: $tc('free') + ': ' + fileSize(this.memory?.freeSpace || 0),
-                subtitle: $tc('total') + ': ' + fileSize(this.memory?.totalSize || 0),
-                buttonTitle: $t('refresh')
-            },
-            { id: 'addConfig', type: 'header', title: $t('configs'), buttonTitle: $t('add') },
-            ...(this.configs?.map((c) => ({ ...c, type: 'config' })) || []),
-            { type: 'header', title: $t('glasses') },
-            { id: 'gesture', type: 'switch', title: $t('gesture'), subtitle: $t('gesture_desc'), checked: this.gestureEnabled },
-            { id: 'sensor', type: 'switch', title: $t('auto_luminance'), subtitle: $t('sensor_desc'), checked: this.sensorEnabled },
-            { id: 'light', type: 'slider', title: $t('light'), subtitle: $t('light_desc'), value: this.levelLuminance },
-            { id: 'shift', type: 'shift', description: this.shiftDescription, currentShift: this.currentShift },
-            { id: 'checkBetaFirmware', type: 'button', title: $t('beta_firmware'), buttonTitle: $t('check') },
-            { id: 'firmwareUpdate', type: 'button', title: $t('update_firmware'), subtitle: this.firmwareVersion, buttonTitle: $t('update') },
-            { id: 'reboot', type: 'button', title: $t('reboot_glasses'), subtitle: this.firmwareVersion, buttonTitle: $t('reboot') },
+        console.log('instructionRepeatDuration', ApplicationSettings.getNumber('instructionRepeatDuration', 30000));
+        let items: any[] = [
             { type: 'header', title: $t('settings') },
-            { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') }
-        ]);
+            { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') },
+            { id: 'sentry', type: 'button', title: $t('upload_logs'), subtitle: $t('internet_needed'), buttonTitle: $t('upload') },
+            {
+                id: 'instructionRepeatDuration',
+                type: 'slider',
+                title: $t('instruction_repeat_interval'),
+                value: ApplicationSettings.getNumber('instructionRepeatDuration', 30000),
+                valueFormatter: (v) => formatDuration(dayjs.duration(v), DURATION_FORMAT.SECONDS),
+                step: 500,
+                min: 1000,
+                max: 50000
+            },
+            {
+                id: 'instructionIntervalDuration',
+                type: 'slider',
+                valueFormatter: (v) => formatDuration(dayjs.duration(v), DURATION_FORMAT.SECONDS),
+                title: $t('instruction_interval_interval'),
+                value: ApplicationSettings.getNumber('instructionIntervalDuration', 5000),
+                min: 500,
+                max: 10000
+            },
+            {
+                id: 'sendStoryWriteTimeout',
+                type: 'slider',
+                title: $t('send_story_write_timeout'),
+                subtitle: $t('send_story_write_timeout_desc'),
+                value: ApplicationSettings.getNumber('sendStoryWriteTimeout', 1),
+                min: 0,
+                max: 20
+            }
+        ];
+
+        if (this.geoHandler.isMiui()) {
+            items.push({ id: 'miui', type: 'button', title: $t('battery_saver'), subtitle: $t('battery_saver_desc'), buttonTitle: $t('open') });
+        }
+        if (this.connectedGlasses) {
+            items = [
+                { type: 'header', title: $t('memory') },
+                {
+                    id: 'refreshMemory',
+                    type: 'button',
+                    title: $tc('free') + ': ' + fileSize(this.memory?.freeSpace || 0),
+                    subtitle: $tc('total') + ': ' + fileSize(this.memory?.totalSize || 0),
+                    buttonTitle: $t('refresh')
+                },
+                { id: 'addConfig', type: 'header', title: $t('configs'), buttonTitle: $t('add') },
+                ...(this.configs?.map((c) => ({ ...c, type: 'config' })) || []),
+                { type: 'header', title: $t('glasses') },
+                { id: 'gesture', type: 'switch', title: $t('gesture'), subtitle: $t('gesture_desc'), checked: this.gestureEnabled },
+                { id: 'sensor', type: 'switch', title: $t('auto_luminance'), subtitle: $t('sensor_desc'), checked: this.sensorEnabled },
+                { id: 'light', type: 'slider', title: $t('light'), subtitle: $t('light_desc'), value: this.bluetoothHandler.levelLuminance, min: 0, max: 15 },
+                { id: 'shift', type: 'shift', description: this.shiftDescription, currentShift: this.currentShift },
+                { id: 'checkBetaFirmware', type: 'button', title: $t('beta_firmware'), buttonTitle: $t('check') },
+                { id: 'firmwareUpdate', type: 'button', title: $t('update_firmware'), subtitle: this.firmwareVersion, buttonTitle: $t('update') },
+                { id: 'reboot', type: 'button', title: $t('reboot_glasses'), buttonTitle: $t('reboot') }
+            ].concat(items);
+        }
+
+        this.items = new ObservableArray(items);
     }
 
     onGlassesSettings(e: BLEEventData) {
@@ -225,7 +265,6 @@ export default class Settings extends BgServiceComponent {
     sessionStopped = true;
     async setup({ bluetoothHandler, geoHandler }: { bluetoothHandler: BluetoothHandler; geoHandler: GeoHandler }) {
         this.refresh();
-        this.levelLuminance = bluetoothHandler.levelLuminance;
         this.gestureEnabled = bluetoothHandler.isGestureOn;
         this.sensorEnabled = bluetoothHandler.isSensorOn;
         this.connectedGlasses = bluetoothHandler.glasses;
@@ -265,7 +304,6 @@ export default class Settings extends BgServiceComponent {
     async getMemory(refresh = true) {
         try {
             this.memory = await this.bluetoothHandler.getMemory(true);
-            console.log('getMemory', this.memory);
             refresh && this.refresh();
         } catch (error) {
             this.showError(error);
@@ -395,7 +433,7 @@ export default class Settings extends BgServiceComponent {
                     }
                     break;
                 case 'checkBetaFirmware':
-                    this.$networkService.checkFirmwareUpdateOnline(true);
+                    this.$networkService.checkFirmwareUpdateOnline(this.connectedGlasses.versions, true);
                     break;
 
                 case 'refreshMemory':
@@ -415,6 +453,27 @@ export default class Settings extends BgServiceComponent {
                 case 'reboot':
                     this.bluetoothHandler.rebootGlasses();
                     break;
+                case 'miui':
+                    this.geoHandler.openMIUIBatterySaver();
+                    break;
+                case 'sentry': {
+                    const result = await prompt({
+                        title: $tc('report'),
+                        okButtonText: $tc('send'),
+                        cancelButtonText: $tc('cancel'),
+                        autoFocus: true,
+                        defaultText: 'Rapport ' + new Date().toLocaleString(),
+                        textFieldProperties: {
+                            marginLeft: 10,
+                            marginRight: 10,
+                            hint: $tc('name')
+                        }
+                    });
+                    if (result && !!result.result && result.text.length > 0) {
+                        this.$crashReportService.captureMessage(result.text);
+                    }
+                    break;
+                }
             }
         } catch (error) {
             this.showError(error);

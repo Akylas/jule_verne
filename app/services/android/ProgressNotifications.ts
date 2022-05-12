@@ -86,6 +86,7 @@ export function show(_options: ProgressOptions): CommonNotification {
     notify({
         eventName: 'appMessage',
         data: {
+            id: options.id,
             title: options.title,
             message: options.message,
             progress: options.progressValue,
@@ -129,6 +130,7 @@ export function update(notification: CommonNotification, options: UpdateOptions)
     notify({
         eventName: 'appMessageUpdate',
         data: {
+            id: notification.id,
             title: options.title,
             message: options.message,
             progress: options.progressValue
@@ -140,8 +142,8 @@ export function dismiss(id: number) {
     getNotificationManager().cancel(id);
     removeNotificationCallbacks(id);
     notify({
-        eventName: 'appMessage',
-        data: null
+        eventName: 'appMessageRemove',
+        data: { id }
     });
 }
 export function showNotification(id: number, builder: androidx.core.app.NotificationCompat.Builder) {

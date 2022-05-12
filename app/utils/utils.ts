@@ -55,7 +55,6 @@ export function getWorkingDir(allowDev = true) {
 
 export function getGlassesImagesFolder() {
     const folderPath = path.join(getWorkingDir(), 'glasses_images');
-    console.log('getGlassesImagesFolder', getWorkingDir(), path.normalize(folderPath));
     if (Folder.exists(folderPath)) {
         return folderPath;
     }

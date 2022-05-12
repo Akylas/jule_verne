@@ -28,7 +28,6 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         } else {
             this.$bgService.once(BgServiceStartedEvent, this.callOnServiceStarted, this);
         }
-        DEV_LOG && console.log('inBackground', inBackground);
         this.backgrounded = inBackground;
         applicationOn(backgroundEvent, this.onAppBackgrounded, this);
         applicationOn(foregroundEvent, this.onAppForgrounded, this);
@@ -42,7 +41,6 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
 
     inSetup = false;
     onAppForgrounded(args: ApplicationEventData) {
-        DEV_LOG && console.log('onAppForgrounded', this.backgrounded);
         if (!this.backgrounded) {
             return;
         }
@@ -89,7 +87,6 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     }
     callOnServiceStarted() {
         const params = this.getParams();
-        console.log('callOnServiceStarted', this.constructor.name);
 
         if (this.setup && !this.backgrounded) {
             this.inSetup = true;

@@ -44,7 +44,7 @@
                     <MDButton class="floating-btn" :text="sessionRunning ? 'mdi-pause' : 'mdi-play'" @tap="onTap('startSession')" />
                     <MDButton class="floating-btn" v-show="sessionPaused" :text="'mdi-stop'" @tap="onTap('stopSession')" />
                 </StackLayout>
-                <MDButton class="small-floating-btn" v-show="connectedGlasses" text="mdi-cog" @tap="onTap('settings')" verticalAlignment="bottom" row="1" horizontalAlignment="left" marginBottom="8" />
+                <MDButton class="small-floating-btn" text="mdi-cog" @tap="onTap('settings')" verticalAlignment="bottom" row="1" horizontalAlignment="left" marginBottom="8" />
             </GridLayout>
             <GridLayout ~leftDrawer rows="auto, *, auto" height="100%" :backgroundColor="backgroundColor" width="80%">
                 <GridLayout padding="10" height="80" rows="auto, *" columns="auto, *">

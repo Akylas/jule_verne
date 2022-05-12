@@ -74,19 +74,16 @@ module.exports = (env, params = {}) => {
     const {
         appPath = nconfig.appPath,
         appResourcesPath = nconfig.appResourcesPath,
-        hmr, // --env.hmr
         production, // --env.production
         sourceMap, // --env.sourceMap
         hiddenSourceMap, // --env.hiddenSourceMap
         inlineSourceMap, // --env.inlineSourceMap
         sentry, // --env.sentry
         uploadSentry = true,
-        importDevData = true,
-        verbose, // --env.verbose
         uglify, // --env.uglify
         noconsole, // --env.noconsole
+        reportall, // --env.reportall
         devlog, // --env.devlog
-        dblog, // --env.dblog
         adhoc // --env.adhoc
     } = env;
     env.appPath = appPath;
@@ -153,10 +150,13 @@ module.exports = (env, params = {}) => {
         TNS_ENV: JSON.stringify(mode),
         'gVars.sentry': !!sentry,
         GITLAB_TOKEN: `"${process.env.GITLAB_TOKEN}"`,
+        ACTIVELOOK_INTERNAL_TOKEN: `"${process.env.ACTIVELOOK_INTERNAL_TOKEN}"`,
+        ACTIVELOOK_BETA_TOKEN: `"${process.env.ACTIVELOOK_BETA_TOKEN}"`,
         SENTRY_DSN: `"${process.env.SENTRY_DSN}"`,
         UPDATE_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/dB8weHEM5EzxNW7/download"',
         SENTRY_PREFIX: `"${!!sentry ? process.env.SENTRY_PREFIX : ''}"`,
         NO_CONSOLE: noconsole,
+        __FORCE_BUG_REPORT__: !!reportall,
         DEV_LOG: !!devlog,
         TEST_LOGS: !!adhoc || !production
     };

@@ -7,6 +7,7 @@
 
         "android.app:WallpaperManager*",
         "android.content:BroadcastReceiver*",
+        "android.content:ComponentName*",
 
         "androidx.core.content.res:ResourcesCompat*", "android.graphics:Bitmap*", "android.graphics.drawable:BitmapDrawable*",
         "androidx.appcompat.app:AppCompatDelegate*", "android.content:ServiceConnection*", "android.os:Binder*", "android.app:Service*","android.app:NotificationManager*","android.app:NotificationChannel*","android.content.pm:ServiceInfo*",

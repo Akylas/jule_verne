@@ -1,13 +1,16 @@
-import { Observable } from '@nativescript/core/data/observable';
-import { booleanProperty } from './BackendService';
-import * as Sentry from '@nativescript-community/sentry';
-import { getBuildNumber, getVersionName } from '@nativescript-community/extendedinfo';
-import { Device } from '@nativescript/core/platform';
+import { Label as HTMLLabel, Label } from '@nativescript-community/ui-label';
 import { alert, confirm } from '@nativescript-community/ui-material-dialogs';
-import { Label as HTMLLabel } from '@nativescript-community/ui-label';
-import { $t, $tc, $tt, $tu } from '~/helpers/locale';
 import { Color } from '@nativescript/core/color';
+import { Observable } from '@nativescript/core/data/observable';
 import { BaseError } from 'make-error';
+import { $t, $tc } from '~/helpers/locale';
+import { booleanProperty } from './BackendService';
+import { HttpRequestOptions } from './NetworkService';
+import { Headers } from '@nativescript/core/http';
+import { showSnack } from '@nativescript-community/ui-material-snackbar';
+import { Device } from '@nativescript/core';
+import * as Sentry from '@nativescript-community/sentry';
+import { install } from '~/utils/logging';
 
 function evalTemplateString(resource: string, obj: {}) {
     if (!obj) {
@@ -97,7 +100,7 @@ export class NoNetworkError extends CustomError {
         super(
             Object.assign(
                 {
-                    message: 'no_network'
+                    message: $tc('no_network')
                 },
                 props
             ),
@@ -119,24 +122,51 @@ export class MessageError extends CustomError {
     }
 }
 
+export interface HTTPErrorProps {
+    statusCode: number;
+    responseHeaders?: Headers;
+    title?: string;
+    message: string;
+    requestParams?: HttpRequestOptions;
+}
+export class HTTPError extends CustomError {
+    statusCode: number;
+    title?: string;
+    message: string;
+    responseHeaders?: Headers;
+    requestParams: HttpRequestOptions;
+    constructor(props: HTTPErrorProps | HTTPError) {
+        super(
+            Object.assign(
+                {
+                    message: 'httpError'
+                },
+                props
+            ),
+            'HTTPError'
+        );
+    }
+}
+
 export default class CrashReportService extends Observable {
     @booleanProperty({ default: true }) sentryEnabled: boolean;
     sentry: typeof Sentry;
     async start() {
-        console.log('CrashReportService', 'start', gVars.sentry, this.sentryEnabled);
         if (gVars.sentry && this.sentryEnabled) {
-            const Sentry = await import('@nativescript-community/sentry');
-            this.sentry = Sentry;
-            const versionName = await getVersionName();
-            const buildNumber = await getBuildNumber();
-            Sentry.init({
-                dsn: SENTRY_DSN,
-                appPrefix: SENTRY_PREFIX,
-                release: `${versionName}`,
-                dist: `${buildNumber}.${__ANDROID__ ? 'android' : 'ios'}`
-            });
-            Sentry.setTag('locale', Device.language);
-            // });
+            try {
+                install();
+                const Sentry = await import('@nativescript-community/sentry');
+                this.sentry = Sentry;
+                Sentry.init({
+                    dsn: SENTRY_DSN,
+                    appPrefix: SENTRY_PREFIX,
+                    release: `${__APP_ID__}@${__APP_VERSION__}+${__APP_BUILD_NUMBER__}`,
+                    dist: `${__APP_BUILD_NUMBER__}.${__ANDROID__ ? 'android' : 'ios'}`
+                });
+                Sentry.setTag('locale', Device.language);
+            } catch (err) {
+                console.error(err, err.stack);
+            }
         } else {
             this.sentry = null;
         }
@@ -152,7 +182,7 @@ export default class CrashReportService extends Observable {
     }
 
     captureException(err: Error | CustomError) {
-        if (this.sentryEnabled && this.sentry) {
+        if (this.sentryEnabled && !!this.sentry) {
             if (err instanceof CustomError) {
                 this.withScope((scope) => {
                     scope.setExtra('errorData', JSON.stringify(err.assignedLocalData));
@@ -163,7 +193,7 @@ export default class CrashReportService extends Observable {
             }
         }
     }
-    captureMessage(message: string, level?: Sentry.Severity) {
+    captureMessage(message: string, level?) {
         if (this.sentryEnabled && this.sentry) {
             return this.sentry.captureMessage(message, level);
         }
@@ -173,41 +203,45 @@ export default class CrashReportService extends Observable {
             return this.sentry.setExtra(key, value);
         }
     }
+
     withScope(callback: (scope: Sentry.Scope) => void) {
         if (this.sentryEnabled && this.sentry) {
             return this.sentry.withScope(callback);
         }
     }
 
-    showError(err: Error | string) {
+    showError(err: Error | string, showAsSnack = false) {
         if (!err) {
             return;
         }
         const realError = typeof err === 'string' ? null : err;
+
         const isString = realError === null || realError === undefined;
         const message = isString ? (err as string) : realError.message || realError.toString();
-        const title = $tc('error');
         const reporterEnabled = this.sentryEnabled;
-        let showSendBugReport = reporterEnabled && !isString && (!realError || !!realError.stack);
-        if (realError && (realError.constructor.name === NoNetworkError.name || realError.constructor.name === MessageError.name)) {
-            showSendBugReport = false;
+        if (showAsSnack || realError instanceof MessageError || realError instanceof NoNetworkError || realError instanceof TimeoutError) {
+            showSnack({ message });
+            return;
         }
-        console.log('showError', err, err && err['stack']);
-        const label = new HTMLLabel();
-        label.style.padding = '10 20 0 26';
-        label.style.fontSize = 16;
+        // const showSendBugReport = __FORCE_BUG_REPORT__ || (reporterEnabled && !isString && !(realError instanceof MessageError) && !(realError instanceof HTTPError) && !!realError.stack);
+        const showSendBugReport = reporterEnabled && !isString && !(realError instanceof MessageError) && !(realError instanceof HTTPError) && !!realError.stack;
+        const title = showSendBugReport ? $tc('error') : ' ';
+        // if (realError instanceof HTTPError) {
+        //     title = `${realError.title} (${realError.statusCode})`;
+        // }
+        const label = new Label();
+        label.style.padding = '10 20 0 20';
+        // label.style.fontSize = 16;
         label.style.color = new Color(255, 138, 138, 138);
-        label.html = $tc(message.trim());
-        return confirm({
+        console.error('showError', err, err['stack']);
+        label.html = message.trim();
+        if (reporterEnabled && showSendBugReport) {
+            this.captureException(realError);
+        }
+        return alert({
             title,
             view: label,
-            okButtonText: showSendBugReport ? $tc('send_bug_report') : undefined,
-            cancelButtonText: showSendBugReport ? $tc('cancel') : $tc('ok')
-        }).then((result) => {
-            if (result && showSendBugReport) {
-                this.captureException(realError);
-                alert($t('bug_report_sent'));
-            }
+            okButtonText: $tc('OKButton')
         });
     }
 }

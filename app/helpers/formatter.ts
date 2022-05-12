@@ -123,7 +123,7 @@ export function formatDuration(duration: duration.Duration, format: DURATION_FOR
         return undefined;
     }
     const minutes = duration.get('minutes');
-    let mintext;
+    let mintext = '';
     if (minutes !== 0) {
         mintext = minutes + '';
         switch (format) {

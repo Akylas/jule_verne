@@ -1,12 +1,9 @@
 import { backgroundEvent, foregroundEvent } from '@akylas/nativescript/application';
 import { GPS, GenericGeoLocation, Options as GeolocationOptions, LocationMonitor, setGeoLocationKeys, setMockEnabled } from '@nativescript-community/gps';
 import * as perms from '@nativescript-community/perms';
-import { TNSTextToSpeech } from '@nativescript-community/texttospeech';
+import { ApplicationSettings, CoreTypes, Device, File, Folder, path } from '@nativescript/core';
 import { AndroidActivityResultEventData, AndroidApplication, ApplicationEventData, android as androidApp, off as applicationOff, on as applicationOn } from '@nativescript/core/application';
-import * as appSettings from '@nativescript/core/application-settings';
 import { EventData, Observable } from '@nativescript/core/data/observable';
-import { File, Folder, path } from '@nativescript/core/file-system';
-import { CoreTypes } from '@nativescript/core/ui/enums/enums';
 import { isNumber } from '@nativescript/core/utils/types';
 import { Feature, LineString, Point, Polygon } from 'geojson';
 import { bind } from 'helpful-decorators';
@@ -14,7 +11,7 @@ import { bearing } from '~/helpers/geo';
 // import { parseGPX } from '~/helpers/gpx';
 import { $t, $tc } from '~/helpers/locale';
 import { confirm } from '~/utils/dialogs';
-import { computeDistanceBetween, distanceToEnd, isLocactionInBbox, isLocationOnPath } from '~/utils/geo';
+import { computeDistanceBetween, distanceToEnd, distanceToPolygon, isLocactionInBbox, isLocationOnPath } from '~/utils/geo';
 import { getGlassesImagesFolder } from '~/utils/utils';
 import Track, { GeometryProperties, TrackFeature, TrackGeometry } from '../models/Track';
 import { BluetoothHandler } from './BluetoothHandler';
@@ -24,8 +21,10 @@ const insidePolygon = require('point-in-polygon');
 const geojsonArea = require('@mapbox/geojson-area');
 
 setGeoLocationKeys('lat', 'lon', 'altitude');
-const TTS = new TNSTextToSpeech();
-TTS.init();
+// const TTS = new TNSTextToSpeech();
+// TTS.init();
+
+const sdkVersion = parseInt(Device.sdkVersion, 10);
 
 export type GeoLocation = GenericGeoLocation<LatLonKeys> & {
     computedBearing?: number;
@@ -127,7 +126,6 @@ export class GeoHandler extends Observable {
     }
     mReadableStories: number[] = null;
     setReadableStories(arg0: number[]) {
-        console.log('setReadableStories', arg0);
         this.mReadableStories = arg0;
         this.notify({ eventName: AvailableStoriesEvent, data: arg0 });
     }
@@ -206,10 +204,10 @@ export class GeoHandler extends Observable {
         this._isInTrackBounds = true;
         if (track) {
             DEV_LOG && console.log('saving track id', track.id, typeof track.id);
-            appSettings.setString('selectedTrackId', track.id);
+            ApplicationSettings.setString('selectedTrackId', track.id);
         } else {
             DEV_LOG && console.log('removing saved track id');
-            appSettings.remove('selectedTrackId');
+            ApplicationSettings.remove('selectedTrackId');
         }
 
         this.notify({ eventName: TrackSelecteEvent, track, object: this });
@@ -244,10 +242,9 @@ export class GeoHandler extends Observable {
         applicationOn(foregroundEvent, this.onAppForgrounded, this);
         try {
             await this.dbHandler.start();
-            const selectedTrackId = appSettings.getString('selectedTrackId');
+            const selectedTrackId = ApplicationSettings.getString('selectedTrackId');
             if (selectedTrackId) {
                 const track = await this.dbHandler.getItem(selectedTrackId);
-                console.log('track', !!track);
                 if (track) {
                     this.currentTrack = track;
                 }
@@ -372,18 +369,18 @@ export class GeoHandler extends Observable {
     isBatteryOptimized(context: android.content.Context) {
         const pwrm = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager;
         const name = context.getPackageName();
-        if (android.os.Build.VERSION.SDK_INT >= 23) {
+        if (sdkVersion >= 23) {
             return !pwrm.isIgnoringBatteryOptimizations(name);
         }
         return false;
     }
-    checkBattery() {
+    async checkBattery() {
         if (__IOS__) {
-            return Promise.resolve();
+            return;
         }
         const activity = androidApp.foregroundActivity || androidApp.startActivity;
-        if (this.isBatteryOptimized(activity) && android.os.Build.VERSION.SDK_INT >= 22) {
-            return new Promise<void>((resolve, reject) => {
+        if (this.isBatteryOptimized(activity) && sdkVersion >= 22) {
+            await new Promise<void>((resolve) => {
                 const REQUEST_CODE = 6645;
                 const onActivityResultHandler = (data: AndroidActivityResultEventData) => {
                     if (data.requestCode === REQUEST_CODE) {
@@ -393,11 +390,29 @@ export class GeoHandler extends Observable {
                 };
                 androidApp.on(AndroidApplication.activityResultEvent, onActivityResultHandler);
                 const intent = new android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                intent.setData(android.net.Uri.parse('package:' + activity.getPackageName()));
+                intent.setData(android.net.Uri.parse('package:' + __APP_ID__));
                 activity.startActivityForResult(intent, REQUEST_CODE);
             });
         }
-        return Promise.resolve();
+    }
+
+    isMiui() {
+        return /Xiaomi/i.test(Device.manufacturer);
+    }
+    openMIUIBatterySaver() {
+        if (this.isMiui()) {
+            try {
+                const activity = androidApp.foregroundActivity || androidApp.startActivity;
+
+                const intent = new android.content.Intent();
+                intent.setComponent(new android.content.ComponentName('com.miui.powerkeeper', 'com.miui.powerkeeper.ui.HiddenAppsConfigActivity'));
+                intent.putExtra('package_name', __APP_ID__);
+                intent.putExtra('package_label', $t('app.name'));
+                activity.startActivity(intent);
+            } catch (error) {
+                console.error(error);
+            }
+        }
     }
     getLastKnownLocation(): GeoLocation {
         return LocationMonitor.getLastKnownLocation<LatLonKeys>();
@@ -433,26 +448,26 @@ export class GeoHandler extends Observable {
     onDeferred() {
         this._deferringUpdates = false;
     }
-    async speakText(text: string) {
-        if (this.isSpeaking) {
-            this.speakQueue.push(text);
-            return;
-        }
-        this.isSpeaking = true;
-        try {
-            await TTS.speak({
-                text,
-                finishedCallback: () => {
-                    this.isSpeaking = false;
-                    if (this.speakQueue.length > 0) {
-                        this.speakText(this.speakQueue.shift());
-                    }
-                }
-            });
-        } catch (err) {
-            this.isSpeaking = false;
-        }
-    }
+    // async speakText(text: string) {
+    //     if (this.isSpeaking) {
+    //         this.speakQueue.push(text);
+    //         return;
+    //     }
+    //     this.isSpeaking = true;
+    //     try {
+    //         await TTS.speak({
+    //             text,
+    //             finishedCallback: () => {
+    //                 this.isSpeaking = false;
+    //                 if (this.speakQueue.length > 0) {
+    //                     this.speakText(this.speakQueue.shift());
+    //                 }
+    //             }
+    //         });
+    //     } catch (err) {
+    //         this.isSpeaking = false;
+    //     }
+    // }
 
     set insideFeature(value) {
         if (value !== this._insideFeature) {
@@ -494,7 +509,9 @@ export class GeoHandler extends Observable {
 
                         const currentConfigs = this.bluetoothHandler.currentConfigs;
                         const configurationAlreadyLoaded = currentConfigs?.findIndex((c) => c.name === featureId) !== -1;
-                        if (name.endsWith('_out') || !configurationAlreadyLoaded) {
+
+                        // for now we play music ONLY if we need to load the config
+                        if (/* name.endsWith('_out') || */ !configurationAlreadyLoaded) {
                             needsToplayMusic = true;
                         }
                         DEV_LOG && console.log('nextStoryIndex', this._playedHistory, nextStoryIndex, featuresViewed, currentConfigs, configurationAlreadyLoaded, needsToplayMusic);
@@ -506,8 +523,8 @@ export class GeoHandler extends Observable {
 
                         (async () => {
                             try {
-                                console.log('about to start', nextStoryIndex, configurationAlreadyLoaded);
                                 await this.bluetoothHandler.stopPlayingInstruction();
+                                console.log('about to start story', nextStoryIndex, configurationAlreadyLoaded);
                                 if (configurationAlreadyLoaded) {
                                     await this.bluetoothHandler.playInstruction('starting_story');
                                 } else {
@@ -698,7 +715,13 @@ export class GeoHandler extends Observable {
     mLastPlayedAimingDirection: string;
     mLastPlayedAimingDirectionTime: number;
     updateTrackWithLocation(loc: GeoLocation) {
-        // DEV_LOG && console.log('updateTrackWithLocation', JSON.stringify(loc));
+        if (this.insideFeature) {
+            // we can ignore almost everything while inside a feature(playing story)
+            this.mLastPlayedAimingDirectionTime = null;
+            this.mLastPlayedAimingDirection = null;
+            this.mLastAimingDirection = null;
+            return;
+        }
         if (this.currentTrack) {
             const features = this.currentTrack.geometry.features;
 
@@ -715,33 +738,63 @@ export class GeoHandler extends Observable {
             let minFeature: TrackFeature = null;
             let minDist = Number.MAX_SAFE_INTEGER;
             const closestStoryStep = 50;
+            let nextPotentialIndexDistance = Number.MAX_SAFE_INTEGER;
 
             // the aiming algorithm will tend to get you to the next story
             // except if you are very close(closestStoryStep) to another story
-            // let nextPotentialIndex = Math.max(0, ...this._playedHistory) + 1;
-            // for (let index = nextPotentialIndex; index > 0; index--) {
-            //     if (this._playedHistory.indexOf(index) === -1) {
-            //         nextPotentialIndex = index;
-            //     }
-            // }
+
+            const trackStories = features
+                .filter((f) => f.properties.isStory || isNumber(f.properties.name))
+                .map((f) => ('index' in f.properties ? f.properties.index : f.properties.name))
+                .sort();
+
+            let playedAll = false;
+            if (trackStories.length === this._playedHistory.length) {
+                // we are done!
+                playedAll = true;
+            }
+            let nextPotentialIndex = Math.max(0, ...this._playedHistory) + 1;
+            for (let index = nextPotentialIndex; index > 0; index--) {
+                if (this._playedHistory.indexOf(index) === -1) {
+                    nextPotentialIndex = index;
+                }
+            }
             const currentPosition = [loc.lon, loc.lat];
             const events = [];
             features.forEach((feature) => {
                 const properties = feature.properties;
                 const name = 'index' in properties ? properties.index : properties.name;
-                if (name === 'outer_ring' || this._featuresViewed.indexOf(name) !== -1 || this._featuresViewed.indexOf((name + '').split('_')[0]) !== -1) {
+
+                if (name === 'outer_ring' || this._featuresViewed.indexOf(name) !== -1) {
                     return;
                 }
 
                 // used to compute aiming feature
-                if (feature.properties.isStory === true || isNumber(name)) {
-                    const dist = computeDistanceBetween(feature.geometry.center, currentPosition);
-                    // DEV_LOG && console.log('updateTrackWithLocation in bounds!', name, feature.id, dist, minDist);
-                    if (dist < minDist) {
-                        minDist = dist;
+                if (playedAll) {
+                    if (name === 'exit') {
                         minFeature = feature;
                     }
+                } else {
+                    if (feature.properties.isStory === true || isNumber(name)) {
+                        const featureId = (name + '').split('_')[0];
+                        if (this._featuresViewed.indexOf(featureId) !== -1) {
+                            return;
+                        }
+                        const storyIndex = parseInt(featureId, 10);
+                        const g = feature.geometry as Polygon;
+                        const dist = distanceToPolygon(currentPosition, g);
+                        // const dist = computeDistanceBetween(feature.geometry.center, currentPosition);
+                        // DEV_LOG && console.log('updateTrackWithLocation in bounds!', name, feature.id, dist, minDist);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            minFeature = feature;
+                        }
+                        if (nextPotentialIndex === storyIndex) {
+                            nextPotentialIndexDistance = dist;
+                        }
+                    }
                 }
+
                 // add a bit of delta (m)
                 const isInBounds = isLocactionInBbox(loc, feature.bbox, 0);
 
@@ -889,17 +942,28 @@ export class GeoHandler extends Observable {
             });
             this.handleFeatureEvent(events);
 
-            // if (DEV_LOG) {
-            //     console.log('aimingFeature ', minDist, minFeature, nextPotentialIndex);
-            // }
-            // if (minDist < closestStoryStep) {
-            this.aimingFeature = minFeature;
-            // } else {
-            //     this.aimingFeature = features.find((s) => {
-            //         const name = 'index' in s.properties ? s.properties.index : s.properties.name;
-            //         return name + '' === nextPotentialIndex + '';
-            //     });
-            // }
+            DEV_LOG &&
+                console.log(
+                    'updateTrackWithPosition ',
+                    JSON.stringify({
+                        lat: loc.lat,
+                        lon: loc.lon,
+                        computedBearing: loc.computedBearing,
+                        playedAll,
+                        minDist,
+                        name: minFeature?.properties.name,
+                        nextPotentialIndex,
+                        nextPotentialIndexDistance
+                    })
+                );
+            if (playedAll || minDist < closestStoryStep || minDist <= nextPotentialIndexDistance / 2) {
+                this.aimingFeature = minFeature;
+            } else {
+                this.aimingFeature = features.find((s) => {
+                    const name = 'index' in s.properties ? s.properties.index : s.properties.name;
+                    return name + '' === nextPotentialIndex + '';
+                });
+            }
             // console.log('computedBearing', loc.computedBearing, loc.hasOwnProperty('computedBearing'), !!this.aimingFeature);
             if (loc.hasOwnProperty('computedBearing') && loc.computedBearing !== undefined) {
                 if (this.aimingFeature) {
@@ -914,36 +978,44 @@ export class GeoHandler extends Observable {
                 } else {
                     this.aimingAngle = Infinity;
                 }
-                let audioFolder;
-                //we are not inside any story feature
-                if (
-                    this.aimingAngle !== Infinity &&
-                    (!this.insideFeature || (this.insideFeature && !isNumber(this.insideFeature.properties.name) && this.insideFeature.properties.name.endsWith('_out')))
-                ) {
-                    let newAimingDirection;
-                    if (Math.abs(this.aimingAngle) <= 45 || Math.abs(this.aimingAngle) >= 315) {
-                        newAimingDirection = 'forward';
-                    } else if (this.aimingAngle >= 225 && this.aimingAngle <= 315) {
-                        newAimingDirection = 'left';
-                    } else if (this.aimingAngle >= 45 && this.aimingAngle <= 135) {
-                        newAimingDirection = 'right';
-                    } else if (this.aimingAngle >= 135 && this.aimingAngle <= 225) {
-                        newAimingDirection = 'uturn';
-                        if (!this.isInTrackBounds) {
-                            newAimingDirection = 'exit';
-                            audioFolder = path.join(getGlassesImagesFolder(), 'navigation', 'exit');
-                        }
-                    } else {
-                        // this.bluetoothHandler.stopNavigationInstruction();
+            }
+            let audioFolder;
+            //we are not inside any story feature
+            if (this.aimingAngle !== Infinity && !this.insideFeature) {
+                let newAimingDirection;
+                if (Math.abs(this.aimingAngle) <= 45 || Math.abs(this.aimingAngle) >= 315) {
+                    newAimingDirection = 'forward';
+                } else if (this.aimingAngle >= 225 && this.aimingAngle <= 315) {
+                    newAimingDirection = 'left';
+                } else if (this.aimingAngle >= 45 && this.aimingAngle <= 135) {
+                    newAimingDirection = 'right';
+                } else if (this.aimingAngle >= 135 && this.aimingAngle <= 225) {
+                    newAimingDirection = 'uturn';
+                    if (!this.isInTrackBounds) {
+                        newAimingDirection = 'exit';
+                        audioFolder = path.join(getGlassesImagesFolder(), 'navigation', 'exit');
                     }
-                    // console.log('newAimingDirection', this.aimingAngle, newAimingDirection, this.mLastAimingDirection, this.mLastPlayedAimingDirection);
-                    if (this.mLastAimingDirection !== newAimingDirection) {
-                        this.mLastAimingDirection = newAimingDirection;
-                        this.mLastPlayedAimingDirection = null;
-                    } else if (
-                        this.mLastPlayedAimingDirection !== newAimingDirection && // play instruction on second consecutive same instruction(prevents jumps)
-                        (!this.mLastPlayedAimingDirectionTime || Date.now() - this.mLastPlayedAimingDirectionTime > 5000) && // only play an instruction every 5s (prevent back / forth)
-                        (!this.bluetoothHandler.isPlaying || this.bluetoothHandler.isPlayingNavigationInstruction) // dont play if playing important thing
+                } else {
+                    // this.bluetoothHandler.stopNavigationInstruction();
+                }
+                // console.log('newAimingDirection', this.aimingAngle, newAimingDirection, this.mLastAimingDirection, this.mLastPlayedAimingDirection);
+
+                const instructionIntervalDuration = ApplicationSettings.getNumber('instructionIntervalDuration', 5000);
+                const instructionRepeatDuration = ApplicationSettings.getNumber('instructionRepeatDuration', 30000);
+                let forcePlay = false;
+                if (this.mLastAimingDirection !== newAimingDirection) {
+                    // we are changing direction
+                    forcePlay = this.mLastAimingDirection === null;
+                    this.mLastAimingDirection = newAimingDirection;
+                    this.mLastPlayedAimingDirection = null;
+                }
+                if (!this.bluetoothHandler.isPlaying /* || this.bluetoothHandler.isPlayingNavigationInstruction */) {
+                    const deltaTime = this.mLastPlayedAimingDirectionTime ? Date.now() - this.mLastPlayedAimingDirectionTime : Number.MAX_SAFE_INTEGER;
+                    // dont play if playing important thing)
+                    if (
+                        forcePlay /* first instruction */ ||
+                        (!this.mLastPlayedAimingDirection && deltaTime > instructionIntervalDuration) /* new instruction */ ||
+                        (this.mLastPlayedAimingDirection === newAimingDirection && deltaTime > instructionRepeatDuration) /* repeat instruction */
                     ) {
                         this.mLastPlayedAimingDirection = newAimingDirection;
                         if (newAimingDirection) {
@@ -953,14 +1025,12 @@ export class GeoHandler extends Observable {
                             // this.mLastPlayedAimingDirectionTime = null;
                         }
                     }
-                } else {
-                    this.mLastPlayedAimingDirectionTime = null;
-                    this.mLastPlayedAimingDirection = null;
-                    this.mLastAimingDirection = null;
                 }
+            } else {
+                this.mLastPlayedAimingDirectionTime = null;
+                this.mLastPlayedAimingDirection = null;
+                this.mLastAimingDirection = null;
             }
-
-            // console.log('this.aimingAngle', this.aimingAngle);
         }
     }
 
@@ -1048,7 +1118,7 @@ export class GeoHandler extends Observable {
         this.insideFeature = null;
         this._playedHistory = [];
         this._isInTrackBounds = false;
-        this.aimingAngle = 0;
+        this.aimingAngle = Infinity;
         this.bluetoothHandler.stopSession(!finish);
     }
     async pauseSession() {

@@ -3,7 +3,7 @@
         <StackLayout backgroundColor="white">
             <CActionBar :title="$t('map')" showMenuIcon />
             <StackLayout>
-                <MapComponent ref="mapComp" height="100%" width="100%" :rawLocations="rawPositions" showLocationButton :showFiltered="devMode" />
+                <MapComponent ref="mapComp" height="100%" width="100%" showLocationButton :showFiltered="devMode" />
             </StackLayout>
         </StackLayout>
     </Page>

@@ -145,7 +145,6 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
             databasePath: path.join(cacheFolder.path, 'osm.db')
         });
         const folderPath = this.getDefaultMBTilesDir();
-        console.log('localMbtilesSource', folderPath);
         if (folderPath) {
             await this.loadLocalMbtiles(folderPath);
         }
@@ -259,7 +258,6 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         return this.mLocalBackVectorDataSource;
     }
     getOrCreateLocalVectorLayer() {
-        console.log('getOrCreateLocalVectorLayer');
         if (!this.mLocalVectorLayer && this.mCartoMap) {
             this.mLocalVectorLayer = new VectorLayer({ visibleZoomRange: [0, 24], dataSource: this.localVectorDataSource });
             this.mLocalVectorLayer.setVectorElementEventListener(this);
@@ -322,7 +320,6 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
             }
             return;
         }
-        console.log('updateUserLocation');
 
         let accuracyColor = '#0e7afe';
         const accuracy = geoPos.horizontalAccuracy || 0;

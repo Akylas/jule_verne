@@ -15,7 +15,18 @@
             :text="lastLocationDetails"
         />
 
-        <GridLayout v-if="locationEnabled && showLocationButton" class="small-floating-btn" margin="8" horizontalAlignment="right" verticalAlignment="bottom" @tap="askUserLocation" marginBottom="8">
+        <GridLayout
+            v-if="locationEnabled && showLocationButton"
+            class="small-floating-btn"
+            margin="8"
+            horizontalAlignment="right"
+            verticalAlignment="bottom"
+            @tap="askUserLocation"
+            backgroundColor="white"
+            :rippleColor="accentColor"
+            borderRadius="22"
+            elevation="2"
+        >
             <Label textAlignment="center" verticalAlignment="middle" class="mdi" :class="locationButtonLabelClass" :text="'mdi-crosshairs-gps'" :color="accentColor" />
         </GridLayout>
     </GridLayout>

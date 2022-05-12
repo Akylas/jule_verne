@@ -88,19 +88,21 @@
                 </v-template>
                 <v-template if="item.type === 'slider'">
                     <GridLayout>
-                        <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto,auto,auto">
-                            <Label row="0" class="settings-section-title" :text="item.title | uppercase" />
-                            <Label row="1" class="settings-section-desc" :text="item.subtitle" />
+                        <GridLayout class="settings-section settings-section-holder" columns="auto,*,auto" rows="auto,auto,auto">
+                            <Label colSpan="2" row="0" class="settings-section-title" :text="item.title | uppercase" textWrap />
+                            <Label colSpan="3" :visibility="item.subtitle ? 'visible' : 'collapsed'" row="1" class="settings-section-desc" :text="item.subtitle" />
+                            <Label row="2" :text="item.min + ''" verticalAlignment="center" />
+                            <Label row="2" col="2" :text="item.max + ''" verticalAlignment="center" />
+                            <Label col="2" :text="item.valueFormatter ? item.valueFormatter(item.value) : item.value + ''" textAlignment="right" />
                             <MDSlider
-                                margin="10 -0 10 -0"
+                                :id="item.id"
                                 :color="accentColor"
-                                :backgroundColor="accentColor"
                                 row="2"
-                                colSpan="2"
+                                col="1"
                                 :value="item.value"
                                 @valueChange="onSliderChange(item, $event)"
-                                minValue="0"
-                                maxValue="15"
+                                :minValue="item.min"
+                                :maxValue="item.max"
                                 verticalAlignment="center"
                             />
                         </GridLayout>

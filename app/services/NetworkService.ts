@@ -2,7 +2,7 @@ import { foregroundEvent } from '@akylas/nativescript/application';
 import { Application, ApplicationSettings, EventData, File, Folder, Observable, knownFolders, path } from '@nativescript/core';
 import { ApplicationEventData } from '@nativescript/core/application';
 import * as connectivity from '@nativescript/core/connectivity';
-import { HttpsRequestOptions, cancelRequest, request, setCache } from '@nativescript-community/https';
+import { CachePolicy, HttpsRequestOptions as IHttpsRequestOptions, cancelRequest, request, setCache } from '@nativescript-community/https';
 import { notify as appNotify, hashCode, timeout, versionCompare } from '~/utils';
 import { confirm } from '@nativescript-community/ui-material-dialogs';
 import Vue from 'nativescript-vue';
@@ -11,6 +11,26 @@ import { getWorkingDir, throttle } from '~/utils/utils';
 import * as ProgressNotification from '~/services/android/ProgressNotifications';
 import fileSize from 'filesize';
 import { Zip } from '@nativescript/zip';
+import { GlassesVersions } from '~/handlers/bluetooth/GlassesDevice';
+
+const ACTIVELOOK_UPDATE_URL = 'http://vps468290.ovh.net/v1';
+
+export const NetworkConnectionStateEvent = 'NetworkConnectionStateEvent';
+export interface NetworkConnectionStateEventData extends EventData {
+    data: {
+        connected: boolean;
+        connectionType: connectivity.connectionType;
+    };
+}
+
+export interface HttpRequestOptions extends IHttpsRequestOptions {
+    body?;
+    cachePolicy?: CachePolicy;
+    queryParams?: {};
+    apiPath?: string;
+    multipartParams?;
+    canRetry?;
+}
 
 export async function getJSON<T = any>(arg: any): Promise<T> {
     return (await request(typeof arg === 'string' ? { url: arg, method: 'GET' } : arg)).content.toJSON();
@@ -20,16 +40,8 @@ export async function getHEAD<T>(arg: any) {
     return (await request<T>(typeof arg === 'string' ? { url: arg, method: 'HEAD' } : arg)).headers;
 }
 
-export async function getFile(arg: string | HttpsRequestOptions, destinationFilePath?: string) {
+export async function getFile(arg: string | HttpRequestOptions, destinationFilePath?: string) {
     return (await request(typeof arg === 'string' ? { url: arg, method: 'GET' } : arg)).content.toFile(destinationFilePath);
-}
-
-export const NetworkConnectionStateEvent = 'NetworkConnectionStateEvent';
-export interface NetworkConnectionStateEventData extends EventData {
-    data: {
-        connected: boolean;
-        connectionType: connectivity.connectionType;
-    };
 }
 
 export class NetworkService extends Observable {
@@ -43,7 +55,6 @@ export class NetworkService extends Observable {
     }
     set connected(value: boolean) {
         if (this._connected !== value) {
-            DEV_LOG && console.log('NetworkService', 'set connected', value);
             this._connected = value;
             this.onConnectionChanged(value);
         }
@@ -92,11 +103,9 @@ export class NetworkService extends Observable {
         connectivity.stopMonitoring();
     }
     onAppResume(args: ApplicationEventData) {
-        DEV_LOG && console.log('NetworkService', 'onAppResume');
         this.connectionType = connectivity.getConnectionType();
     }
     onConnectionStateChange(newConnectionType: connectivity.connectionType) {
-        DEV_LOG && console.log('NetworkService', 'onConnectionStateChange', newConnectionType);
         this.connectionType = newConnectionType;
     }
 
@@ -104,32 +113,26 @@ export class NetworkService extends Observable {
     mapDataUpdateDate = ApplicationSettings.getNumber('MAP_DATA_LASTDATE', null);
     geojsonDataUpdateDate = ApplicationSettings.getNumber('GEOJSON_DATA_LASTDATE', null);
 
-    async checkFirmwareUpdateOnline(glassesVersion, beta?: boolean) {
+    async checkFirmwareUpdateOnline(versions: GlassesVersions, beta?: boolean) {
         if (!this.connected) {
             return;
         }
+
         try {
-            console.log('checkFirmwareUpdateOnline', glassesVersion, beta);
-            const response = await getJSON({
-                url: `https://gitlab.com/api/v4/projects/9965259/repository/files/${beta ? 'beta' : 'latest'}.json/raw?ref=master`,
-                method: 'GET',
-                headers: {
-                    'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
-                }
-            });
-            DEV_LOG && console.log('checkFirmwareUpdateOnline response', response);
+            const firmware = versions.firmware.replace(/[^.0-9]/g, '');
+            const url = `${ACTIVELOOK_UPDATE_URL}/firmwares/${versions.hardware}/${beta ? ACTIVELOOK_INTERNAL_TOKEN : ACTIVELOOK_BETA_TOKEN}?compatibility=${4}&min-version=${firmware}`;
+            const response = await getJSON(url);
             // if (response.statusCode === 200) {
             // const content = response.content;
-            const newVersion = response.version;
-            const compareResult = versionCompare(newVersion, glassesVersion);
 
-            if (compareResult > 0) {
+            const newVersion = response.latest?.version?.join('.');
+            DEV_LOG && console.log('checkFirmwareUpdateOnline response', response, newVersion, firmware, url);
+            if (response.latest && newVersion !== firmware && versionCompare(newVersion, firmware) > 0) {
                 confirm({
-                    cancelable: !response.mandatory,
                     title: $t('firmware_update', newVersion),
-                    message: response.mandatory ? $t('mandatory_firmware_update_available_desc') : $t('firmware_update_available_desc'),
+                    message: $t('firmware_update_available_desc'),
                     okButtonText: $t('update'),
-                    cancelButtonText: response.mandatory ? undefined : $t('cancel')
+                    cancelButtonText: $t('cancel')
                 })
                     .then((result) => timeout(500).then(() => result)) // delay a bit for android. Too fast
                     .then((result) => {
@@ -138,11 +141,8 @@ export class NetworkService extends Observable {
                             const filePath = path.join(knownFolders.temp().path, `update_${newVersion}.img`);
                             return getFile(
                                 {
-                                    url: response.url,
-                                    method: 'GET',
-                                    headers: {
-                                        'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
-                                    }
+                                    url: `${ACTIVELOOK_UPDATE_URL}${response.latest.api_path}`,
+                                    method: 'GET'
                                 },
                                 filePath
                             ).then(async (response) => {
@@ -160,58 +160,59 @@ export class NetworkService extends Observable {
             console.error('Https.request error', error);
         }
     }
-    checkConfigUpdateOnline(glassesVersion, beta?: boolean) {
-        getJSON({
-            url: `https://gitlab.com/api/v4/projects/20247090/repository/files/${beta ? 'beta' : 'latest'}.json/raw?ref=master`,
-            method: 'GET',
-            headers: {
-                'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
-            }
-        })
-            .then((response: any) => {
-                // if (response.statusCode === 200) {
-                // const content = response.content;
-                const newVersion = response.version;
-                const compareResult = versionCompare(newVersion, glassesVersion);
 
-                if (compareResult > 0) {
-                    confirm({
-                        cancelable: !response.mandatory,
-                        title: $t('firmware_update', newVersion),
-                        message: response.mandatory ? $t('mandatory_firmware_update_available_desc') : $t('firmware_update_available_desc'),
-                        okButtonText: $t('update'),
-                        cancelButtonText: response.mandatory ? undefined : $t('cancel')
-                    })
-                        .then((result) => timeout(500).then(() => result)) // delay a bit for android. Too fast
-                        .then((result) => {
-                            if (result) {
-                                Vue.prototype.$showLoading($t('downloading_update'));
-                                const filePath = path.join(knownFolders.temp().path, `config_update_${newVersion}.txt`);
-                                return getFile(
-                                    {
-                                        url: response.url,
-                                        method: 'GET',
-                                        headers: {
-                                            'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
-                                        }
-                                    },
-                                    filePath
-                                ).then(async (response) => {
-                                    Vue.prototype.$hideLoading();
-                                    // const component = await import('~/components/FirmwareUpdate');
-                                    // navigateTo(component.default, { props: { firmwareFile: response } });
-                                });
-                            } else if (response.mandatory) {
-                                // quitApp();
-                            }
-                        })
-                        .catch(Vue.prototype.$showError);
-                }
-            })
-            .catch((error) => {
-                console.error('Https.request error', error);
-            });
-    }
+    // checkConfigUpdateOnline(glassesVersion, beta?: boolean) {
+    //     getJSON({
+    //         url: `https://gitlab.com/api/v4/projects/20247090/repository/files/${beta ? 'beta' : 'latest'}.json/raw?ref=master`,
+    //         method: 'GET',
+    //         headers: {
+    //             'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
+    //         }
+    //     })
+    //         .then((response: any) => {
+    //             // if (response.statusCode === 200) {
+    //             // const content = response.content;
+    //             const newVersion = response.version;
+    //             const compareResult = versionCompare(newVersion, glassesVersion);
+
+    //             if (compareResult > 0) {
+    //                 confirm({
+    //                     cancelable: !response.mandatory,
+    //                     title: $t('firmware_update', newVersion),
+    //                     message: response.mandatory ? $t('mandatory_firmware_update_available_desc') : $t('firmware_update_available_desc'),
+    //                     okButtonText: $t('update'),
+    //                     cancelButtonText: response.mandatory ? undefined : $t('cancel')
+    //                 })
+    //                     .then((result) => timeout(500).then(() => result)) // delay a bit for android. Too fast
+    //                     .then((result) => {
+    //                         if (result) {
+    //                             Vue.prototype.$showLoading($t('downloading_update'));
+    //                             const filePath = path.join(knownFolders.temp().path, `config_update_${newVersion}.txt`);
+    //                             return getFile(
+    //                                 {
+    //                                     url: response.url,
+    //                                     method: 'GET',
+    //                                     headers: {
+    //                                         'Private-Token': 'RSKG-kgSP9pyEuLYz6NE'
+    //                                     }
+    //                                 },
+    //                                 filePath
+    //                             ).then(async (response) => {
+    //                                 Vue.prototype.$hideLoading();
+    //                                 // const component = await import('~/components/FirmwareUpdate');
+    //                                 // navigateTo(component.default, { props: { firmwareFile: response } });
+    //                             });
+    //                         } else if (response.mandatory) {
+    //                             // quitApp();
+    //                         }
+    //                     })
+    //                     .catch(Vue.prototype.$showError);
+    //             }
+    //         })
+    //         .catch((error) => {
+    //             console.error('Https.request error', error);
+    //         });
+    // }
 
     async checkForStoryUpdate(storyId) {
         let progressNotificationId;
@@ -220,13 +221,12 @@ export class NetworkService extends Observable {
             const url = ApplicationSettings.getString('UPDATE_DATA_DEFAULT_URL', UPDATE_DATA_DEFAULT_URL) + `?path=/&files=${storyId}.zip`;
             const headers = await getHEAD(url);
             const lastSize = ApplicationSettings.getString('GLASSES_DATA_SIZE_' + storyId, '');
-            console.log(url, lastSize, headers);
             let workingDir = path.join(getWorkingDir(), 'glasses_images');
             if (storyId === 'navigation' || storyId === 'pastilles') {
             } else {
                 workingDir += '/stories';
             }
-            DEV_LOG && console.log('checkForStoryUpdate', storyId, workingDir, lastSize !== headers['content-length'], Folder.exists(path.join(workingDir, storyId + '')));
+            DEV_LOG && console.log('checkForStoryUpdate', url, storyId, workingDir, lastSize !== headers['content-length'], Folder.exists(path.join(workingDir, storyId + '')));
             if (lastSize !== headers['content-length'] || !Folder.exists(path.join(workingDir, storyId + ''))) {
                 const requestTag = Date.now() + '';
 
@@ -242,7 +242,7 @@ export class NetworkService extends Observable {
                             id: 'cancel',
                             text: $tc('cancel'),
                             callback: () => {
-                                console.log('cancelling downloading request', requestTag);
+                                DEV_LOG && console.log('cancelling downloading request', url, requestTag);
                                 cancelRequest(requestTag);
                             }
                         }
@@ -273,7 +273,6 @@ export class NetworkService extends Observable {
                     },
                     filePath
                 );
-                console.log('file', file.path, file.size, headers['content-length']);
                 if (File.exists(file.path) && file.size > 0) {
                     ProgressNotification.update(progressNotification, {
                         title: $tc('uncompress_glasses_data', storyId),
@@ -319,7 +318,6 @@ export class NetworkService extends Observable {
         const track = Vue.prototype.$bgService?.geoHandler?.currentTrack;
         if (track) {
             const storyIds = [...new Set(track.geometry.features.map((f) => parseInt('index' in f.properties ? f.properties.index : f.properties.name, 10)).filter((f) => !isNaN(f)))].sort();
-            console.log('storyIds', storyIds);
             for (let index = 0; index < storyIds.length; index++) {
                 await this.checkForStoryUpdate(storyIds[index]);
             }
@@ -335,7 +333,7 @@ export class NetworkService extends Observable {
             const url = ApplicationSettings.getString('UPDATE_DATA_DEFAULT_URL', UPDATE_DATA_DEFAULT_URL) + '?path=/&files=tiles.zip';
             const headers = await getHEAD(url);
             const lastSize = ApplicationSettings.getString('MAP_DATA_SIZE', '');
-            console.log(url, lastSize, headers);
+            DEV_LOG && console.log(url, lastSize, headers['content-length']);
             if (lastSize !== headers['content-length'] || !Folder.exists(path.join(getWorkingDir(), 'tiles'))) {
                 const requestTag = Date.now() + '';
                 const progressNotification = ProgressNotification.show({
@@ -350,7 +348,7 @@ export class NetworkService extends Observable {
                             id: 'cancel',
                             text: $tc('cancel'),
                             callback: () => {
-                                console.log('cancelling downloading request', requestTag);
+                                DEV_LOG && console.log('cancelling downloading request', url, requestTag);
                                 cancelRequest(requestTag);
                             }
                         }
@@ -409,7 +407,7 @@ export class NetworkService extends Observable {
             const url = ApplicationSettings.getString('UPDATE_DATA_DEFAULT_URL', UPDATE_DATA_DEFAULT_URL) + '?path=/&files=map.geojson';
             const headers = await getHEAD(url);
             const lastSize = ApplicationSettings.getString('GEOJSON_DATA_SIZE', '');
-            console.log('checkForGeoJSONUpdate', url, lastSize, headers);
+            DEV_LOG && console.log('checkForGeoJSONUpdate', url, lastSize, headers['content-length']);
             if (lastSize !== headers['content-length']) {
                 await getFile(
                     {

@@ -146,14 +146,12 @@ const Plugin = {
         //     return super.navigateTo(component, options, cb);
         // };
         Vue.prototype.$navigateToUrl = async function navigateToUrl(url: ComponentIds, options?: NavigationEntry & { props?: any; component?: VueConstructor | Function }, cb?: () => Page) {
-            console.log('$navigateToUrl', url, navigating);
             if (isActiveUrl(url) || navigating) {
                 closeDrawer();
                 return;
             }
             navigating = true;
             const index = findNavigationUrlIndex(url);
-            console.log('$navigateToUrl', url, index, options, routes[url]);
             if (index === -1) {
                 let component = options?.component || routes[url].component;
                 if (typeof component === 'function') {

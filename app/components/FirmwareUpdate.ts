@@ -130,7 +130,6 @@ export default class FirmwareUpdate extends BgServiceComponent {
         return bluetooth
             .write({ peripheralUUID: this.connectedGlasses.UUID, serviceUUID: SPOTA_SERVICE_UUID, characteristicUUID: SPOTA_MEM_DEV_UUID, value: toSend })
             .then(() => {
-                console.log('about to disconnect glasses');
                 this.bluetoothHandler.disconnectGlasses(false); //false to show reconnecting dialog
             })
             .catch(console.error);

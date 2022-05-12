@@ -9,6 +9,12 @@ import { CommandType, InputCommandType, Message, MessageParser, ParseResult } fr
 export const GESTURE_CHAR_UUID = '0783b03e-8535-b5a0-7140-a304d2495cbb';
 export const BUTTON_CHAR_UUID = '0783b03e-8535-b5a0-7140-a304d2495cbc';
 
+export interface GlassesVersions {
+    model: string;
+    firmware: string;
+    hardware: string;
+    software: string;
+}
 // const BinaryCmdToString = {
 //     [CommandType.Version]: 'vers',
 //     [CommandType.Power]: 'power',
@@ -27,7 +33,7 @@ export const BUTTON_CHAR_UUID = '0783b03e-8535-b5a0-7140-a304d2495cbc';
 // };
 
 export class GlassesDevice extends Device {
-    firmwareVersion: string;
+    versions: GlassesVersions;
     serialNumber: string;
     currentConfig?: string;
     /**
@@ -55,7 +61,6 @@ export class GlassesDevice extends Device {
     set gestureOn(value: boolean) {
         if (this._gestureOn !== value) {
             this._gestureOn = value;
-            console.log('gestureOn', value);
             if (this.binaryFormat) {
                 if (value) {
                     Characteristic.startNotifying(this.UUID, SERVER_SERVICE_UUID, GESTURE_CHAR_UUID, this.onGesture.bind(this));
@@ -147,7 +152,6 @@ export class GlassesDevice extends Device {
         });
     }
     onDisconnected() {
-        console.log('GlassesDevice', 'onDisconnected');
         super.onDisconnected();
         this.txChar.connected = false;
         this.rxChar.connected = false;

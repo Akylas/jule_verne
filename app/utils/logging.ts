@@ -12,7 +12,6 @@ export function log(alwaysOrTarget: boolean | any, k?, desc?: PropertyDescriptor
     }
 }
 
-
 function timelineProfileFunctionFactory(target: any, always: boolean, key?, descriptor?: PropertyDescriptor) {
     // save a reference to the original method this way we keep the values currently in the
     // descriptor and don't overwrite what another decorator might have done to the descriptor.
@@ -85,7 +84,7 @@ function actualLog(level: 'info' | 'log' | 'error' | 'warn' | 'debug', ...args) 
         Sentry.addBreadcrumb({
             category: 'console',
             message: args.map(convertArg).join(' '),
-            level: level as any,
+            level: level as any
         });
     }
     // we do it this way allow terser to "drop" it

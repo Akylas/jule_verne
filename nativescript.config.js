@@ -1,6 +1,5 @@
 module.exports = {
     id: 'com.akylas.juleverne',
-    ignoredNativeDependencies: ['@nativescript-community/sentry'],
     appResourcesPath: 'App_Resources',
     forceLog: true,
     android: {

@@ -22,7 +22,7 @@ import Vue from 'nativescript-vue';
 import { VueConstructor } from 'vue';
 import { Component } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
-import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
+import { GlassesDevice, GlassesVersions } from '~/handlers/bluetooth/GlassesDevice';
 import {
     AvailableConfigsEvent,
     BLEBatteryEventData,
@@ -99,7 +99,7 @@ export default class Home extends BgServiceComponent {
     public connectedGlasses: GlassesDevice = null;
     public glassesBattery: number = 0;
     public glassesSerialNumber = null;
-    public glassesVersion = null;
+    public glassesVersions: GlassesVersions = null;
     glassesMemory: FreeSpaceData = null;
     bluetoothEnabled = true;
     appVersion = __APP_VERSION__ + '.' + __APP_BUILD_NUMBER__;
@@ -174,8 +174,8 @@ export default class Home extends BgServiceComponent {
         if (this.glassesSerialNumber) {
             result += `${this.glassesSerialNumber}`;
         }
-        if (this.glassesVersion) {
-            result += ` (${this.glassesVersion})`;
+        if (this.glassesVersions) {
+            result += ` (${this.glassesVersions.firmware})`;
         }
         return result;
     }
@@ -195,7 +195,6 @@ export default class Home extends BgServiceComponent {
         this.geojsonDataUpdateDate = event.data;
     }
     onStoryPlayingEvent(event) {
-        console.log('onStoryPlayingEvent', event.data);
         this.storyPlaying = event.data !== 'stop';
         this.storyPaused = event.data === 'pause';
     }
@@ -293,7 +292,6 @@ export default class Home extends BgServiceComponent {
     }
 
     protected onSessionStateEvent(e: SessionEventData) {
-        DEV_LOG && console.log('onSessionStateEvent', e.data);
         this.currentSessionState = e.data.state;
     }
     inFront = false;
@@ -328,7 +326,6 @@ export default class Home extends BgServiceComponent {
                         if (result) {
                             this.shouldConfirmBack = false;
                             this.geoHandler.stopSession();
-                            console.log('about to close activity', result);
                             setTimeout(() => {
                                 frame.android.activity.finish();
                             }, 10);
@@ -366,7 +363,6 @@ export default class Home extends BgServiceComponent {
         if (!handlers.geoHandler) {
             return;
         }
-        DEV_LOG && console.log('Home', 'setup');
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
         this.geoHandlerOn(TrackSelecteEvent, this.onTrackSelected, this);
         this.geoHandlerOn(UserRawLocationEvent, this.onNewLocation, this);
@@ -401,7 +397,7 @@ export default class Home extends BgServiceComponent {
                 data: handlers.bluetoothHandler.glasses.serialNumber
             } as any);
             this.onGlassesVersion({
-                data: handlers.bluetoothHandler.glasses.firmwareVersion
+                data: handlers.bluetoothHandler.glasses.versions
             } as any);
         }
         handlers.bluetoothHandler.isEnabled().then((r) => {
@@ -444,7 +440,6 @@ export default class Home extends BgServiceComponent {
         try {
             let geojsonPath = path.join(getWorkingDir(false), 'map.geojson');
             await this.$networkService.checkForGeoJSONUpdate(geojsonPath);
-            DEV_LOG && console.log('importDevSessions', geojsonPath, File.exists(geojsonPath));
             if (!File.exists(geojsonPath)) {
                 geojsonPath = path.join(knownFolders.currentApp().path, 'assets/data/map.geojson');
             }
@@ -454,7 +449,6 @@ export default class Home extends BgServiceComponent {
             // this.showLoading({ text: this.$t('importing_data'), progress: 0 });
             const file = File.fromPath(geojsonPath);
             const lastChecked = ApplicationSettings.getNumber('map.geojson_date', 0);
-            console.log('importDevSessions', lastChecked, file.lastModified.getTime(), geojsonPath);
             if (file.lastModified.getTime() <= lastChecked) {
                 return;
             }
@@ -583,7 +577,7 @@ export default class Home extends BgServiceComponent {
                     await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
                     break;
                 case 'changeDeviceName':
-                    await prompt({
+                    const result = await prompt({
                         title: $tc('change_glasses_name'),
                         // message: $tc('change_glasses_name'),
                         okButtonText: $tc('change'),
@@ -595,23 +589,18 @@ export default class Home extends BgServiceComponent {
                             marginRight: 10,
                             hint: $tc('name')
                         }
-                    })
-                        .then((result) => {
-                            console.log(TAG, 'changeDeviceName', result, this.connectedGlasses.localName);
-                            if (result && !!result.result && result.text.length > 0 && result.text !== this.connectedGlasses.localName) {
-                                return this.bluetoothHandler.setGlassesName(result.text).then(() =>
-                                    alert({
-                                        title: $tc('glasses_updated'),
-                                        message: $tc('reboot_glasses_required'),
-                                        okButtonText: $tc('ok')
-                                    })
-                                );
-                            }
-                        })
-                        .catch(this.showError);
+                    });
+                    if (result && !!result.result && result.text.length > 0 && result.text !== this.connectedGlasses.localName) {
+                        return this.bluetoothHandler.setGlassesName(result.text).then(() =>
+                            alert({
+                                title: $tc('glasses_updated'),
+                                message: $tc('reboot_glasses_required'),
+                                okButtonText: $tc('ok')
+                            })
+                        );
+                    }
                     break;
                 case 'toggleMusicPlayPause':
-                    console.log('toggleMusicPlayPause');
                     if (this.storyPlaying) {
                         if (this.storyPaused) {
                             this.bluetoothHandler.resumeStory();
@@ -627,7 +616,6 @@ export default class Home extends BgServiceComponent {
     }
 
     async onNavItemTap(item) {
-        console.log('$onNavItemTap', item.url);
         try {
             this.$navigateToUrl(item.url, { component: item.component });
         } catch (error) {
@@ -696,7 +684,6 @@ export default class Home extends BgServiceComponent {
                         okButtonText: this.$t('disconnect'),
                         cancelButtonText: this.$t('cancel')
                     }).then((result) => {
-                        console.log(TAG, 'disconnectGlasses, confirmed', result);
                         if (!!result) {
                             this.bluetoothHandler.disconnectGlasses(true);
                         }
@@ -760,11 +747,10 @@ export default class Home extends BgServiceComponent {
     }
 
     onGlassesDisconnected(e: BLEConnectionEventData) {
-        console.log(TAG, 'onGlassesDisconnected', e.manualDisconnect);
         this.connectedGlasses = null;
         this.connectingToGlasses = false;
         this.glassesBattery = -1;
-        this.glassesVersion = null;
+        this.glassesVersions = null;
         this.glassesSerialNumber = null;
         this.hideLoading();
         // if not manual disconnect we are going to try and reconnect
@@ -778,7 +764,7 @@ export default class Home extends BgServiceComponent {
     onGlassesConnected(e: BLEConnectionEventData) {
         const glasses = (this.connectedGlasses = e.data as GlassesDevice);
         this.connectingToGlasses = false;
-        this.glassesVersion = glasses.firmwareVersion;
+        this.glassesVersions = glasses.versions;
         this.glassesSerialNumber = glasses.serialNumber;
         this.updateSentryInfos();
         this.hideLoading();
@@ -791,7 +777,7 @@ export default class Home extends BgServiceComponent {
                 JSON.stringify({
                     name: glasses.localName,
                     uuid: glasses.UUID,
-                    firmware: this.glassesVersion,
+                    versions: this.glassesVersions,
                     serial: this.glassesSerialNumber
                 })
             );
@@ -806,9 +792,9 @@ export default class Home extends BgServiceComponent {
         this.hideLoading();
     }
     onGlassesVersion(e) {
-        this.glassesVersion = e.data;
-        console.log('onGlassesVersion', this.glassesVersion);
-        // this.$networkService.checkFirmwareUpdateOnline(this.glassesVersion);
+        this.glassesVersions = e.data;
+        DEV_LOG && console.log('onGlassesVersion', this.glassesVersions);
+        this.$networkService.checkFirmwareUpdateOnline(this.glassesVersions);
         this.updateSentryInfos();
     }
     onGlassesSerialNumber(e) {

@@ -277,6 +277,19 @@ export function distanceToEnd(index: number, poly: Position[]) {
     }
     return result;
 }
+export function distanceToPolygon(from: Position, poly: Polygon) {
+    let minDist = Number.MAX_VALUE;
+    let dist: number;
+    poly.coordinates.forEach((coords) => {
+        coords.forEach((coord) => {
+            dist = computeDistanceBetween(from, coord);
+            if (dist < minDist) {
+                minDist = dist;
+            }
+        });
+    });
+    return minDist;
+}
 
 function clipByRange(n, range) {
     return n % range;
