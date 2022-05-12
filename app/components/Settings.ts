@@ -1,8 +1,7 @@
 import { openFilePicker } from '@nativescript-community/ui-document-picker';
 import { confirm, prompt } from '@nativescript-community/ui-material-dialogs';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
-import { ObservableArray } from '@nativescript/core/data/observable-array';
-import { File, Folder, knownFolders, path } from '@nativescript/core/file-system';
+import { File, Folder, ObservableArray, View, knownFolders, path } from '@nativescript/core';
 import { TouchGestureEventData } from '@nativescript/core/ui';
 import fileSize from 'filesize';
 import { debounce } from 'helpful-decorators';
@@ -131,18 +130,17 @@ export default class Settings extends BgServiceComponent {
         if (item.value === value) {
             return;
         }
-        const newValue = value;
         switch (item.id) {
             case 'luminance':
                 this.updateLuminance(value);
                 break;
             default:
-                ApplicationSettings.setNumber(item.id, newValue);
+                ApplicationSettings.setNumber(item.id, value);
                 break;
         }
         const index = this.items.findIndex((i) => i.id === item.id);
         if (index !== -1) {
-            item.value = newValue;
+            item.value = value;
             this.items.setItem(index, item);
         }
     }
@@ -182,7 +180,6 @@ export default class Settings extends BgServiceComponent {
     }
 
     refresh() {
-        console.log('instructionRepeatDuration', ApplicationSettings.getNumber('instructionRepeatDuration', 30000));
         let items: any[] = [
             { type: 'header', title: $t('settings') },
             { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') },

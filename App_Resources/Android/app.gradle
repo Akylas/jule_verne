@@ -61,11 +61,45 @@ android {
     }
   }
 }
+
+
+task createProguard {
+    dependsOn 'buildMetadata'
+    doLast {
+        exec {
+            workingDir "$USER_PROJECT_ROOT"
+            commandLine 'node', 'scripts/createProguard.js'
+        }
+    }
+}
+tasks.whenTaskAdded({ DefaultTask currentTask ->
+    if (currentTask =~ /buildMetadata/) {
+        currentTask.finalizedBy(createProguard)
+    }
+    if (currentTask =~ /minify.*WithR8/) {
+        currentTask.dependsOn(createProguard)
+    }
+})
+
+
 android.applicationVariants.all { variant ->
     variant.outputs.each { output ->
         def baseAbiVersionCode = project.ext.abiCodes.get(output.getFilter("ABI"), 0)
         if (baseAbiVersionCode != null) {
             output.versionCodeOverride = baseAbiVersionCode * 10000000 + variant.versionCode
+        }
+    }
+}
+android.applicationVariants.all { variant ->
+    if (project.hasProperty('splitEnabled')) {
+        if (variant.buildType.name == "debug") {
+            variant.outputs.each { output ->
+                output.versionNameOverride = android.defaultConfig.versionName + "." + variant.versionCode + "-dev";
+            }
+        } else {
+            variant.outputs.each { output ->
+                output.versionNameOverride = android.defaultConfig.versionName + "." + variant.versionCode;
+            }
         }
     }
 }
