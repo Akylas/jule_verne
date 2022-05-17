@@ -1,7 +1,7 @@
 import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { CartoMap } from '@nativescript-community/ui-carto/ui';
 import { Drawer } from '@nativescript-community/ui-drawer';
-import { prompt } from '@nativescript-community/ui-material-dialogs';
+import { alert, prompt } from '@nativescript-community/ui-material-dialogs';
 import {
     AndroidActivityBackPressedEventData,
     AndroidApplication,
@@ -22,6 +22,7 @@ import Vue from 'nativescript-vue';
 import { VueConstructor } from 'vue';
 import { Component } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
+import { isSimulator } from '@nativescript-community/extendedinfo';
 import { GlassesDevice, GlassesVersions } from '~/handlers/bluetooth/GlassesDevice';
 import {
     AvailableConfigsEvent,
@@ -65,6 +66,7 @@ import DeviceSelect from './DeviceSelect';
 import Map from './Map';
 import MapComponent from './MapComponent';
 import MapOnlyComponent from './MapOnlyComponent';
+import AudioPlayerWidget from './AudioPlayerWidget.vue';
 
 const production = TNS_ENV === 'production';
 const TAG = 'Home';
@@ -80,6 +82,7 @@ export interface HomeRefs extends BaseVueComponentRefs {
     components: {
         MapOnlyComponent,
         MapComponent,
+        AudioPlayerWidget,
         Map
     }
 })
@@ -111,9 +114,6 @@ export default class Home extends BgServiceComponent {
     selectedTracks: Track[] = null;
     insideFeature: TrackFeature = null;
     availableConfigs: ConfigListData = null;
-
-    storyPlaying = false;
-    storyPaused = false;
 
     viewedFeatures = null;
 
@@ -194,9 +194,8 @@ export default class Home extends BgServiceComponent {
     onGeojsonDataUpdateDate(event) {
         this.geojsonDataUpdateDate = event.data;
     }
-    onStoryPlayingEvent(event) {
-        this.storyPlaying = event.data !== 'stop';
-        this.storyPaused = event.data === 'pause';
+    onError(event) {
+        this.showError(event.data);
     }
     mounted() {
         super.mounted();
@@ -251,7 +250,9 @@ export default class Home extends BgServiceComponent {
         if (track && map) {
             map.moveToFitBounds(track.bounds, undefined, true, true, false, 200);
         }
-        this.$networkService.checkForGlassesDataUpdate();
+        if (PRODUCTION || !isSimulator()) {
+            this.$networkService.checkForGlassesDataUpdate();
+        }
     }
 
     async onServiceStarted(handlers: BgServiceMethodParams) {
@@ -270,7 +271,9 @@ export default class Home extends BgServiceComponent {
         } else {
             this.needsImportOldSessionsOnLoaded = true;
         }
-        this.$networkService.checkForMapDataUpdate();
+        if (PRODUCTION || !isSimulator()) {
+            this.$networkService.checkForMapDataUpdate();
+        }
     }
     // updateMapWithSession() {
     //     const map = this._cartoMap;
@@ -376,8 +379,8 @@ export default class Home extends BgServiceComponent {
             isInTrackBounds: handlers.geoHandler.isInTrackBounds
         } as any);
         this.geoHandlerOn(FeatureViewedEvent, this.onFeatureViewed, this);
+        this.geoHandlerOn('error', this.onError);
 
-        this.bluetoothHandlerOn('drawBitmap', this.onDrawImage);
         this.bluetoothHandlerOn(AvailableConfigsEvent, this.onAvailableConfigs, this);
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
         this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
@@ -386,7 +389,7 @@ export default class Home extends BgServiceComponent {
         this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
         this.bluetoothHandlerOn(GlassesMemoryChangeEvent, this.onGlassesMemory);
         this.bluetoothHandlerOn(StatusChangedEvent, this.onBLEStatus);
-        this.bluetoothHandlerOn('storyPlayback', this.onStoryPlayingEvent);
+        this.bluetoothHandlerOn('error', this.onError);
 
         this.connectingToGlasses = handlers.bluetoothHandler.connectingToGlasses;
         if (handlers.bluetoothHandler.glasses) {
@@ -439,7 +442,9 @@ export default class Home extends BgServiceComponent {
     async importDevSessions() {
         try {
             let geojsonPath = path.join(getWorkingDir(false), 'map.geojson');
-            await this.$networkService.checkForGeoJSONUpdate(geojsonPath);
+            if (PRODUCTION || !isSimulator()) {
+                await this.$networkService.checkForGeoJSONUpdate(geojsonPath);
+            }
             if (!File.exists(geojsonPath)) {
                 geojsonPath = path.join(knownFolders.currentApp().path, 'assets/data/map.geojson');
             }
@@ -561,7 +566,7 @@ export default class Home extends BgServiceComponent {
                 case 'playStory':
                     await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
                     // await this.bluetoothHandler.playInstruction('starting_story');
-                    this.bluetoothHandler.playRideauAndStory(args[0]);
+                    await this.bluetoothHandler.playRideauAndStory(args[0]);
                     break;
                 case 'start':
                     await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
@@ -600,15 +605,6 @@ export default class Home extends BgServiceComponent {
                         );
                     }
                     break;
-                case 'toggleMusicPlayPause':
-                    if (this.storyPlaying) {
-                        if (this.storyPaused) {
-                            this.bluetoothHandler.resumeStory();
-                        } else {
-                            this.bluetoothHandler.pauseStory();
-                        }
-                    }
-                    break;
             }
         } catch (err) {
             this.showError(err);
@@ -623,10 +619,7 @@ export default class Home extends BgServiceComponent {
         }
     }
     enableForScan() {
-        return this.bluetoothHandler
-            .enable()
-            .then(() => this.geoHandler.enableLocation())
-            .then(() => timeout(100)); // the timeout is for and android bug on some device/android where we would try to show a modal view too quckly after a native prompt
+        return this.bluetoothHandler.enableForScan();
     }
     connectingToGlasses = false;
     async pickGlasses() {
@@ -738,12 +731,6 @@ export default class Home extends BgServiceComponent {
                 this.tryToAutoConnect();
             }
         }
-    }
-
-    onDrawImage(event) {
-        // console.log('onDrawImage', event.bitmap);
-        this.$refs.imageView.nativeView.src = event.bitmap;
-        // this.currentDrawImage = event.bitmap;
     }
 
     onGlassesDisconnected(e: BLEConnectionEventData) {

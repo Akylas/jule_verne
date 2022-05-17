@@ -325,7 +325,7 @@ export class NetworkService extends Observable {
         this.updatingStories = false;
     }
     async checkForMapDataUpdate() {
-        const progressNotificationId = 52305;
+        const progressNotificationId = 12305;
         if (!this.connected) {
             return;
         }
@@ -357,9 +357,9 @@ export class NetworkService extends Observable {
                 const filePath = path.join(knownFolders.temp().path, 'tiles.zip');
                 const onProgress = throttle((current, total) => {
                     const perc = Math.round((current / total) * 100);
-                    Vue.prototype.$updateLoadingProgress({
-                        text: `${fileSize(current)}/${fileSize(total)} (${perc}%)`,
-                        progress: perc
+                    ProgressNotification.update(progressNotification, {
+                        message: `${fileSize(Math.round(current), { round: 1, pad: true })}/${fileSize(total)} (${perc}%)`,
+                        progressValue: perc
                     });
                 }, 1000);
                 const file = await getFile(

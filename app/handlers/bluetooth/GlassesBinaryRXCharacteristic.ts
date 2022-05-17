@@ -102,6 +102,31 @@ export class GlassesBinaryRXCharacteristic extends BufferSendingCharacteristic<U
     //     this.sendData(command, progressCallback);
     // }
 
+    public sendBinaryCommands(commands: { commandType: CommandType; params?: InputCommandType<any> }[], options: { progressCallback?: ProgressCallback } = {}) {
+        if (!this.connected) {
+            return;
+        }
+        commands.forEach((c) => this.sendBinaryCommand( c.commandType, { params: c.params } ));
+
+        // only for debug purpose!
+        // options.timestamp = options.timestamp || Date.now()
+        // const messageData: any = commands.reduce(function (prev, current) {
+        //     return prev.concat(buildMessageData(current.commandType, { params: current.params }));
+        // }, []);
+        // DEV_LOG &&
+        //     console.log(
+        //         'sendBinaryCommands',
+        //         commands.map((d) => d.commandType),
+        //         messageData
+        //     );
+        // const shouldStack = this.sendingCommand || this.sendingSlice || !this.canSendData;
+        // if (shouldStack) {
+        //     this.pendingCommands.push({ data: messageData, progressCallback: options.progressCallback });
+        //     return;
+        // }
+        // this.sendingCommand = true;
+        // this.sendData(messageData, options.progressCallback);
+    }
     public sendBinaryCommand<T extends CommandType>(commandType: T, options: { timestamp?: number; params?: InputCommandType<T>; progressCallback?: ProgressCallback } = {}) {
         if (!this.connected) {
             return;

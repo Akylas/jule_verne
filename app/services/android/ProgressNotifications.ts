@@ -1,5 +1,5 @@
 import { Application, Utils } from '@nativescript/core';
-import { NOTIFICATION_CHANEL_ID_DOWNLOAD_CHANNEL, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL } from '~/services/android/NotifcationHelper';
+import { FLAG_IMMUTABLE, NOTIFICATION_CHANEL_ID_DOWNLOAD_CHANNEL, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, NotificationHelper } from '~/services/android/NotifcationHelper';
 import { ad } from '@nativescript/core/utils/utils';
 import { Color } from '@nativescript/core/color';
 import { primaryColor } from '~/variables';
@@ -43,7 +43,7 @@ export function show(_options: ProgressOptions): CommonNotification {
         progressValue: _options.progressValue !== undefined && _options.progressValue !== null ? _options.progressValue : 0,
         ongoing: _options.ongoing !== undefined && _options.ongoing !== null ? _options.ongoing : true
     };
-    const builder = getBuilder();
+    const builder = NotificationHelper.getBuilder(getActivity(), NOTIFICATION_CHANEL_ID_DOWNLOAD_CHANNEL);
     const color = android.graphics.Color.parseColor(new Color(primaryColor).hex);
     builder.setContentTitle(options.title).setContentText(options.message).setSmallIcon(ad.resources.getDrawableId('ic_notification')).setColor(color);
     builder.setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX);
@@ -60,7 +60,7 @@ export function show(_options: ProgressOptions): CommonNotification {
                 const actionBuilder = new androidx.core.app.NotificationCompat.Action.Builder(
                     action.icon || 0,
                     action.text,
-                    android.app.PendingIntent.getBroadcast(context, 0, intent, android.app.PendingIntent.FLAG_CANCEL_CURRENT)
+                    android.app.PendingIntent.getBroadcast(context, FLAG_IMMUTABLE, intent, android.app.PendingIntent.FLAG_CANCEL_CURRENT)
                 ).build();
                 builder.addAction(actionBuilder);
                 if (action.callback) {
@@ -78,7 +78,7 @@ export function show(_options: ProgressOptions): CommonNotification {
         }
         builder.setOngoing(options.ongoing).setProgress(100, options.progressValue, options.indeterminate);
     }
-    showNotification(options.id, builder);
+    NotificationHelper.showNotification(options.id, builder);
     const notification: CommonNotification = {
         id: options.id,
         builder
@@ -124,7 +124,7 @@ export function update(notification: CommonNotification, options: UpdateOptions)
     if (options.hideProgressBar) {
         builder.setProgress(0, 0, false);
     }
-    showNotification(notification.id, builder);
+    NotificationHelper.showNotification(notification.id, builder);
     notification.builder = builder;
 
     notify({
@@ -139,23 +139,13 @@ export function update(notification: CommonNotification, options: UpdateOptions)
     return notification;
 }
 export function dismiss(id: number) {
-    getNotificationManager().cancel(id);
+    NotificationHelper.hideNotification(id);
     removeNotificationCallbacks(id);
     notify({
         eventName: 'appMessageRemove',
         data: { id }
     });
 }
-export function showNotification(id: number, builder: androidx.core.app.NotificationCompat.Builder) {
-    getNotificationManager().notify(id, builder.build());
-}
-export function getBuilder(): androidx.core.app.NotificationCompat.Builder {
-    return new androidx.core.app.NotificationCompat.Builder(getActivity(), NOTIFICATION_CHANEL_ID_DOWNLOAD_CHANNEL);
-}
 export function getActivity() {
     return Application.android.startActivity || Application.android.foregroundActivity;
-}
-export function getNotificationManager(): android.app.NotificationManager {
-    const context = Application.android.context;
-    return context.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
 }

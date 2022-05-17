@@ -39,6 +39,7 @@ declare namespace com {
             class BgService extends globalAndroid.app.Service {}
             class BgServiceBinder extends globalAndroid.os.Binder {}
             class ActionReceiver extends globalAndroid.content.BroadcastReceiver {}
+            class CustomMediaButtonReceiver extends androidx.media.session.MediaButtonReceiver {}
         }
     }
 }

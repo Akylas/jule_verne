@@ -1,8 +1,9 @@
 import { openFilePicker } from '@nativescript-community/ui-document-picker';
 import { confirm, prompt } from '@nativescript-community/ui-material-dialogs';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
-import { File, Folder, ObservableArray, View, knownFolders, path } from '@nativescript/core';
+import { Application, ApplicationSettings, File, Folder, ObservableArray, Utils, knownFolders, path } from '@nativescript/core';
 import { TouchGestureEventData } from '@nativescript/core/ui';
+import dayjs from 'dayjs';
 import fileSize from 'filesize';
 import { debounce } from 'helpful-decorators';
 import { Component } from 'vue-property-decorator';
@@ -21,17 +22,14 @@ import {
     GlassesSettingsEvent
 } from '~/handlers/BluetoothHandler';
 import { GeoHandler } from '~/handlers/GeoHandler';
-import { CommandType, ConfigListData, FreeSpaceData } from '~/handlers/Message';
+import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
+import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
 import { $t, $tc } from '~/helpers/locale';
-import { MessageError } from '~/services/CrashReportService';
 import { timeout } from '~/utils';
+import { getGlassesImagesFolder } from '~/utils/utils';
+import { ComponentIds } from '~/vue.prototype';
 import FirmwareUpdate from './FirmwareUpdate';
 import OptionSelect from './OptionSelect';
-import { getGlassesImagesFolder } from '~/utils/utils';
-import { Application, ApplicationSettings, EventData } from '@nativescript/core';
-import { ComponentIds } from '~/vue.prototype';
-import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
-import dayjs from 'dayjs';
 
 @Component({
     components: {}
@@ -130,6 +128,7 @@ export default class Settings extends BgServiceComponent {
         if (item.value === value) {
             return;
         }
+        console.log('onSliderChange', item.id, item.min, item.max, item.value, value);
         switch (item.id) {
             case 'luminance':
                 this.updateLuminance(value);
@@ -240,7 +239,7 @@ export default class Settings extends BgServiceComponent {
             ].concat(items);
         }
 
-        this.items = new ObservableArray(items);
+        this.items.splice(0, this.items.length, ...items);
     }
 
     onGlassesSettings(e: BLEEventData) {
@@ -384,7 +383,7 @@ export default class Settings extends BgServiceComponent {
         try {
             switch (command) {
                 case 'wallpaper':
-                    await this.setWalppaper();
+                    await this.setWallpaper();
                     break;
                 case 'addConfig':
                     const config = await this.pickConfig();
@@ -485,15 +484,11 @@ export default class Settings extends BgServiceComponent {
         switch (command) {
         }
     }
-    async setWalppaper() {
-        const context = Application.android.context;
-        const identifier = context.getResources().getIdentifier('wallpaper', 'drawable', context.getPackageName());
-        // console.log('wallpaper id', identifier);
-        // const bitmap = androidx.core.content.res.ResourcesCompat.getDrawable(context.getResources(), identifier, null) as android.graphics.drawable.BitmapDrawable;
-        // console.log('bitmap', bitmap, bitmap.getBitmap());
-
-        const wallpaperManager = android.app.WallpaperManager.getInstance(context);
-        wallpaperManager.setResource(identifier);
-        // wallpaperManager.setBitmap(bitmap.getBitmap());
+    async setWallpaper() {
+        if (__ANDROID__) {
+            const context = Utils.ad.getApplicationContext();
+            const identifier = context.getResources().getIdentifier('wallpaper', 'drawable', context.getPackageName());
+            android.app.WallpaperManager.getInstance(context).setResource(identifier);
+        }
     }
 }

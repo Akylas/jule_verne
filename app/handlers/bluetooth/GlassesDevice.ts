@@ -142,6 +142,9 @@ export class GlassesDevice extends Device {
         //     (this.rxChar as GlassesRXCharacteristic).sendCommand(stringToSend, options.progressCallback, true);
         // }
     }
+    public sendCommands(commands: { commandType: CommandType; params?: InputCommandType<any> }[], options: { progressCallback?: ProgressCallback } = {}) {
+        (this.rxChar as GlassesBinaryRXCharacteristic).sendBinaryCommands(commands, options);
+    }
     // sendCommand(command: string, progressCallback?: ProgressCallback, withControlChar = true) {
     //     this.rxChar.sendCommand(command, progressCallback, withControlChar);
     // }

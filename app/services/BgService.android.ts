@@ -36,11 +36,11 @@ export class BgService extends BgServiceCommon {
         this._loaded = false;
     }
 
-    start() {
-        return Promise.resolve().then(() => {
-            const intent = new android.content.Intent(this.context, com.akylas.juleverne.BgService.class);
-            this.bindService(this.context, intent);
-        });
+    async start() {
+        const context = this.context;
+        const intent = new android.content.Intent(context, com.akylas.juleverne.BgService.class);
+        context.startService(intent);
+        this.bindService(context, intent);
     }
 
     async stop() {
@@ -49,9 +49,10 @@ export class BgService extends BgServiceCommon {
         bgService.removeForeground();
         await super.stop();
         DEV_LOG && console.log('BgService', 'stopService');
-        const intent = new android.content.Intent(this.context, com.akylas.juleverne.BgService.class);
-        this.context.stopService(intent);
-        this.context.unbindService(this.serviceConnection);
+        const context = this.context;
+        const intent = new android.content.Intent(context, com.akylas.juleverne.BgService.class);
+        context.stopService(intent);
+        context.unbindService(this.serviceConnection);
         this._loaded = false;
     }
     handleBinder(binder: android.os.IBinder) {

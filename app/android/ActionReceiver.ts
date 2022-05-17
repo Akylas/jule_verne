@@ -32,7 +32,6 @@ export class ActionReceiver extends android.content.BroadcastReceiver {
     public onReceive(context: android.content.Context, intent: android.content.Intent) {
         const notificationId = intent.getIntExtra('notificationId', 0);
         const actionId = intent.getAction();
-        console.log('ActionReceiver', 'onReceive', actionId, notificationId);
         const thisActionCallbacks = actionCallbacks[notificationId]?.[actionId];
         if (thisActionCallbacks) {
             thisActionCallbacks.forEach((c) => c(intent));

@@ -1,6 +1,7 @@
 import { TNSPlayer } from '@akylas/nativescript-audio';
 import { Bluetooth, StartScanningOptions as IStartScanningOptions, Peripheral, ReadResult, StartNotifyingOptions } from '@nativescript-community/ble';
 import { isSimulator } from '@nativescript-community/extendedinfo';
+import { request } from '@nativescript-community/perms';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { ApplicationSettings, File } from '@nativescript/core';
 import * as appSettings from '@nativescript/core/application-settings';
@@ -16,7 +17,7 @@ import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
 import { $t, $tc } from '~/helpers/locale';
 import * as ProgressNotification from '~/services/android/ProgressNotifications';
 import { MessageError } from '~/services/CrashReportService';
-import { hashCode, versionCompare } from '~/utils';
+import { hashCode, permResultCheck, versionCompare } from '~/utils';
 import { alert, confirm } from '~/utils/dialogs';
 import { getGlassesImagesFolder } from '~/utils/utils';
 import { Characteristic } from './bluetooth/Characteristic';
@@ -56,6 +57,7 @@ const SPS_FLOW_CONTROL_ERROR = 0x03;
 
 export const DEFAULT_MTU = 20;
 export const DEFAULT_WRITE_TIMEOUT = 0;
+export const FADING_SUPPORTED = false;
 
 export const FinishSendingEvent = 'finishSending';
 export const StatusChangedEvent = 'status';
@@ -243,6 +245,51 @@ export class BluetoothHandler extends Observable {
     canDrawOnGlasses: boolean = true;
     currentConfigs: ConfigListData = null;
 
+    needsPowerOn = true;
+    isScreenOn = true;
+    isSensorOn = true;
+    isGestureOn = true;
+    levelLuminance = 10;
+    mPlayer = new TNSPlayer();
+
+    currentLoop: string = null;
+    isPlaying = false;
+    isPlayingPaused = false;
+    isPlayingStory = 0;
+    isPlayingMusic = false;
+    isPlayingPastille = 0;
+    isPlayingNavigationInstruction = null;
+    toPlayNext: Function = null;
+
+    get playerCurrentTime() {
+        return this.mPlayer?.currentTime || 0;
+    }
+    get isInLoop() {
+        return this.currentLoop !== null;
+    }
+    get playerState() {
+        if (this.isPlayingStory || this.isPlayingPastille) {
+            return this.isPlayingPaused ? 'pause' : 'play';
+        }
+        return 'stopped';
+    }
+    get playingInfo() {
+        if (this.isPlayingStory || this.isPlayingPastille) {
+            return {
+                duration: this.mPlayer?.duration || 0,
+                name: this.isPlayingStory ? $tc('story', this.isPlayingStory) : `Pastille: ${this.isPlayingPastille}`,
+                cover: this.isPlayingStory ? path.join(getGlassesImagesFolder(), 'stories', this.isPlayingStory + '', 'cover.png') : path.join(getGlassesImagesFolder(), 'pastilles', 'cover.png')
+            };
+        } else if (this.isPlaying) {
+            return {
+                duration: this.mPlayer?.duration || 0,
+                canPause: false,
+                name: this.isPlayingNavigationInstruction
+            };
+        }
+        return { duration: 0, name: null };
+    }
+
     get devMode() {
         return this._devMode;
     }
@@ -398,35 +445,64 @@ export class BluetoothHandler extends Observable {
         return bluetooth.isBluetoothEnabled();
     }
 
-    enable() {
+    async enable() {
         if (isSimulator()) {
             // return Promise.resolve();
-            return Promise.reject('running in simulator');
+            throw new MessageError({ message: 'running in simulator' });
         }
-        return bluetooth.enable().then((enabled) => {
-            if (!enabled) {
-                if (__IOS__) {
-                    alert({
-                        title: $tc('bluetooth_not_enabled'),
-                        okButtonText: $t('ok')
-                    });
-                } else {
-                    return confirm({
-                        message: $tc('bluetooth_not_enabled'),
-                        okButtonText: $t('cancel'), // inversed buttons
-                        cancelButtonText: $t('settings')
-                    })
-                        .then((result) => {
-                            if (!result) {
-                                return bluetooth.openBluetoothSettings();
-                            }
-                        })
-                        .catch((err) => {});
+        const enabled = await bluetooth.enable();
+        if (!enabled) {
+            if (__IOS__) {
+                alert({
+                    title: $tc('bluetooth_not_enabled'),
+                    okButtonText: $t('ok')
+                });
+            } else {
+                const result = await confirm({
+                    message: $tc('bluetooth_not_enabled'),
+                    okButtonText: $t('cancel'), // inversed buttons
+                    cancelButtonText: $t('settings')
+                });
+                if (!result) {
+                    await bluetooth.openBluetoothSettings();
                 }
-
-                return Promise.reject(undefined);
             }
-        });
+        }
+        return enabled;
+    }
+
+    async authorizeBluetooth() {
+        if (__ANDROID__) {
+            const r = await request(['bluetoothScan', 'bluetoothConnect']);
+            if (!permResultCheck(r)) {
+                throw new Error('gps_denied');
+            }
+            return r;
+        }
+    }
+    async enableForScan() {
+        let enabled = await this.isEnabled();
+        await this.authorizeBluetooth();
+        if (!enabled) {
+            const r = await confirm({
+                message: $tc('bluetooth_not_enabled'),
+                okButtonText: $t('cancel'), // inversed buttons
+                cancelButtonText: __ANDROID__ ? $t('enable') : undefined
+            });
+            if (__ANDROID__ && !r) {
+                try {
+                    await this.enable();
+                } catch (err) {
+                    console.error(err);
+                }
+                enabled = await this.isEnabled();
+            }
+        }
+        await this.geoHandler.checkIfEnabled();
+        if (!this.geoHandler.gpsEnabled || !enabled) {
+            return Promise.reject(undefined);
+        }
+        await this.geoHandler.checkEnabledAndAuthorized();
     }
 
     async onDeviceConnected(e: BluetoothDeviceEvent) {
@@ -699,11 +775,12 @@ export class BluetoothHandler extends Observable {
                 this.isSensorOn = this.glasses.alsOn = settings.als;
                 break;
             case CommandType.Error:
-                console.error('GlassesErrorEvent', message.data);
+                if (message.data.cmdId === CommandType.cfgSet) {
+                }
                 this.notify({
                     eventName: GlassesErrorEvent,
                     object: this,
-                    data: message.data
+                    data: new Error(`GlassesError: 0x${message.data.cmdId.toString(16)} error ${message.data.error}`)
                 });
         }
     }
@@ -717,13 +794,12 @@ export class BluetoothHandler extends Observable {
         // }
         return this.glasses.sendCommand(command, { params, progressCallback, timestamp });
     }
-
-    needsPowerOn = true;
-    isScreenOn = true;
-    isSensorOn = true;
-    isGestureOn = true;
-    levelLuminance = 10;
-    mPlayer = new TNSPlayer();
+    public sendCommands(commands: { commandType: CommandType; params?: InputCommandType<any> }[], options: { progressCallback?: ProgressCallback } = {}) {
+        if (!this.glasses) {
+            return;
+        }
+        return this.glasses.sendCommands(commands, options);
+    }
 
     createPlayer() {
         this.mPlayer = new TNSPlayer();
@@ -819,6 +895,7 @@ export class BluetoothHandler extends Observable {
     setConfig(name: string) {
         if (this.glasses.currentConfig !== name) {
             this.glasses.currentConfig = name;
+            DEV_LOG && console.log('setConfig', name);
             this.sendCommand({ command: CommandType.cfgSet, params: { name } });
         }
     }
@@ -1035,13 +1112,17 @@ export class BluetoothHandler extends Observable {
     async startLoop() {
         // console.log('startLoop', index);
         await this.glasses.sendCommand(CommandType.Clear);
-        this.sendDim(0);
-        await timeout(50); // ms
+        if (FADING_SUPPORTED) {
+            this.sendDim(0);
+            await timeout(50); // ms
+        }
     }
     async fadein() {
-        for (let i = 0; i < 10; i++) {
-            await timeout(20); // ms
-            this.sendDim(i * 10);
+        if (FADING_SUPPORTED) {
+            for (let i = 0; i < 10; i++) {
+                await timeout(20); // ms
+                this.sendDim(i * 10);
+            }
         }
     }
     // async function stopLoop(index: number) {
@@ -1049,10 +1130,11 @@ export class BluetoothHandler extends Observable {
     // }
     isFaded = false;
     async fadeout() {
-        this.isFaded = true;
-        for (let i = 10; i >= 0; i--) {
-            // await timeout(0); // ms
-            this.sendDim(i * 10);
+        if (FADING_SUPPORTED) {
+            this.isFaded = true;
+            for (let i = 10; i >= 0; i--) {
+                this.sendDim(i * 10);
+            }
         }
         this.clearScreen();
     }
@@ -1063,18 +1145,6 @@ export class BluetoothHandler extends Observable {
             await timeout(pauseOnFirst && index === 0 ? 1000 : duration);
         }
     }
-
-    get isInLoop() {
-        return this.currentLoop !== null;
-    }
-    currentLoop: string = null;
-    isPlaying = false;
-    isPlayingPaused = false;
-    isPlayingStory = 0;
-    isPlayingMusic = false;
-    isPlayingPastille = false;
-    isPlayingNavigationInstruction = false;
-    toPlayNext: Function = null;
 
     async stopPlayingInstruction(fade = true) {
         if (this.isPlaying && !this.isPlayingMusic && !this.isPlayingStory && !this.isPlayingPastille) {
@@ -1102,13 +1172,14 @@ export class BluetoothHandler extends Observable {
         if (instruction && !this.isPlayingNavigationInstruction) {
             return;
         }
+        DEV_LOG && console.log('stopPlayingLoop instFolder', fade, ignoreNext, instruction, this.mPlayer.isAudioPlaying());
         this.isPlaying = false;
         this.isPlayingPaused = false;
         this.isPlayingMusic = false;
-        this.isPlayingPastille = false;
-        if (this.isPlayingStory) {
+        if (this.isPlayingStory || this.isPlayingPastille) {
+            this.isPlayingPastille = 0;
             this.isPlayingStory = 0;
-            this.notify({ eventName: 'storyPlayback', data: 'stop' });
+            this.notify({ eventName: 'playback', data: 'stopped' });
         }
         if (this.lyric) {
             this.lyric.pause();
@@ -1181,7 +1252,7 @@ export class BluetoothHandler extends Observable {
     // }
 
     async clearFadeout() {
-        if (this.isFaded) {
+        if (FADING_SUPPORTED && this.isFaded) {
             this.isFaded = false;
             if (this.glasses) {
                 this.glasses.sendCommand(CommandType.Clear);
@@ -1221,8 +1292,8 @@ export class BluetoothHandler extends Observable {
                 // DEV_LOG && console.log('playing image', images[index], cleaned, imageMap[cleaned]);
                 this.notify({ eventName: 'drawBitmap', bitmap: path.join(imagesFolder, images[index]) });
                 if (this.glasses && imageMap[cleaned]) {
-                    const [imageId, x, y] = imageMap[cleaned];
-                    this.glasses.sendCommand(CommandType.imgDisplay, { params: [imageId, x, y] });
+                    const data = imageMap[cleaned];
+                    this.glasses.sendCommand(CommandType.imgDisplay, { params: data.slice(0, 3) });
                     // await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
                 }
                 await timeout(options?.frameDuration || 200);
@@ -1235,8 +1306,9 @@ export class BluetoothHandler extends Observable {
     }
 
     async sendDim(percentage: number) {
-        // TODO: disabled for now
-        // return this.glasses.sendCommand(CommandType.Dim, { params: [percentage] });
+        if (FADING_SUPPORTED) {
+            return this.glasses.sendCommand(CommandType.Dim, { params: [percentage] });
+        }
     }
     parseLottieFile(data: any) {
         const assets = {};
@@ -1289,7 +1361,7 @@ export class BluetoothHandler extends Observable {
         }
         return this._imagesMap[cfgId];
     }
-    _navigationMapImagesMap: { [k: string]: [number, number, number, number, number] };
+    _navigationMapImagesMap: { [k: string]: [number, number, number, number, number, string] };
     get navigationImageMap() {
         if (!this._navigationMapImagesMap) {
             const filePath = path.join(getGlassesImagesFolder(), 'navigation/image_map.json');
@@ -1298,32 +1370,37 @@ export class BluetoothHandler extends Observable {
         return this._navigationMapImagesMap;
     }
 
-    async playAudio(audio: string, loop = false) {
-        if (!File.exists(audio)) {
-            throw new Error($tc('file_not_found', audio));
+    async playAudio({ fileName, loop = false, notify = false }: { fileName: string; loop?: boolean; notify?: boolean }) {
+        if (!File.exists(fileName)) {
+            throw new Error($tc('file_not_found', fileName));
         }
-        const file = File.fromPath(audio);
-        DEV_LOG && console.log('playAudio', audio, loop, file.size);
+        const file = File.fromPath(fileName);
+        DEV_LOG && console.log('playAudio', fileName, loop, file.size);
         return new Promise<void>(async (resolve, reject) => {
             try {
                 let resolved = false;
                 await this.mPlayer.playFromFile({
                     autoPlay: true,
-                    audioFile: audio,
+                    audioFile: fileName,
                     loop,
                     completeCallback: () => {
                         if (!loop && !resolved) {
+                            this.notify({ eventName: 'playback', data: 'stopped' });
                             resolved = true;
                             resolve();
                         }
                     },
                     errorCallback: () => {
                         if (!resolved) {
+                            this.notify({ eventName: 'playback', data: 'stopped' });
                             resolved = true;
                             reject();
                         }
                     }
                 });
+                // if (notify === true) {
+                this.notify({ eventName: 'playbackStart', data: this.playingInfo });
+                // }
             } catch (error) {
                 console.error(error);
                 reject(error);
@@ -1333,8 +1410,7 @@ export class BluetoothHandler extends Observable {
 
     async playAudios(audios: string[], loop = false) {
         for (let index = 0; index < audios.length; index++) {
-            const audio = audios[index];
-            await this.playAudio(audio, loop);
+            await this.playAudio({ fileName: audios[index], loop });
         }
     }
     async playNavigationInstruction(instruction: string, options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
@@ -1368,16 +1444,16 @@ export class BluetoothHandler extends Observable {
                 return;
             }
         }
-        if (instruction) {
-            this.isPlayingNavigationInstruction = true;
-        }
-        this.isPlaying = true;
 
         const instFolder = path.join(getGlassesImagesFolder(), `navigation/${instruction}`);
-        DEV_LOG && console.log('playInstruction instFolder', instruction, instFolder, Folder.exists(instFolder));
+        DEV_LOG && console.log('playInstruction', instruction, instFolder, Folder.exists(instFolder));
         if (!Folder.exists(instFolder)) {
             return;
         }
+        if (instruction) {
+            this.isPlayingNavigationInstruction = instruction;
+        }
+        this.isPlaying = true;
         const files = await Folder.fromPath(instFolder).getEntities();
         const audioFiles = options?.audioFolder ? await Folder.fromPath(options?.audioFolder).getEntities() : files;
         const images = files
@@ -1413,7 +1489,7 @@ export class BluetoothHandler extends Observable {
         }
         await this.stopPlayingLoop({ instruction: options?.instruction });
         if (instruction) {
-            this.isPlayingNavigationInstruction = false;
+            this.isPlayingNavigationInstruction = null;
         }
     }
     lyric: Lyric = null;
@@ -1422,9 +1498,12 @@ export class BluetoothHandler extends Observable {
         if (!this.canDrawOnGlasses) {
             return;
         }
-        DEV_LOG && console.log('playRideauAndStory', storyIndex, this.isPlayingStory, this.isPlaying);
+        DEV_LOG && console.log('playRideauAndStory', storyIndex, this.isPlayingStory, this.isPlaying, this.isPlayingPastille);
         if (this.isPlayingStory === storyIndex) {
             return;
+        }
+        if (!this.isPlayingPastille && !this.isPlayingStory) {
+            await this.stopPlayingLoop({ fade: true });
         }
         // finish what we are playing first
         if (this.isPlaying) {
@@ -1439,24 +1518,28 @@ export class BluetoothHandler extends Observable {
         // set it now to make sure we dont play the same story twice
         this.isPlayingStory = storyIndex;
         await this.playInstruction('rideau', { iterations: 1 });
-        this.playStory(storyIndex);
+        return this.playStory(storyIndex);
     }
 
     currentLyricsTime = 0;
     async pauseStory() {
-        if (this.isPlayingStory) {
+        if (this.isPlayingStory || this.isPlayingPastille) {
             this.mPlayer.pause();
-            this.currentLyricsTime = this.lyric.pause();
+            if (this.lyric) {
+                this.currentLyricsTime = this.lyric.pause();
+            }
             this.isPlayingPaused = true;
-            this.notify({ eventName: 'storyPlayback', data: 'pause' });
+            this.notify({ eventName: 'playback', data: 'pause' });
         }
     }
     async resumeStory() {
         if (this.isPlayingStory && this.isPlayingPaused) {
             this.mPlayer.resume();
-            this.lyric.play(this.currentLyricsTime);
+            if (this.lyric) {
+                this.lyric.play(this.currentLyricsTime);
+            }
             this.isPlayingPaused = false;
-            this.notify({ eventName: 'storyPlayback', data: 'play' });
+            this.notify({ eventName: 'playback', data: 'play' });
         }
     }
     async playStory(index = 1) {
@@ -1473,10 +1556,14 @@ export class BluetoothHandler extends Observable {
             });
         }
         try {
-            this.isPlaying = true;
-            this.isPlayingStory = index;
             const cfgId = index + '';
             const storyFolder = path.join(getGlassesImagesFolder(), 'stories', cfgId);
+            console.log('storyFolder', storyFolder, Folder.exists(storyFolder));
+            if (!Folder.exists(storyFolder)) {
+                return;
+            }
+            this.isPlaying = true;
+            this.isPlayingStory = index;
             const data = await File.fromPath(path.join(storyFolder, 'composition.json')).readText();
             const imagesMap = this.storyImageMap(cfgId);
             const result = this.parseLottieFile(JSON.parse(data));
@@ -1487,15 +1574,48 @@ export class BluetoothHandler extends Observable {
             if (this.lyric) {
                 this.lyric.pause();
             }
+            const navImages = this.navigationImageMap;
+            let lastImageWasNav = false;
             this.lyric = new Lyric({
                 lines: [{ time: 0, text: '' }].concat(result),
                 onPlay: async (line, text) => {
                     if (text && text.length > 0) {
+                        const commands: { commandType: CommandType; params?: InputCommandType<any> }[] = [];
                         const cleaned = text.split('.')[0];
-                        if (imagesMap[cleaned]) {
-                            const [imageId, x, y] = imagesMap[cleaned];
-                            this.clearFadeout();
-                            this.sendBitmap(imageId, x, y);
+                        if (navImages[cleaned]) {
+                            if (!lastImageWasNav) {
+                                this.setConfig('nav');
+                                commands.push({
+                                    commandType: CommandType.cfgSet,
+                                    params: { name: 'nav' }
+                                });
+                            }
+                            lastImageWasNav = true;
+                            const data = navImages[cleaned];
+                            commands.push({
+                                commandType: CommandType.imgDisplay,
+                                params: data.slice(0, 3)
+                            });
+                            this.sendCommands(commands);
+                            const instFolder = path.join(getGlassesImagesFolder(), `navigation/${data[5]}`);
+                            this.notify({ eventName: 'drawBitmap', bitmap: path.join(instFolder, cleaned + '.png') });
+                        } else if (imagesMap[cleaned]) {
+                            if (lastImageWasNav) {
+                                this.setConfig(cfgId);
+                                commands.push({
+                                    commandType: CommandType.cfgSet,
+                                    params: { name: cfgId }
+                                });
+                            }
+                            lastImageWasNav = false;
+                            // const [imageId, x, y] = imagesMap[cleaned];
+                            // this.clearFadeout();
+                            // this.sendBitmap(imageId, x, y);
+                            commands.push({
+                                commandType: CommandType.imgDisplay,
+                                params: imagesMap[cleaned]
+                            });
+                            this.sendCommands(commands);
                             this.notify({ eventName: 'drawBitmap', bitmap: path.join(storyFolder, 'images', cleaned + '.png') });
                         } else {
                             console.error('image missing', text, cleaned);
@@ -1507,14 +1627,18 @@ export class BluetoothHandler extends Observable {
                 }
             });
             this.clearFadeout();
+
             this.lyric.play();
-            this.notify({ eventName: 'storyPlayback', data: 'play' });
-            await this.playAudio(path.join(storyFolder, 'audio.mp3'));
+            // this.notify({ eventName: 'playback', data: 'play' });
+            await this.playAudio({ fileName: path.join(storyFolder, 'audio.mp3'), notify: true });
             DEV_LOG && console.log('playStory done ', index, this.isPlaying);
             // mark story as played
 
             this.geoHandler.playedStory(index + '');
+            this.notify({ eventName: 'playback', data: 'stopped' });
             this.playInstruction('story_finished');
+        } catch (err) {
+            throw err;
         } finally {
             this.currentLyricsTime = 0;
             DEV_LOG && console.log('finished playing story');
@@ -1536,11 +1660,12 @@ export class BluetoothHandler extends Observable {
             this.isPlayingPastille = index;
             const storyFolder = path.join(getGlassesImagesFolder(), 'pastilles');
             this.clearFadeout();
-            await this.playAudio(path.join(storyFolder, `pastille_${index}.mp3`));
+            await this.playAudio({ fileName: path.join(storyFolder, `pastille_${index}.mp3`), notify: true });
             DEV_LOG && console.log('playPastille done ', index, this.isPlaying);
             this.geoHandler.playedPastille(index + '');
         } catch (error) {
             console.error('playPastille error', error);
+            this.geoHandler.playedPastille(index + '');
         } finally {
             console.log('finished playing playPastille');
             this.stopPlayingLoop();
@@ -1560,6 +1685,7 @@ export class BluetoothHandler extends Observable {
     async getMemory(force = false) {
         if (!this.currentGlassesMemory || force) {
             const result = await this.sendCommand({ command: CommandType.cfgFreeSpace, timestamp: Date.now() });
+            DEV_LOG && console.log('getMemory result', result?.data);
             this.currentGlassesMemory = result?.data || ({} as FreeSpaceData);
             this.notify({ eventName: GlassesMemoryChangeEvent, data: this.currentGlassesMemory });
         }

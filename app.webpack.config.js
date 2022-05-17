@@ -89,7 +89,7 @@ module.exports = (env, params = {}) => {
     env.appPath = appPath;
     env.appResourcesPath = appResourcesPath;
     env.appComponents = env.appComponents || [];
-    env.appComponents.push('~/services/android/BgService', '~/services/android/BgServiceBinder', '~/android/ActionReceiver');
+    env.appComponents.push('~/services/android/BgService', '~/services/android/BgServiceBinder', '~/services/android/CustomMediaButtonReceiver', '~/android/ActionReceiver');
     const config = webpackConfig(env, params);
     const mode = production ? 'production' : 'development';
     const platform = env && ((env.android && 'android') || (env.ios && 'ios'));

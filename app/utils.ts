@@ -17,6 +17,15 @@ export const notify = function <T extends Partial<EventData>>(data: T) {
     observable.notify.call(observable, data as EventData);
 };
 
+export function permResultCheck(r) {
+    if (Array.isArray(r)) {
+        return r[0] === 'authorized';
+    } else {
+        const unauthorized = Object.keys(r).some((s) => r[s] !== 'authorized');
+        return !unauthorized;
+    }
+}
+
 const verRegex = /^v?(\d+)\.(\d+)\.(\d+)([a-z])?$/;
 export function versionCompare(v1: string, v2: string) {
     const match1 = v1.match(verRegex);

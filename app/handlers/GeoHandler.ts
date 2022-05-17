@@ -1,6 +1,7 @@
 import { backgroundEvent, foregroundEvent } from '@akylas/nativescript/application';
 import { GPS, GenericGeoLocation, Options as GeolocationOptions, LocationMonitor, setGeoLocationKeys, setMockEnabled } from '@nativescript-community/gps';
 import * as perms from '@nativescript-community/perms';
+import { alert } from '@nativescript-community/ui-material-dialogs';
 import { ApplicationSettings, CoreTypes, Device, File, Folder, path } from '@nativescript/core';
 import { AndroidActivityResultEventData, AndroidApplication, ApplicationEventData, android as androidApp, off as applicationOff, on as applicationOn } from '@nativescript/core/application';
 import { EventData, Observable } from '@nativescript/core/data/observable';
@@ -10,6 +11,7 @@ import { bind } from 'helpful-decorators';
 import { bearing } from '~/helpers/geo';
 // import { parseGPX } from '~/helpers/gpx';
 import { $t, $tc } from '~/helpers/locale';
+import { permResultCheck } from '~/utils';
 import { confirm } from '~/utils/dialogs';
 import { computeDistanceBetween, distanceToEnd, distanceToPolygon, isLocactionInBbox, isLocationOnPath } from '~/utils/geo';
 import { getGlassesImagesFolder } from '~/utils/utils';
@@ -184,7 +186,7 @@ export class GeoHandler extends Observable {
                 this.bluetoothHandler.playNavigationInstruction('exit');
             } else {
                 // stop instruction
-                this.bluetoothHandler.stopNavigationInstruction();
+                // this.bluetoothHandler.stopNavigationInstruction();
             }
             this.notify({
                 eventName: OuterRingEvent,
@@ -203,10 +205,8 @@ export class GeoHandler extends Observable {
         this._currentTrack = track;
         this._isInTrackBounds = true;
         if (track) {
-            DEV_LOG && console.log('saving track id', track.id, typeof track.id);
             ApplicationSettings.setString('selectedTrackId', track.id);
         } else {
-            DEV_LOG && console.log('removing saved track id');
             ApplicationSettings.remove('selectedTrackId');
         }
 
@@ -299,21 +299,26 @@ export class GeoHandler extends Observable {
         });
     }
 
-    askToEnableIfNotEnabled() {
-        if (geolocation.isEnabled()) {
-            return Promise.resolve(true);
-        } else {
-            return confirm({
+    async checkIfEnabled() {
+        if (!this.gpsEnabled) {
+            const r = await confirm({
                 message: $tc('gps_not_enabled'),
                 okButtonText: $t('settings'),
                 cancelButtonText: $t('cancel')
-            }).then((result) => {
-                if (!!result) {
-                    return geolocation.openGPSSettings();
-                }
-                return Promise.reject();
             });
+            if (__ANDROID__ && !!r) {
+                await this.openGPSSettings();
+            }
         }
+    }
+    async checkAndAuthorize(always = false) {
+        const r = await this.checkLocationPerm();
+        if (!r) {
+            return this.authorizeLocation(always);
+        }
+    }
+    async openGPSSettings() {
+        return geolocation.openGPSSettings();
     }
     permResultCheck(r) {
         if (Array.isArray(r)) {
@@ -323,43 +328,55 @@ export class GeoHandler extends Observable {
             return !unauthorized;
         }
     }
-    async checkLocationPerm() {
-        const r = await perms.check('location');
-        return this.permResultCheck(r);
+    async checkLocationPerm(always = false) {
+        const r = await perms.check('location', { type: always ? 'always' : undefined });
+        return permResultCheck(r);
     }
-    async authorizeLocation() {
-        const r = await perms.request('location');
+    async authorizeLocation(always = false) {
+        const r = await perms.request('location', { type: always ? 'always' : undefined });
         if (!this.permResultCheck(r)) {
             throw new Error('gps_denied');
         }
         this.gpsEnabled = geolocation.isEnabled();
         return r;
     }
-    checkEnabledAndAuthorized(always = true) {
-        return Promise.resolve()
-            .then(async () => {
-                const r = await this.checkLocationPerm();
-                if (!r) {
-                    return this.authorizeLocation();
+    askToEnableIfNotEnabled() {
+        if (geolocation.isEnabled()) {
+            return Promise.resolve(true);
+        } else {
+            // return confirm({
+            //     message: $tc('gps_not_enabled'),
+            //     okButtonText: $t('settings'),
+            //     cancelButtonText: $t('cancel')
+            // }).then((result) => {
+            //     if (!!result) {
+            //         return geolocation.openGPSSettings();
+            //     }
+            return Promise.reject();
+            // });
+        }
+    }
+    async checkEnabledAndAuthorized(always = false) {
+        try {
+            await this.checkAndAuthorize(always);
+            return this.askToEnableIfNotEnabled();
+        } catch (err) {
+            if (err && /denied/i.test(err.message)) {
+                await alert({
+                    title: $tc('permissionRequestTitle'),
+                    message: $tc('permissionRequest'),
+                    okButtonText: $t('ok')
+                });
+                try {
+                    perms.openSettings();
+                } catch (error) {
+                    console.error(err);
                 }
-            })
-            .then(() => this.askToEnableIfNotEnabled())
-            .catch((err) => {
-                if (err && /denied/i.test(err.message)) {
-                    confirm({
-                        message: $tc('gps_not_authorized'),
-                        okButtonText: $t('settings'),
-                        cancelButtonText: $t('cancel')
-                    }).then((result) => {
-                        if (result) {
-                            geolocation.openGPSSettings().catch(() => {});
-                        }
-                    });
-                    return Promise.reject();
-                } else {
-                    return Promise.reject(err);
-                }
-            });
+                return Promise.reject();
+            } else {
+                return Promise.reject(err);
+            }
+        }
     }
 
     enableLocation() {
@@ -506,9 +523,13 @@ export class GeoHandler extends Observable {
                     if (playableStories.indexOf(nextStoryIndex) !== -1) {
                         const featuresViewed = this.featuresViewed;
                         let needsToplayMusic = false;
+                        let configurationAlreadyLoaded = true;
 
-                        const currentConfigs = this.bluetoothHandler.currentConfigs;
-                        const configurationAlreadyLoaded = currentConfigs?.findIndex((c) => c.name === featureId) !== -1;
+                        let currentConfigs;
+                        if (this.bluetoothHandler.currentConfigs) {
+                            currentConfigs = this.bluetoothHandler.currentConfigs.slice(0);
+                            configurationAlreadyLoaded = currentConfigs?.findIndex((c) => c.name === featureId) !== -1;
+                        }
 
                         // for now we play music ONLY if we need to load the config
                         if (/* name.endsWith('_out') || */ !configurationAlreadyLoaded) {
@@ -545,29 +566,48 @@ export class GeoHandler extends Observable {
 
                                     let memory = await this.bluetoothHandler.getMemory();
                                     const storyFolder = path.join(getGlassesImagesFolder(), 'stories', featureId);
-                                    for (let index = 0; index < alreadyPlayedStoriesInMemory.length; index++) {
-                                        await this.bluetoothHandler.deleteConfig(alreadyPlayedStoriesInMemory[index] + '');
-                                    }
                                     let availableSpace = memory.freeSpace;
-                                    const newStorySize = JSON.parse(File.fromPath(path.join(storyFolder, 'info.json')).readTextSync()).totalImageSize;
                                     let needToGetMemoryAgain = false;
+
+                                    const deleteConfig = async (configToRemove: string) => {
+                                        needToGetMemoryAgain = true;
+                                        const configData = currentConfigs.find((d) => d.name === `${configToRemove}`);
+                                        const configIndex = currentConfigs.findIndex((d) => d.name === `${configToRemove}`);
+                                        DEV_LOG && console.log('deleting config to get space', availableSpace, configToRemove, JSON.stringify(configData), configIndex);
+                                        await this.bluetoothHandler.deleteConfig(configData.name);
+                                        if (configIndex !== -1) {
+                                            currentConfigs.splice(configIndex, 1);
+                                        }
+                                        availableSpace += configData.size;
+                                        DEV_LOG && console.log('deleting config done', configToRemove, availableSpace);
+                                    };
+                                    for (let index = 0; index < alreadyPlayedStoriesInMemory.length; index++) {
+                                        const configToRemove = alreadyPlayedStoriesInMemory[index] + '';
+                                        // delete already played stories
+                                        DEV_LOG && console.log('deleting played config', configToRemove, availableSpace, needToGetMemoryAgain);
+                                        await deleteConfig(configToRemove);
+                                        DEV_LOG && console.log('deleted played config', configToRemove, availableSpace, needToGetMemoryAgain);
+                                    }
+                                    const newStorySize = JSON.parse(File.fromPath(path.join(storyFolder, 'info.json')).readTextSync()).totalImageSize;
+                                    DEV_LOG && console.log('newStorySize', featureId, newStorySize, availableSpace);
                                     while (newStorySize >= availableSpace) {
                                         // we need more space!
-                                        needToGetMemoryAgain = true;
                                         const configToRemove = configsInMemory.shift();
-                                        const configData = currentConfigs.find((d) => d.name === `${configToRemove}`);
-                                        console.log('deleting config to get space', availableSpace, configToRemove, configData);
-                                        await this.bluetoothHandler.deleteConfig(configData.name);
-                                        availableSpace += configData.size;
+                                        await deleteConfig(configToRemove + '');
                                     }
+                                    DEV_LOG && console.log('needToGetMemoryAgain', availableSpace, needToGetMemoryAgain);
                                     if (needToGetMemoryAgain) {
-                                        memory = await this.bluetoothHandler.getMemory();
+                                        // ask glasses memory again to ensue we have enough space!
+                                        memory = await this.bluetoothHandler.getMemory(true);
                                     }
                                     await this.bluetoothHandler.sendConfigToGlasses(storyFolder, memory);
+                                    // music is looping we need to stop it
+                                    this.bluetoothHandler.stopPlayingLoop({ fade: true });
                                 }
                                 this.bluetoothHandler.playRideauAndStory(nextStoryIndex);
                             } catch (error) {
                                 console.error(error);
+                                this.notify({ eventName: 'error', data: error });
                             }
                         })();
                     }
@@ -1138,6 +1178,12 @@ export class GeoHandler extends Observable {
         await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
         if (PRODUCTION) {
             return this.bluetoothHandler.playInstruction('start', { force: true });
+        }
+        const currentConfigs = this.bluetoothHandler.currentConfigs;
+        const needsToLoadNav = currentConfigs?.findIndex((c) => c.name === 'nav') === -1;
+        if (needsToLoadNav) {
+            const memory = await this.bluetoothHandler.getMemory();
+            this.bluetoothHandler.sendConfigToGlasses(path.join(getGlassesImagesFolder(), 'navigation'), memory);
         }
     }
 

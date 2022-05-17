@@ -161,7 +161,9 @@ export function buildDataSet(configId: string, crop = false) {
     // const filePath = path.resolve(path.join(__dirname, storyFolder));
     // const filePath = '/Volumes/data/mguillon/Downloads/Illustrations Flore';
     console.log('buildDataSet', configId, folder);
-    const files = getAllFiles(folder).filter((s) => s.endsWith('.jpg') || s.endsWith('.bmp') || s.endsWith('.png'));
+    const files: string[] = getAllFiles(folder)
+        .filter((s) => s.endsWith('.jpg') || s.endsWith('.bmp') || s.endsWith('.png'))
+        .filter((s) => s !== 'cover.png');
     const fileNames = files.map((s) => s.split('/').slice(-1)[0]);
     console.log('files', files.length);
 
@@ -183,7 +185,12 @@ export function buildDataSet(configId: string, crop = false) {
         });
         fileNames.forEach((file) => {
             if (nms.indexOf(file.split('.')[0]) === -1) {
-                console.error('image not used:', file);
+                //remove it from files
+                const index = files.findIndex((s) => s.endsWith(file));
+                console.error('image not used:', file, index);
+                if (index !== -1) {
+                    files.splice(index, 1);
+                }
             }
         });
     }
@@ -212,16 +219,21 @@ export function buildDataSet(configId: string, crop = false) {
     let totalImageSize = 0;
     for (let index = 0; index < files.length; index++) {
         const item = files[index];
-        const key = item.split('/').slice(-1)[0].split('.')[0].replace(/\s/g, '-');
+        const key = item.split('/').slice(-1)[0].split('.')[0];
         if (!jsonOrderData[key]) {
+            const relative = path.relative(folder, path.dirname(item));
             const [imgData, x, y, width, height, size] = createBitmapData(imgIndex, item, crop);
             totalImageSize += size;
-            jsonOrderData[key] = [imgIndex, x, y, width, height];
+            if (configId === 'nav') {
+                jsonOrderData[key] = [imgIndex, x, y, width, height, relative];
+            } else {
+                jsonOrderData[key] = [imgIndex, x, y, width, height];
+            }
             data.push(...imgData);
             imgIndex++;
         }
     }
-    console.log('jsonOrderData', jsonOrderData);
+    console.log('jsonOrderData', Object.keys(jsonOrderData).length, jsonOrderData);
     fs.writeFileSync(
         path.join(folder, 'info.json'),
         JSON.stringify({

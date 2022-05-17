@@ -241,7 +241,7 @@ export default class CrashReportService extends Observable {
         return alert({
             title,
             view: label,
-            okButtonText: $tc('OKButton')
+            okButtonText: $tc('ok')
         });
     }
 }

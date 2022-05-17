@@ -1,6 +1,5 @@
 import { BackstackEntry, Frame as NSFrame } from '@nativescript/core/ui/frame';
 import { Page } from '@nativescript/core/ui/page';
-import { navigateUrlProperty } from './components/App';
 import { installMixins } from '@nativescript-community/systemui';
 
 declare module '@nativescript/core/ui/frame' {

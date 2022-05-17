@@ -1,9 +1,13 @@
 <template>
     <Page ref="page" id="activity" :navigateUrl="navigateUrl" @navigatingTo="onNavigatingTo" @navigatingFrom="onNavigatingFrom" @loaded="onLoaded">
-        <Drawer ref="drawer" :gestureEnabled="true" :gestureHandlerOptions="{
+        <Drawer
+            ref="drawer"
+            :gestureEnabled="true"
+            :gestureHandlerOptions="{
                 failOffsetYStart: -10,
                 failOffsetYEnd: 10
-            }">
+            }"
+        >
             <GridLayout rows="auto,*" ~mainContent>
                 <CActionBar
                     showMenuIcon
@@ -24,9 +28,8 @@
                     <MDButton variant="text" v-show="!!insideFeature" :text="insideFeature ? `play ${insideFeatureName}` : ''" @tap="playCurrentStory" />
                 </StackLayout> -->
 
-                <Image ref="imageView" :width="bigImage ? '90%' : 100" horizontalAlignment="left" verticalAlignment="bottom" row="1" marginBottom="70" @tap="bigImage = !bigImage" />
-
-                <MDButton
+                <AudioPlayerWidget row="1" verticalAlignment="bottom" marginBottom="90"/>
+                <!-- <MDButton
                     row="1"
                     @tap="onTap('toggleMusicPlayPause', $event)"
                     verticalTextAlignment="bottom"
@@ -39,7 +42,7 @@
                 >
                     <Span :fontFamily="mdiFontFamily" :text="'mdi-music' + ' '" fontSize="24" />
                     <Span fontWeight="bold" :text="storyPaused ? $tc('play') : $tc('pause')" verticalAlignment="center" fontSize="20" />
-                </MDButton>
+                </MDButton> -->
                 <StackLayout orientation="horizontal" horizontalAlignment="center" verticalAlignment="bottom" row="1">
                     <MDButton class="floating-btn" :text="sessionRunning ? 'mdi-pause' : 'mdi-play'" @tap="onTap('startSession')" />
                     <MDButton class="floating-btn" v-show="sessionPaused" :text="'mdi-stop'" @tap="onTap('stopSession')" />
@@ -87,9 +90,10 @@
                 </GridLayout>
                 <ScrollView row="1">
                     <StackLayout>
-                        <MDButton :text="'Or Gris'" @tap="onTap('playStory', '1')" />
-                        <MDButton :text="'Houille Blanche'" @tap="onTap('playStory', '2')" />
-                        <MDButton :text="'Or Blanc'" @tap="onTap('playStory', '3')" />
+                        <MDButton text="Or Gris(1)" @tap="onTap('playStory', '1')" />
+                        <MDButton text="Houille Blanche(2)" @tap="onTap('playStory', '2')" />
+                        <MDButton text="Or Blanc(3)" @tap="onTap('playStory', '3')" />
+                        <MDButton text="Or Vert(4)" @tap="onTap('playStory', '4')" />
                         <MDButton :text="'bonjour'" @tap="onTap('start')" />
                         <MDButton :text="'demitour'" @tap="onTap('uturn')" />
                         <MDButton :text="'exit'" @tap="onTap('exit')" />

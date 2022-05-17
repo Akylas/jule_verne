@@ -135,6 +135,7 @@ export enum CommandType {
     Circ = 0x35,
     Circf = 0x36,
     Txt = 0x37,
+    HoldFlushw = 0x39,
     BmpList = 0x40,
     SaveBmp = 0x41,
     imgDisplay = 0x42,

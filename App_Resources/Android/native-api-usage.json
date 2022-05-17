@@ -34,7 +34,9 @@
 
         "android.os:Vibrator*",
         "android.speech.tts:TextToSpeech*", "android.speech.tts.TextToSpeech:OnInitListener*", "android.speech.tts:UtteranceProgressListener*",
-        "java.net:UnknownHostException*"
+        "java.net:UnknownHostException*",
+
+        "android.support.v4.media*:*", "androidx.media.session*:*", "androidx.media.app*:*"
     ],
     "blacklist": [
         "org.nativescript.widgets:BottomNavigationBar*", 

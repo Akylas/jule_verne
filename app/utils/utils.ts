@@ -37,28 +37,35 @@ export function getDataFolder() {
 }
 
 export function getWorkingDir(allowDev = true) {
-    // if (!PRODUCTION && allowDev) {
-    //     if (__ANDROID__) {
-    //         const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
-    //         const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();
-    //         if (sdcardFolder) {
-    //             const sdcardPath = path.join(sdcardFolder, '../../../..', 'jules_verne');
-    //             if (Folder.exists(sdcardPath)) {
-    //                 return sdcardPath;
-    //             }
-    //         }
-    //     }
-    // }
+    if (!PRODUCTION && allowDev) {
+        if (__ANDROID__) {
+            const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
+            const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();
+            if (sdcardFolder) {
+                const sdcardPath = path.join(sdcardFolder, '../../../..');
+                if (Folder.exists(sdcardPath)) {
+                    return sdcardPath;
+                }
+            }
+        }
+    }
     const folder = Folder.fromPath(path.join(knownFolders.documents().path, 'data'));
     return folder.path;
 }
 
+let glassesImagesFolder;
+
 export function getGlassesImagesFolder() {
-    const folderPath = path.join(getWorkingDir(), 'glasses_images');
-    if (Folder.exists(folderPath)) {
-        return folderPath;
+    if (!glassesImagesFolder) {
+        const folderPath = path.join(getWorkingDir(), 'glasses_images');
+        if (Folder.exists(folderPath)) {
+            glassesImagesFolder = folderPath;
+        } else {
+            glassesImagesFolder = path.join(knownFolders.currentApp().path, '/assets/data/glasses_images');
+        }
+        console.log('glassesImagesFolder', glassesImagesFolder);
     }
-    return path.join(knownFolders.currentApp().path, '/assets/data/glasses_images');
+    return glassesImagesFolder;
 }
 
 export function throttle(fn, delay) {

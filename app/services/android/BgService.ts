@@ -1,11 +1,20 @@
-import { ApplicationEventData, off as applicationOff, on as applicationOn, resumeEvent, suspendEvent } from '@nativescript/core/application';
+import { Device, ImageSource, Utils } from '@nativescript/core';
 import { GeoHandler, SessionChronoEventData, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
 import { BgServiceBinder } from '~/services/android/BgServiceBinder';
 import { ACTION_PAUSE, ACTION_RESUME, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, NotificationHelper } from './NotifcationHelper';
 import { $tc } from '~/helpers/locale';
 import { BluetoothHandler, GlassesConnectedEvent, GlassesDisconnectedEvent } from '~/handlers/BluetoothHandler';
+import { MediaSessionCompatCallback } from './MediaSessionCompatCallback';
 
 const NOTIFICATION_ID = 3426824;
+const PLAYING_NOTIFICATION_ID = 123512;
+
+const sdkVersion = parseInt(Device.sdkVersion, 10);
+
+let instance: BgService;
+export function getInstance() {
+    return instance;
+}
 
 @NativeClass
 @JavaProxy('com.akylas.juleverne.BgService')
@@ -19,17 +28,26 @@ export class BgService extends android.app.Service {
     mNotification: globalAndroid.app.Notification;
     notificationManager: any;
     recording: boolean;
+    playingState: 'play' | 'pause' | 'stopped' = 'stopped';
+    playingInfo: { duration: number; name: string; cover?: string; canPause?: boolean } = null;
+
     onStartCommand(intent: android.content.Intent, flags: number, startId: number) {
-        this.onStartCommand(intent, flags, startId);
-        const action = intent ? intent.getAction() : null;
-        if (action === ACTION_RESUME) {
-            this.geoHandler.resumeSession();
-        } else if (action === ACTION_PAUSE) {
-            this.geoHandler.pauseSession();
+        super.onStartCommand(intent, flags, startId);
+        console.log('onStartCommand', intent);
+        instance = this;
+        if (intent != null) {
+            com.akylas.juleverne.CustomMediaButtonReceiver.handleIntent(this.getMediaSessionCompat(), intent);
         }
+        // const action = intent ? intent.getAction() : null;
+        // if (action === ACTION_RESUME) {
+        //     this.geoHandler.resumeSession();
+        // } else if (action === ACTION_PAUSE) {
+        //     this.geoHandler.pauseSession();
+        // }
         return android.app.Service.START_STICKY;
     }
     onCreate() {
+        console.log('onCreate');
         this.currentNotifText = $tc('tap_to_open');
         this.recording = false;
         this.inBackground = false;
@@ -49,6 +67,7 @@ export class BgService extends android.app.Service {
 
     onBind(intent: android.content.Intent) {
         // a client is binding to the service with bindService()
+        console.log('onBind');
         this.bounded = true;
         const result = new BgServiceBinder();
         result.setService(this);
@@ -56,7 +75,13 @@ export class BgService extends android.app.Service {
     }
     onUnbind(intent: android.content.Intent) {
         this.bounded = false;
+        const bluetoothHandler = this.bluetoothHandler;
         this.removeForeground();
+        bluetoothHandler.off(GlassesConnectedEvent, this.onGlassesConnected, this);
+        bluetoothHandler.off(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
+        bluetoothHandler.off('playback', this.onPlayerState, this);
+        bluetoothHandler.off('playbackStart', this.onPlayerStart, this);
+        bluetoothHandler.off('drawBitmap', this.onDrawImage, this);
         return true;
     }
     onRebind(intent: android.content.Intent) {
@@ -64,17 +89,20 @@ export class BgService extends android.app.Service {
     }
 
     onBounded() {
+        console.log('onBounded');
         this.geoHandler = new GeoHandler();
-        this.bluetoothHandler = new BluetoothHandler();
+        const bluetoothHandler = (this.bluetoothHandler = new BluetoothHandler());
         this.showForeground();
-        this.bluetoothHandler.on(GlassesConnectedEvent, this.onGlassesConnected, this);
-        this.bluetoothHandler.on(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
+        bluetoothHandler.on(GlassesConnectedEvent, this.onGlassesConnected, this);
+        bluetoothHandler.on(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
+        bluetoothHandler.on('playback', this.onPlayerState, this);
+        bluetoothHandler.on('playbackStart', this.onPlayerStart, this);
+        bluetoothHandler.on('drawBitmap', this.onDrawImage, this);
         this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
-        // this.geoHandler.on(SessionChronoEvent, this.onSessionChronoEvent, this);
     }
 
     displayNotification(sessionRunning) {
-        this.mNotificationBuilder = new androidx.core.app.NotificationCompat.Builder(this, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL);
+        this.mNotificationBuilder = NotificationHelper.getBuilder(this, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL);
 
         this.mNotification = NotificationHelper.getNotification(this, this.mNotificationBuilder);
         this.notificationManager.notify(NOTIFICATION_ID, this.mNotification); // todo check if necessary in pre Android O
@@ -97,7 +125,7 @@ export class BgService extends android.app.Service {
             if (!this.mNotificationBuilder) {
                 this.displayNotification(this.recording);
             } else {
-                this.mNotification = NotificationHelper.getUpdatedNotification(this, this.mNotificationBuilder);
+                this.mNotification = NotificationHelper.getUpdatedNotification(this.mNotificationBuilder);
                 this.notificationManager.notify(NOTIFICATION_ID, this.mNotification);
             }
         } catch (err) {
@@ -119,7 +147,7 @@ export class BgService extends android.app.Service {
                 if (!this.mNotification) {
                     this.displayNotification(this.recording);
                 }
-                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                if (sdkVersion >= 29) {
                     this.startForeground(
                         NOTIFICATION_ID,
                         this.mNotification,
@@ -152,4 +180,251 @@ export class BgService extends android.app.Service {
     onGlassesConnected() {
         this.showForeground();
     }
+
+    mMediaSessionCompat: android.support.v4.media.session.MediaSessionCompat;
+
+    getMediaSessionCompat() {
+        if (!this.mMediaSessionCompat) {
+            this.createMediaSession();
+        }
+        return this.mMediaSessionCompat;
+    }
+    stateBuilder: android.support.v4.media.session.PlaybackStateCompat.Builder;
+    createMediaSession() {
+        try {
+            const context = Utils.ad.getApplicationContext();
+            const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
+            const MediaSessionCompat = android.support.v4.media.session.MediaSessionCompat;
+            const mediaSessionCompat = (this.mMediaSessionCompat = new MediaSessionCompat(context, 'AudioPlayer'));
+            // const transportControls = mediaSessionCompat.getController().getTransportControls();
+            mediaSessionCompat.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS);
+
+            const stateBuilder = (this.stateBuilder = new PlaybackStateCompat.Builder().setActions(
+                PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE | PlaybackStateCompat.ACTION_PLAY_PAUSE
+            ));
+            // const mediaButtonIntent = new android.content.Intent(android.content.Intent.ACTION_MEDIA_BUTTON);
+            // mediaButtonIntent.setClass(context, com.akylas.juleverne.CustomMediaButtonReceiver.class);
+            // const pendingIntent = android.app.PendingIntent.getBroadcast(this, 0, mediaButtonIntent, 0);
+            // mediaSessionCompat.setMediaButtonReceiver(pendingIntent);
+            mediaSessionCompat.setPlaybackState(stateBuilder.build());
+
+            @NativeClass
+            class MediaSessionCompatCallback extends android.support.v4.media.session.MediaSessionCompat.Callback {
+                constructor(private impl) {
+                    console.log('MediaSessionCompatCallback', impl);
+                    super();
+                    return global.__native(this);
+                }
+
+                onPlay() {
+                    console.log('MediaSessionCompatCallback', 'onPlay');
+                    super.onPlay();
+                }
+                onPause() {
+                    console.log('MediaSessionCompatCallback', 'onPause');
+                    super.onPause();
+                }
+
+                onSkipToNext() {
+                    console.log('MediaSessionCompatCallback', 'onSkipToNext');
+                    super.onSkipToNext();
+                }
+
+                onSkipToPrevious() {
+                    console.log('MediaSessionCompatCallback', 'onSkipToPrevious');
+                    super.onSkipToPrevious();
+                }
+                onPlayFromMediaId(mediaId, extras) {
+                    console.log('MediaSessionCompatCallback', 'onPlayFromMediaId');
+                    super.onPlayFromMediaId(mediaId, extras);
+                }
+                onCommand(command, extras, cb) {
+                    console.log('MediaSessionCompatCallback', 'onCommand');
+                    super.onCommand(command, extras, cb);
+                }
+                onSeekTo(pos) {
+                    console.log('MediaSessionCompatCallback', 'onSeekTo');
+                    super.onSeekTo(pos);
+                }
+                onMediaButtonEvent(mediaButtonIntent) {
+                    const action = mediaButtonIntent.getAction();
+                    console.log('MediaSession', 'Intent Action' + action);
+                    if (android.content.Intent.ACTION_MEDIA_BUTTON === mediaButtonIntent.getAction()) {
+                        const event = mediaButtonIntent.getParcelableExtra(android.content.Intent.EXTRA_KEY_EVENT);
+                        console.log('MediaSession', 'KeyCode' + event.getKeyCode());
+                        return true;
+                    }
+                    return super.onMediaButtonEvent(mediaButtonIntent);
+                }
+            }
+            mediaSessionCompat.setCallback(
+                new MediaSessionCompatCallback({
+                    onPlay: () => {
+                        console.log('onPlay');
+                        this.getMediaSessionCompat().setActive(true);
+                        this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
+
+                        this.showPlayingNotification();
+                    },
+                    onPause: () => {
+                        console.log('onPause');
+                        if (this.playingState === 'play') {
+                            this.bluetoothHandler.pauseStory();
+                            this.setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
+                            this.showPausedNotification();
+                        }
+                    }
+                })
+            );
+
+            mediaSessionCompat.setActive(true);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+    initMediaSessionMetadata() {
+        const MediaMetadataCompat = android.support.v4.media.MediaMetadataCompat;
+        const metadataBuilder = new MediaMetadataCompat.Builder();
+        //Notification icon in card
+        // metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher));
+        // metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher));
+
+        //lock screen icon for pre lollipop
+        // metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher));
+        const playingInfo = this.playingInfo;
+        metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, playingInfo.name);
+        if (playingInfo.cover) {
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, ImageSource.fromFileSync(playingInfo.cover).android);
+        } else {
+            const context = Utils.ad.getApplicationContext();
+            const resources = context.getResources();
+            const identifier = context.getResources().getIdentifier('ic_launcher', 'mipmap', context.getPackageName());
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, android.graphics.BitmapFactory.decodeResource(resources, identifier));
+        }
+        metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, playingInfo.duration);
+        // metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, 'Display Subtitle');
+        metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, 1);
+        metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, 1);
+
+        this.getMediaSessionCompat().setMetadata(metadataBuilder.build());
+    }
+    setMediaPlaybackState(state) {
+        const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
+        const playbackstateBuilder = new PlaybackStateCompat.Builder();
+        if (state === PlaybackStateCompat.STATE_PLAYING) {
+            playbackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_PAUSE);
+        } else {
+            playbackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_PLAY);
+        }
+        playbackstateBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0);
+        this.getMediaSessionCompat().setPlaybackState(playbackstateBuilder.build());
+    }
+    hidePlayingNotification() {
+        NotificationHelper.hideNotification(PLAYING_NOTIFICATION_ID);
+    }
+    showPlayingNotification() {
+        const context = Utils.ad.getApplicationContext();
+        const builder = NotificationHelper.getMediaNotification(context, this.getMediaSessionCompat());
+        console.log('showPlayingNotification', builder, this.getMediaSessionCompat()?.getSessionToken());
+        if (builder === null) {
+            return;
+        }
+        const MediaStyle = androidx.media.app.NotificationCompat.MediaStyle;
+        const NotificationCompat = androidx.core.app.NotificationCompat;
+        const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
+        const playingInfo = this.playingInfo;
+        builder.addAction(
+            new NotificationCompat.Action(17301539, 'Pause', com.akylas.juleverne.CustomMediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_PLAY_PAUSE))
+        );
+        builder.setStyle(new MediaStyle().setShowActionsInCompactView([0]).setMediaSession(this.getMediaSessionCompat().getSessionToken()));
+        NotificationHelper.showNotification(PLAYING_NOTIFICATION_ID, builder);
+    }
+    showPausedNotification() {
+        const context = Utils.ad.getApplicationContext();
+        const builder = NotificationHelper.getMediaNotification(context, this.getMediaSessionCompat());
+        if (builder === null) {
+            return;
+        }
+        const MediaStyle = androidx.media.app.NotificationCompat.MediaStyle;
+        const NotificationCompat = androidx.core.app.NotificationCompat;
+        const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
+
+        builder.addAction(
+            new NotificationCompat.Action(17301540, 'Play', com.akylas.juleverne.CustomMediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_PLAY_PAUSE))
+        );
+        builder.setStyle(new MediaStyle().setShowActionsInCompactView([0]).setMediaSession(this.getMediaSessionCompat().getSessionToken()));
+        NotificationHelper.showNotification(PLAYING_NOTIFICATION_ID, builder);
+    }
+
+    onPlayerStart(event) {
+        this.playingState = 'play';
+        this.playingInfo = event.data;
+        if (event.data.canPause === false) {
+            return;
+        }
+        try {
+            this.initMediaSessionMetadata();
+            this.showPlayingNotification();
+        } catch (err) {
+            console.error(err);
+        }
+    }
+    onPlayerState(event) {
+        if (event.data !== this.playingState) {
+            this.playingState = event.data;
+            if (this.playingInfo && this.playingInfo.canPause === false) {
+                return;
+            }
+            if (this.playingInfo) {
+                if (this.playingState === 'play') {
+                    this.showPlayingNotification();
+                } else {
+                    this.showPausedNotification();
+                }
+                if (this.playingState === 'stopped') {
+                    this.hidePlayingNotification();
+                }
+            }
+        }
+    }
+    handleMediaIntent(intent: android.content.Intent) {
+        const event = intent.getParcelableExtra(android.content.Intent.EXTRA_KEY_EVENT) as android.view.KeyEvent;
+
+        switch (event.getKeyCode()) {
+            case android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                if (this.playingState === 'play') {
+                    this.bluetoothHandler.pauseStory();
+                } else {
+                    this.bluetoothHandler.resumeStory();
+                }
+        }
+    }
+    onDrawImage(event) {
+        if (this.playingInfo && this.playingInfo.canPause !== false) {
+            // this.$refs.imageView.nativeView.src = event.bitmap;
+        }
+    }
+
+    // updateMediaPosition(isPlaying: Boolean, currentPositionMs: number, speed: number) {
+    //     const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
+    //     const state =  (isPlaying)? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED
+    //         const newState = PlaybackStateCompat.Builder()
+    //                 .setActions(ACTION_SEEK_TO)
+    //                 .setState(state, currentPositionMs, if (isPlaying) speed else 0f)
+    //                 .build()
+
+    //         if(
+    //                 //pause -> play, play-> pause
+    //                 stateCompat?.state != newState.state ||
+    //                 //speed changed
+    //                 stateCompat?.playbackSpeed != speed ||
+    //                 //seek
+    //                 timeDiffer(stateCompat, newState, 2000)
+    //         ){
+    //             stateCompat = newState
+    //             mediaSession.setPlaybackState(stateCompat)
+    //         }
+
+    //     }
+    // }
 }
