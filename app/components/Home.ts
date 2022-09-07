@@ -67,6 +67,7 @@ import Map from './Map';
 import MapComponent from './MapComponent';
 import MapOnlyComponent from './MapOnlyComponent';
 import AudioPlayerWidget from './AudioPlayerWidget.vue';
+import { showSnack } from '@nativescript-community/ui-material-snackbar';
 
 const production = TNS_ENV === 'production';
 const TAG = 'Home';
@@ -250,7 +251,7 @@ export default class Home extends BgServiceComponent {
         if (track && map) {
             map.moveToFitBounds(track.bounds, undefined, true, true, false, 200);
         }
-        if (PRODUCTION || !isSimulator()) {
+        if (!DISABLE_UPDATES && (PRODUCTION || !isSimulator())) {
             this.$networkService.checkForGlassesDataUpdate();
         }
     }
@@ -408,7 +409,7 @@ export default class Home extends BgServiceComponent {
             if (r && !handlers.bluetoothHandler.glasses) {
                 this.tryToAutoConnect();
             } else if (!r && handlers.bluetoothHandler.savedGlassesUUID) {
-                this.showError(this.$t('bluetooth_not_enabled'));
+                showSnack({message:this.$t('bluetooth_not_enabled')});
             }
         });
         this.isWatchingLocation = handlers.geoHandler.isWatching();

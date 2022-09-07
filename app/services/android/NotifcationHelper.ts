@@ -23,7 +23,6 @@ function titlecase(value) {
 }
 export class NotificationHelper {
     public static getNotification(context: android.content.Context, builder: androidx.core.app.NotificationCompat.Builder) {
-        const color = android.graphics.Color.parseColor(new Color(primaryColor).hex);
         // NotificationHelper.createNotificationChannels(context);
 
         const activityClass = (com as any).tns.NativeScriptActivity.class;
@@ -32,15 +31,16 @@ export class NotificationHelper {
         tapActionIntent.setAction(android.content.Intent.ACTION_MAIN);
         tapActionIntent.addCategory(android.content.Intent.CATEGORY_LAUNCHER);
         const tapActionPendingIntent = android.app.PendingIntent.getActivity(context, 10, tapActionIntent, FLAG_IMMUTABLE);
-        builder.setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_SECRET);
-        builder.setShowWhen(false);
-        builder.setOngoing(true);
-        builder.setColor(color);
-        builder.setOnlyAlertOnce(true);
-        builder.setSound(null);
-        builder.setPriority(androidx.core.app.NotificationCompat.PRIORITY_MIN);
-        builder.setContentIntent(tapActionPendingIntent);
-        builder.setSmallIcon(notificationIcon);
+        builder
+            .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_SECRET)
+            .setShowWhen(false)
+            .setOngoing(true)
+            .setColor(new Color(primaryColor).android)
+            .setOnlyAlertOnce(true)
+            .setSound(null)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MIN)
+            .setContentIntent(tapActionPendingIntent)
+            .setSmallIcon(notificationIcon);
         NotificationHelper.updateBuilderTexts(builder);
         return builder.build();
     }
@@ -67,8 +67,8 @@ export class NotificationHelper {
 
     /* Create a notification channel */
     public static createNotificationChannels(context) {
-        const color = android.graphics.Color.parseColor(new Color(primaryColor).hex);
         if (sdkVersion >= 26) {
+            const color = new Color(primaryColor).android;
             // API level 26 ("Android O") supports notification channels.
             const service = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager;
 
@@ -85,8 +85,8 @@ export class NotificationHelper {
             channelDownloads.setSound(null, null);
             service.createNotificationChannel(channelDownloads);
 
-            const channelMusic = new android.app.NotificationChannel(NOTIFICATION_CHANEL_ID_MUSIC_CHANNEL, $tc('music_notification'), android.app.NotificationManager.IMPORTANCE_MAX);
-            channelMusic.setDescription($tc('notification_state_desc'));
+            const channelMusic = new android.app.NotificationChannel(NOTIFICATION_CHANEL_ID_MUSIC_CHANNEL, $tc('music_notification'), android.app.NotificationManager.IMPORTANCE_LOW);
+            channelMusic.setDescription($tc('notification_music_desc'));
             channelMusic.setLightColor(color);
             service.createNotificationChannel(channelMusic);
             return true;
@@ -121,6 +121,7 @@ export class NotificationHelper {
             .setSubText(description.getDescription())
             .setLargeIcon(description.getIconBitmap())
             .setContentIntent(controller.getSessionActivity())
+            .setOngoing(true)
             .setDeleteIntent(androidx.media.session.MediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_STOP))
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
         return builder;

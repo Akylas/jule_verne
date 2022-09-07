@@ -4,7 +4,7 @@
             <CActionBar :title="$t('explorer')" :showMenuIcon="false" />
             <CollectionView row="1" :items="devices" rowHeight="50">
                 <v-template>
-                    <ListItem :rightValue="itemRightValue(item)" :title="item.localName || $tc('unknown_device')" @tap="onItemTap(item, $event)" />
+                    <ListItem :title="item.localName || $tc('unknown_device')" @tap="onItemTap(item, $event)" />
                 </v-template>
             </CollectionView>
         </GridLayout>

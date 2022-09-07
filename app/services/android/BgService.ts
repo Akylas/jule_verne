@@ -15,6 +15,7 @@ let instance: BgService;
 export function getInstance() {
     return instance;
 }
+const TAG = '[BgServiceAndroid]';
 
 @NativeClass
 @JavaProxy('com.akylas.juleverne.BgService')
@@ -47,7 +48,7 @@ export class BgService extends android.app.Service {
         return android.app.Service.START_STICKY;
     }
     onCreate() {
-        console.log('onCreate');
+        DEV_LOG && console.log(TAG, 'onCreate');
         this.currentNotifText = $tc('tap_to_open');
         this.recording = false;
         this.inBackground = false;
@@ -56,6 +57,7 @@ export class BgService extends android.app.Service {
         NotificationHelper.createNotificationChannels(this);
     }
     onDestroy() {
+        DEV_LOG && console.log(TAG, 'onDestroy');
         this.bluetoothHandler.off(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
         if (this.geoHandler) {
             this.geoHandler.off(SessionStateEvent, this.onSessionStateEvent, this);
@@ -66,14 +68,15 @@ export class BgService extends android.app.Service {
     }
 
     onBind(intent: android.content.Intent) {
+        DEV_LOG && console.log(TAG, 'onBind');
         // a client is binding to the service with bindService()
-        console.log('onBind');
         this.bounded = true;
         const result = new BgServiceBinder();
         result.setService(this);
         return result;
     }
     onUnbind(intent: android.content.Intent) {
+        DEV_LOG && console.log(TAG, 'onUnbind');
         this.bounded = false;
         const bluetoothHandler = this.bluetoothHandler;
         this.removeForeground();
@@ -89,16 +92,19 @@ export class BgService extends android.app.Service {
     }
 
     onBounded() {
-        console.log('onBounded');
-        this.geoHandler = new GeoHandler();
-        const bluetoothHandler = (this.bluetoothHandler = new BluetoothHandler());
-        this.showForeground();
-        bluetoothHandler.on(GlassesConnectedEvent, this.onGlassesConnected, this);
-        bluetoothHandler.on(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
-        bluetoothHandler.on('playback', this.onPlayerState, this);
-        bluetoothHandler.on('playbackStart', this.onPlayerStart, this);
-        bluetoothHandler.on('drawBitmap', this.onDrawImage, this);
-        this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
+        try {
+            this.geoHandler = new GeoHandler();
+            const bluetoothHandler = (this.bluetoothHandler = new BluetoothHandler());
+            this.showForeground();
+            bluetoothHandler.on(GlassesConnectedEvent, this.onGlassesConnected, this);
+            bluetoothHandler.on(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
+            bluetoothHandler.on('playback', this.onPlayerState, this);
+            bluetoothHandler.on('playbackStart', this.onPlayerStart, this);
+            bluetoothHandler.on('drawBitmap', this.onDrawImage, this);
+            this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
+        } catch (error) {
+            console.error(error);
+        }
     }
 
     displayNotification(sessionRunning) {
@@ -196,22 +202,22 @@ export class BgService extends android.app.Service {
             const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
             const MediaSessionCompat = android.support.v4.media.session.MediaSessionCompat;
             const mediaSessionCompat = (this.mMediaSessionCompat = new MediaSessionCompat(context, 'AudioPlayer'));
+            mediaSessionCompat.setActive(true);
             // const transportControls = mediaSessionCompat.getController().getTransportControls();
-            mediaSessionCompat.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS);
+            mediaSessionCompat.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
 
             const stateBuilder = (this.stateBuilder = new PlaybackStateCompat.Builder().setActions(
                 PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE | PlaybackStateCompat.ACTION_PLAY_PAUSE
             ));
-            // const mediaButtonIntent = new android.content.Intent(android.content.Intent.ACTION_MEDIA_BUTTON);
-            // mediaButtonIntent.setClass(context, com.akylas.juleverne.CustomMediaButtonReceiver.class);
-            // const pendingIntent = android.app.PendingIntent.getBroadcast(this, 0, mediaButtonIntent, 0);
-            // mediaSessionCompat.setMediaButtonReceiver(pendingIntent);
+            const mediaButtonIntent = new android.content.Intent(android.content.Intent.ACTION_MEDIA_BUTTON);
+            mediaButtonIntent.setClass(context, com.akylas.juleverne.CustomMediaButtonReceiver.class);
+            const pendingIntent = android.app.PendingIntent.getBroadcast(this, 0, mediaButtonIntent, 0);
+            mediaSessionCompat.setMediaButtonReceiver(pendingIntent);
             mediaSessionCompat.setPlaybackState(stateBuilder.build());
 
             @NativeClass
             class MediaSessionCompatCallback extends android.support.v4.media.session.MediaSessionCompat.Callback {
                 constructor(private impl) {
-                    console.log('MediaSessionCompatCallback', impl);
                     super();
                     return global.__native(this);
                 }
@@ -276,13 +282,11 @@ export class BgService extends android.app.Service {
                     }
                 })
             );
-
-            mediaSessionCompat.setActive(true);
         } catch (error) {
             console.error(error);
         }
     }
-    initMediaSessionMetadata() {
+    updateMediaSessionMetadata(image?: string) {
         const MediaMetadataCompat = android.support.v4.media.MediaMetadataCompat;
         const metadataBuilder = new MediaMetadataCompat.Builder();
         //Notification icon in card
@@ -292,9 +296,11 @@ export class BgService extends android.app.Service {
         //lock screen icon for pre lollipop
         // metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher));
         const playingInfo = this.playingInfo;
-        metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, playingInfo.name);
-        if (playingInfo.cover) {
-            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, ImageSource.fromFileSync(playingInfo.cover).android);
+        metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, $tc('app.name'));
+        metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, playingInfo.name);
+        if (image || playingInfo.cover) {
+            // metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, image || playingInfo.cover);
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, ImageSource.fromFileSync(playingInfo.cover).android);
         } else {
             const context = Utils.ad.getApplicationContext();
             const resources = context.getResources();
@@ -302,10 +308,8 @@ export class BgService extends android.app.Service {
             metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, android.graphics.BitmapFactory.decodeResource(resources, identifier));
         }
         metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, playingInfo.duration);
-        // metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, 'Display Subtitle');
-        metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, 1);
-        metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, 1);
-
+        // metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, 1);
+        // metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, 1);
         this.getMediaSessionCompat().setMetadata(metadataBuilder.build());
     }
     setMediaPlaybackState(state) {
@@ -316,15 +320,17 @@ export class BgService extends android.app.Service {
         } else {
             playbackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_PLAY);
         }
-        playbackstateBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0);
+        playbackstateBuilder.setState(state, this.bluetoothHandler.playerCurrentTime, 1);
         this.getMediaSessionCompat().setPlaybackState(playbackstateBuilder.build());
     }
     hidePlayingNotification() {
         NotificationHelper.hideNotification(PLAYING_NOTIFICATION_ID);
+        this.playingNotifBuilder = null;
     }
+    playingNotifBuilder: androidx.core.app.NotificationCompat.Builder;
     showPlayingNotification() {
         const context = Utils.ad.getApplicationContext();
-        const builder = NotificationHelper.getMediaNotification(context, this.getMediaSessionCompat());
+        const builder = (this.playingNotifBuilder = NotificationHelper.getMediaNotification(context, this.getMediaSessionCompat()));
         console.log('showPlayingNotification', builder, this.getMediaSessionCompat()?.getSessionToken());
         if (builder === null) {
             return;
@@ -341,7 +347,7 @@ export class BgService extends android.app.Service {
     }
     showPausedNotification() {
         const context = Utils.ad.getApplicationContext();
-        const builder = NotificationHelper.getMediaNotification(context, this.getMediaSessionCompat());
+        const builder = (this.playingNotifBuilder = NotificationHelper.getMediaNotification(context, this.getMediaSessionCompat()));
         if (builder === null) {
             return;
         }
@@ -363,7 +369,10 @@ export class BgService extends android.app.Service {
             return;
         }
         try {
-            this.initMediaSessionMetadata();
+            const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
+            this.updateMediaSessionMetadata();
+            this.getMediaSessionCompat().setActive(true);
+            this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
             this.showPlayingNotification();
         } catch (err) {
             console.error(err);
@@ -376,9 +385,13 @@ export class BgService extends android.app.Service {
                 return;
             }
             if (this.playingInfo) {
+                const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
                 if (this.playingState === 'play') {
+                    this.getMediaSessionCompat().setActive(true);
+                    this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
                     this.showPlayingNotification();
                 } else {
+                    this.setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
                     this.showPausedNotification();
                 }
                 if (this.playingState === 'stopped') {
@@ -399,10 +412,16 @@ export class BgService extends android.app.Service {
                 }
         }
     }
-    onDrawImage(event) {
-        if (this.playingInfo && this.playingInfo.canPause !== false) {
-            // this.$refs.imageView.nativeView.src = event.bitmap;
+    updateAlbumArt(image) {
+        if (this.playingNotifBuilder) {
+            this.playingNotifBuilder.setLargeIcon(ImageSource.fromFileSync(image).android);
+            NotificationHelper.showNotification(PLAYING_NOTIFICATION_ID, this.playingNotifBuilder);
         }
+    }
+    onDrawImage(event) {
+        // if (this.playingInfo && this.playingInfo.canPause !== false) {
+        // this.updateAlbumArt(event.bitmap);
+        // }
     }
 
     // updateMediaPosition(isPlaying: Boolean, currentPositionMs: number, speed: number) {

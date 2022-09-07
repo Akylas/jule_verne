@@ -234,7 +234,7 @@ export default class Settings extends BgServiceComponent {
                 { id: 'light', type: 'slider', title: $t('light'), subtitle: $t('light_desc'), value: this.bluetoothHandler.levelLuminance, min: 0, max: 15 },
                 { id: 'shift', type: 'shift', description: this.shiftDescription, currentShift: this.currentShift },
                 { id: 'checkBetaFirmware', type: 'button', title: $t('beta_firmware'), buttonTitle: $t('check') },
-                { id: 'firmwareUpdate', type: 'button', title: $t('update_firmware'), subtitle: this.firmwareVersion, buttonTitle: $t('update') },
+                { id: 'firmwareUpdate', type: 'button', title: $t('update_firmware'), buttonTitle: $t('update') },
                 { id: 'reboot', type: 'button', title: $t('reboot_glasses'), buttonTitle: $t('reboot') }
             ].concat(items);
         }

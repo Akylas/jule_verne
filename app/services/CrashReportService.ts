@@ -94,6 +94,19 @@ export class TimeoutError extends CustomError {
         );
     }
 }
+export class GlassesError extends CustomError {
+    constructor(props?) {
+        super(
+            Object.assign(
+                {
+                    message: 'glasses_error'
+                },
+                props
+            ),
+            'GlassesError'
+        );
+    }
+}
 
 export class NoNetworkError extends CustomError {
     constructor(props?) {
@@ -219,12 +232,12 @@ export default class CrashReportService extends Observable {
         const isString = realError === null || realError === undefined;
         const message = isString ? (err as string) : realError.message || realError.toString();
         const reporterEnabled = this.sentryEnabled;
-        if (showAsSnack || realError instanceof MessageError || realError instanceof NoNetworkError || realError instanceof TimeoutError) {
+        if (showAsSnack || realError instanceof MessageError || realError instanceof NoNetworkError || realError instanceof TimeoutError || realError instanceof GlassesError) {
             showSnack({ message });
             return;
         }
         // const showSendBugReport = __FORCE_BUG_REPORT__ || (reporterEnabled && !isString && !(realError instanceof MessageError) && !(realError instanceof HTTPError) && !!realError.stack);
-        const showSendBugReport = reporterEnabled && !isString && !(realError instanceof MessageError) && !(realError instanceof HTTPError) && !!realError.stack;
+        const showSendBugReport = reporterEnabled && !isString && !(realError instanceof HTTPError) && !!realError.stack;
         const title = showSendBugReport ? $tc('error') : ' ';
         // if (realError instanceof HTTPError) {
         //     title = `${realError.title} (${realError.statusCode})`;

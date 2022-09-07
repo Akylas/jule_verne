@@ -1,11 +1,12 @@
 @viewedKey: '#' + [name];
+@name: [realname]?[realname]:[name];
 
 #items {
     line-color: [fill];
     line-width: 2;
     polygon-opacity: [fill-opacity];
     polygon-fill: [fill];
-    text-name: [name];
+    text-name: @name;
     text-face-name: @mont_md;
     text-placement: line;
 

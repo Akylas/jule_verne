@@ -52,6 +52,7 @@ module.exports = (env, params = {}) => {
                 production: true,
                 sentry: true,
                 uploadSentry: true,
+                noconsole: true,
                 sourceMap: true,
                 uglify: true
             },
@@ -83,6 +84,8 @@ module.exports = (env, params = {}) => {
         uglify, // --env.uglify
         noconsole, // --env.noconsole
         reportall, // --env.reportall
+        disableUpdates,
+        usecrop, // --env.usecrop
         devlog, // --env.devlog
         adhoc // --env.adhoc
     } = env;
@@ -156,6 +159,7 @@ module.exports = (env, params = {}) => {
         UPDATE_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/dB8weHEM5EzxNW7/download"',
         SENTRY_PREFIX: `"${!!sentry ? process.env.SENTRY_PREFIX : ''}"`,
         NO_CONSOLE: noconsole,
+        DISABLE_UPDATES: disableUpdates,
         __FORCE_BUG_REPORT__: !!reportall,
         DEV_LOG: !!devlog,
         TEST_LOGS: !!adhoc || !production
@@ -421,7 +425,7 @@ module.exports = (env, params = {}) => {
                     collapse_vars: platform !== 'android',
                     sequences: platform !== 'android',
                     passes: 2,
-                    drop_console: production && noconsole
+                    drop_console: production && !sentry && noconsole
                 }
             }
         })

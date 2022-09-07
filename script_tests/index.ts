@@ -1081,7 +1081,7 @@ function dec2bin(dec) {
     return (dec >>> 0).toString(2);
 }
 
-function streamImage(filePath: string) {
+function streamImage(filePath: string, compress) {
     const gray = cv2.imread(filePath).rotate(cv2.ROTATE_180).cvtColor(cv2.COLOR_BGR2GRAY);
     const imgHeight = gray.sizes[0];
     const imgWidth = gray.sizes[1];

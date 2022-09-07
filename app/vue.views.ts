@@ -42,7 +42,7 @@ const Plugin = {
         Vue.registerElement('Label', () => require('@nativescript-community/ui-label').Label);
         Vue.registerElement('AWebView', () => require('@nativescript-community/ui-webview').AWebView);
         Vue.registerElement('LineChart', () => require('@nativescript-community/ui-chart/charts/LineChart').LineChart);
-        Vue.registerElement('CheckBox', () => require('@akylas/nativescript-checkbox').CheckBox, {
+        Vue.registerElement('CheckBox', () => require('@nativescript-community/ui-checkbox').CheckBox, {
             model: {
                 prop: 'checked',
                 event: 'checkedChange'

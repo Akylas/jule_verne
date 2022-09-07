@@ -40,6 +40,7 @@
   <string name="open">"ouvrir"</string>
   <string name="ok">"ok"</string>
   <string name="notification_state_desc">"notification vous permettant de savoir qu\'une session est en cours"</string>
+  <string name="notification_music_desc">"utilisées lors de la lecture des histoires"</string>
   <string name="notification_download_desc">"utilisées lors des téléchargements de données"</string>
   <string name="not_enough_memory">"pas assez de mémoire: %1$s / %2$s"</string>
   <string name="no_file_found">"pas de fichier trouvé"</string>

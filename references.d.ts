@@ -16,6 +16,7 @@ declare const TEST_LOGS: boolean;
 declare const PRODUCTION: boolean;
 declare const NO_CONSOLE: boolean;
 declare const __FORCE_BUG_REPORT__: boolean;
+declare const DISABLE_UPDATES: boolean;
 declare const SENTRY_DSN: string;
 declare const SENTRY_PREFIX: string;
 declare const UPDATE_DATA_DEFAULT_URL: string;

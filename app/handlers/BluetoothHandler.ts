@@ -12,11 +12,11 @@ import dayjs from 'dayjs';
 import fileSize from 'filesize';
 import { getUint32 } from '~/handlers/bluetooth/SuotaCharacteristic';
 import { GeoHandler, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
-import { CommandType, ConfigListData, FreeSpaceData, InputCommandType, Message } from '~/handlers/Message';
+import { CommandType, ConfigListData, FULLSCREEN, FreeSpaceData, InputCommandType, Message } from '~/handlers/Message';
 import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
 import { $t, $tc } from '~/helpers/locale';
 import * as ProgressNotification from '~/services/android/ProgressNotifications';
-import { MessageError } from '~/services/CrashReportService';
+import { GlassesError, MessageError } from '~/services/CrashReportService';
 import { hashCode, permResultCheck, versionCompare } from '~/utils';
 import { alert, confirm } from '~/utils/dialogs';
 import { getGlassesImagesFolder } from '~/utils/utils';
@@ -93,7 +93,7 @@ function getRandomFromArray(array) {
 
 export function hexToBytes(hex) {
     const bytes = [];
-    for (let c = 2; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
+    for (let c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
     return new Uint8Array(bytes);
 }
 
@@ -322,7 +322,10 @@ export class BluetoothHandler extends Observable {
         bluetooth = null;
         DEV_LOG && console.log('BLE', 'stop done');
     }
-    start() {
+    async start() {
+        if (!PRODUCTION) {
+            await request('storage');
+        }
         this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
         bluetooth.on(Bluetooth.bluetooth_status_event, this.onBLEStatusChange, this);
         bluetooth.on(Bluetooth.device_connected_event, this.onDeviceConnected, this);
@@ -489,6 +492,9 @@ export class BluetoothHandler extends Observable {
                 okButtonText: $t('cancel'), // inversed buttons
                 cancelButtonText: __ANDROID__ ? $t('enable') : undefined
             });
+            if (r) {
+                throw new Error($tc('bluetooth_not_enabled'));
+            }
             if (__ANDROID__ && !r) {
                 try {
                     await this.enable();
@@ -750,7 +756,6 @@ export class BluetoothHandler extends Observable {
     }
 
     onGlassesMessage({ message }: { message: Message<any> }) {
-        // DEV_LOG && console.log('onGlassesMessage', message.commandType, message.data);
         switch (message.commandType) {
             case CommandType.cfgList:
                 const list = (message as Message<CommandType.cfgList>).data;
@@ -777,10 +782,11 @@ export class BluetoothHandler extends Observable {
             case CommandType.Error:
                 if (message.data.cmdId === CommandType.cfgSet) {
                 }
-                this.notify({
+        DEV_LOG && console.log('onGlassesMessage error', message.commandType, message.data);
+        this.notify({
                     eventName: GlassesErrorEvent,
                     object: this,
-                    data: new Error(`GlassesError: 0x${message.data.cmdId.toString(16)} error ${message.data.error}`)
+                    data: new GlassesError(`0x${message.data.cmdId.toString(16)} error ${message.data.error}`)
                 });
         }
     }
@@ -1105,6 +1111,7 @@ export class BluetoothHandler extends Observable {
         const commandsToSend = r
             .split('\n')
             .filter((s) => s && s.trim().length > 0)
+            .map(s=> (s.startsWith('0x')?s.slice(2) : s))
             .map(hexToBytes);
         return this.sendRawCommands(commandsToSend, onProgress);
     }
@@ -1190,6 +1197,7 @@ export class BluetoothHandler extends Observable {
             // await this.fadeout();
         }
         const onDone = async () => {
+            DEV_LOG && console.log('stopPlayingLoop onDone');
             this.mPlayer.pause();
             this.mPlayer['_options']?.errorCallback();
             try {
@@ -1352,22 +1360,35 @@ export class BluetoothHandler extends Observable {
         return timeline;
     }
 
-    _imagesMap: { [k: string]: { [k: string]: [number, number, number, number, number] } } = {};
+    _setsData: { [k: string]: { imagesMap:{[k: string]: [number, number, number, number, number, string]}, info:{ totalImageSize,
+        compress,
+        crop} }} = {};
 
     storyImageMap(cfgId: string) {
-        if (!this._imagesMap[cfgId]) {
-            const filePath = path.join(getGlassesImagesFolder(), 'stories', cfgId, 'image_map.json');
-            this._imagesMap[cfgId] = JSON.parse(File.fromPath(filePath).readTextSync());
-        }
-        return this._imagesMap[cfgId];
+        return this.setData(cfgId).imagesMap;
     }
-    _navigationMapImagesMap: { [k: string]: [number, number, number, number, number, string] };
-    get navigationImageMap() {
-        if (!this._navigationMapImagesMap) {
-            const filePath = path.join(getGlassesImagesFolder(), 'navigation/image_map.json');
-            this._navigationMapImagesMap = JSON.parse(File.fromPath(filePath).readTextSync());
+    get setUsesCrop() {
+        return id=>{
+            return this.setData(id).info.crop;
         }
-        return this._navigationMapImagesMap;
+    }
+    get setData() {
+        return id=>{
+            if (!this._setsData[id]) {
+                let imagesFolder = getGlassesImagesFolder();
+                if (id !== 'navigation') {
+                    imagesFolder = path.join(imagesFolder, 'stories');
+                }
+                console.log('setData', id, imagesFolder);
+                const imagesMap = JSON.parse(File.fromPath(path.join(imagesFolder, id, 'image_map.json')).readTextSync());
+                const info = JSON.parse(File.fromPath(path.join(imagesFolder, id,  'info.json')).readTextSync());
+                this._setsData[id] = {imagesMap, info}
+            }
+            return this._setsData[id];
+        }
+    }
+    get navigationImageMap() {
+        return this.setData('navigation').imagesMap;
     }
 
     async playAudio({ fileName, loop = false, notify = false }: { fileName: string; loop?: boolean; notify?: boolean }) {
@@ -1576,19 +1597,39 @@ export class BluetoothHandler extends Observable {
             }
             const navImages = this.navigationImageMap;
             let lastImageWasNav = false;
+            const navUseCrop = this.setUsesCrop('navigation');
+            const storyUseCrop = this.setUsesCrop(cfgId);
             this.lyric = new Lyric({
                 lines: [{ time: 0, text: '' }].concat(result),
                 onPlay: async (line, text) => {
                     if (text && text.length > 0) {
                         const commands: { commandType: CommandType; params?: InputCommandType<any> }[] = [];
+
                         const cleaned = text.split('.')[0];
+                        console.log('onPlay', cleaned, !!navImages[cleaned], navUseCrop, !!imagesMap[cleaned], storyUseCrop)
                         if (navImages[cleaned]) {
+                            
                             if (!lastImageWasNav) {
-                                this.setConfig('nav');
                                 commands.push({
                                     commandType: CommandType.cfgSet,
                                     params: { name: 'nav' }
                                 });
+                            }
+                            if (navUseCrop) {
+                                commands.push(
+                                    {
+                                        commandType: CommandType.HoldFlushw,
+                                        params: [0]
+                                    },
+                                    {
+                                        commandType: CommandType.Color,
+                                        params: [0]
+                                    },
+                                    {
+                                        commandType: CommandType.Rectf,
+                                        params: FULLSCREEN
+                                    }
+                                );
                             }
                             lastImageWasNav = true;
                             const data = navImages[cleaned];
@@ -1596,12 +1637,17 @@ export class BluetoothHandler extends Observable {
                                 commandType: CommandType.imgDisplay,
                                 params: data.slice(0, 3)
                             });
+                            if (navUseCrop) {
+                                commands.push({
+                                    commandType: CommandType.HoldFlushw,
+                                    params: [1]
+                                });
+                            }
                             this.sendCommands(commands);
                             const instFolder = path.join(getGlassesImagesFolder(), `navigation/${data[5]}`);
                             this.notify({ eventName: 'drawBitmap', bitmap: path.join(instFolder, cleaned + '.png') });
                         } else if (imagesMap[cleaned]) {
                             if (lastImageWasNav) {
-                                this.setConfig(cfgId);
                                 commands.push({
                                     commandType: CommandType.cfgSet,
                                     params: { name: cfgId }
@@ -1611,10 +1657,32 @@ export class BluetoothHandler extends Observable {
                             // const [imageId, x, y] = imagesMap[cleaned];
                             // this.clearFadeout();
                             // this.sendBitmap(imageId, x, y);
+                            if (storyUseCrop) {
+                                commands.push(
+                                    {
+                                        commandType: CommandType.HoldFlushw,
+                                        params: [0]
+                                    },
+                                    {
+                                        commandType: CommandType.Color,
+                                        params: [0]
+                                    },
+                                    {
+                                        commandType: CommandType.Rectf,
+                                        params: FULLSCREEN
+                                    }
+                                );
+                            }
                             commands.push({
                                 commandType: CommandType.imgDisplay,
                                 params: imagesMap[cleaned]
                             });
+                            if (storyUseCrop) {
+                                commands.push({
+                                    commandType: CommandType.HoldFlushw,
+                                    params: [1]
+                                });
+                            }
                             this.sendCommands(commands);
                             this.notify({ eventName: 'drawBitmap', bitmap: path.join(storyFolder, 'images', cleaned + '.png') });
                         } else {

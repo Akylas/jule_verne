@@ -312,16 +312,27 @@ export class NetworkService extends Observable {
             return;
         }
         this.updatingStories = true;
-
-        await this.checkForStoryUpdate('navigation');
-        await this.checkForStoryUpdate('pastilles');
+        const toUpdate = ['navigation', 'pastilles'];
         const track = Vue.prototype.$bgService?.geoHandler?.currentTrack;
         if (track) {
             const storyIds = [...new Set(track.geometry.features.map((f) => parseInt('index' in f.properties ? f.properties.index : f.properties.name, 10)).filter((f) => !isNaN(f)))].sort();
             for (let index = 0; index < storyIds.length; index++) {
-                await this.checkForStoryUpdate(storyIds[index]);
+                toUpdate.push(storyIds[index] + '');
             }
         }
+        for (let index = 0; index < toUpdate.length; index++) {
+            await this.checkForStoryUpdate(toUpdate[index]);
+        }
+        // await Promise.all(toUpdate.map(this.checkForStoryUpdate));
+        // await this.checkForStoryUpdate('navigation');
+        // await this.checkForStoryUpdate('pastilles');
+        // const track = Vue.prototype.$bgService?.geoHandler?.currentTrack;
+        // if (track) {
+        //     const storyIds = [...new Set(track.geometry.features.map((f) => parseInt('index' in f.properties ? f.properties.index : f.properties.name, 10)).filter((f) => !isNaN(f)))].sort();
+        //     for (let index = 0; index < storyIds.length; index++) {
+        //         await this.checkForStoryUpdate(storyIds[index]);
+        //     }
+        // }
         this.updatingStories = false;
     }
     async checkForMapDataUpdate() {
@@ -334,7 +345,7 @@ export class NetworkService extends Observable {
             const headers = await getHEAD(url);
             const lastSize = ApplicationSettings.getString('MAP_DATA_SIZE', '');
             DEV_LOG && console.log(url, lastSize, headers['content-length']);
-            if (lastSize !== headers['content-length'] || !Folder.exists(path.join(getWorkingDir(), 'tiles'))) {
+            if (lastSize !== headers['content-length'] || !Folder.exists(path.join(getWorkingDir(false), 'tiles'))) {
                 const requestTag = Date.now() + '';
                 const progressNotification = ProgressNotification.show({
                     id: progressNotificationId, //required
@@ -378,7 +389,7 @@ export class NetworkService extends Observable {
                 });
                 await Zip.unzip({
                     archive: file.path,
-                    directory: getWorkingDir(),
+                    directory: getWorkingDir(false),
                     overwrite: true,
                     onProgress: (percent) => {
                         ProgressNotification.update(progressNotification, {

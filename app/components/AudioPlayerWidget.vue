@@ -67,12 +67,14 @@ export default class AudioPlayerWidget extends BgServiceComponent {
 
     playerStateInterval;
 
+    onPlayerProgressInterval() {
+        this.currentTime = this.bluetoothHandler.playerCurrentTime;
+    }
     startPlayerInterval() {
         if (!this.playerStateInterval) {
-            this.playerStateInterval = setInterval(() => {
-                this.currentTime = this.bluetoothHandler.playerCurrentTime;
-            }, 1000);
+            this.playerStateInterval = setInterval(this.onPlayerProgressInterval.bind(this), 1000);
         }
+        this.onPlayerProgressInterval();
     }
     stopPlayerInterval() {
         if (this.playerStateInterval) {

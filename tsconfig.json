@@ -26,7 +26,9 @@
             "@nativescript/core": ["./node_modules/@akylas/nativescript"],
             "tns-core-modules": ["./node_modules/@akylas/nativescript"],
             "tns-core-modules/*": ["./node_modules/@akylas/nativescript/*"]
-        }
+        },
+        "plugins": [{ "transform": "@nativescript/webpack/dist/transformers/NativeClass", "type": "raw" }]
+
     },
     "include": ["app/**/*", "references.d.ts"],
     "exclude": ["node_modules", "platforms"]

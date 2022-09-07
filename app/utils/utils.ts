@@ -41,6 +41,7 @@ export function getWorkingDir(allowDev = true) {
         if (__ANDROID__) {
             const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
             const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();
+            console.log('sdcardFolder', sdcardFolder);
             if (sdcardFolder) {
                 const sdcardPath = path.join(sdcardFolder, '../../../..');
                 if (Folder.exists(sdcardPath)) {

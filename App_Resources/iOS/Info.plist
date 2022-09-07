@@ -3,9 +3,9 @@
 <plist version="1.0">
   <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
+    <string>fr</string>
     <key>CFBundleDisplayName</key>
-    <string>Jule Verne</string>
+    <string>Jules Verne</string>
     <key>CFBundleExecutable</key>
     <string>${EXECUTABLE_NAME}</string>
     <key>CFBundleInfoDictionaryVersion</key>
@@ -131,8 +131,8 @@
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>«Jule Verne» uses GPS to display it </string>
     <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>«Jule Verne» uses Bluetooth to connect to your glasses</string>
+    <string>«Jule Verne» utilise le Bluetooth pour se connecter à vos lunettes</string>
     <key>NSBluetoothPeripheralUsageDescription</key>
-    <string>«Jule Verne» uses Bluetooth to connect to your glasses</string>
+    <string>«Jule Verne» utilise le Bluetooth pour se connecter à vos lunettes</string>
   </dict>
 </plist>

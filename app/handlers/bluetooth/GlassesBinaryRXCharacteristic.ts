@@ -2,7 +2,7 @@ import { CONTROL_CHAR, ProgressCallback } from '../BluetoothHandler';
 import { BufferSendingCharacteristic } from './BufferSendingCharacteristic';
 import { StringSendingCharacteristic } from './StringSendingCharacteristic';
 import { bind } from 'helpful-decorators';
-import { CommandType, InputCommandType, buildMessageData } from '../Message';
+import { CommandType, InputCommandType, buildMessageData, concatBuffers } from '../Message';
 import { Device } from './Device';
 
 export class GlassesBinaryRXCharacteristic extends BufferSendingCharacteristic<Uint8Array> {
@@ -106,8 +106,12 @@ export class GlassesBinaryRXCharacteristic extends BufferSendingCharacteristic<U
         if (!this.connected) {
             return;
         }
-        commands.forEach((c) => this.sendBinaryCommand( c.commandType, { params: c.params } ));
+        // commands.forEach((c) => this.sendBinaryCommand( c.commandType, { params: c.params } ));
 
+        const messageData: any = commands.reduce(function (prev, current) {
+            return concatBuffers(prev, buildMessageData(current.commandType, { params: current.params }));
+        }, new Uint8Array());
+        // DEV_LOG && console.log('messageData', messageData.length, messageData, messageData.map((d) => d.toString(16)).join(''));
         // only for debug purpose!
         // options.timestamp = options.timestamp || Date.now()
         // const messageData: any = commands.reduce(function (prev, current) {
@@ -119,13 +123,13 @@ export class GlassesBinaryRXCharacteristic extends BufferSendingCharacteristic<U
         //         commands.map((d) => d.commandType),
         //         messageData
         //     );
-        // const shouldStack = this.sendingCommand || this.sendingSlice || !this.canSendData;
-        // if (shouldStack) {
-        //     this.pendingCommands.push({ data: messageData, progressCallback: options.progressCallback });
-        //     return;
-        // }
-        // this.sendingCommand = true;
-        // this.sendData(messageData, options.progressCallback);
+        const shouldStack = this.sendingCommand || this.sendingSlice || !this.canSendData;
+        if (shouldStack) {
+            this.pendingCommands.push({ data: messageData, progressCallback: options.progressCallback });
+            return;
+        }
+        this.sendingCommand = true;
+        this.sendData(messageData, options.progressCallback);
     }
     public sendBinaryCommand<T extends CommandType>(commandType: T, options: { timestamp?: number; params?: InputCommandType<T>; progressCallback?: ProgressCallback } = {}) {
         if (!this.connected) {

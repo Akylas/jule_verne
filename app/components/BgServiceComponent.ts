@@ -53,7 +53,6 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         }
     }
     onAppBackgrounded(args: ApplicationEventData) {
-        DEV_LOG && console.log('onAppBackgrounded', this.backgrounded);
         if (this.backgrounded) {
             return;
         }
@@ -99,7 +98,6 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         this.onServiceStarted.call(this, params);
     }
     unregisterSetupEvents() {
-        DEV_LOG && console.log('unregisterSetupEvents');
         const bluetoothHandler = this.$bgService.bluetoothHandler;
         const geoHandler = this.$bgService.geoHandler;
         if (bluetoothHandler) {

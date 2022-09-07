@@ -69,6 +69,7 @@
   "no_file_found": "pas de fichier trouvé",
   "not_enough_memory": "pas assez de mémoire: %1$s / %2$s",
   "notification_download_desc": "utilisées lors des téléchargements de données",
+  "notification_music_desc": "utilisées lors de la lecture des histoires",
   "notification_state_desc": "notification vous permettant de savoir qu'une session est en cours",
   "ok": "ok",
   "open": "ouvrir",

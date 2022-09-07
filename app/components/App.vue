@@ -1,6 +1,6 @@
 <template>
     <StackLayout ref="page" actionBarHidden>
-        <Pager v-if="showMessages" height="60" :items="messages" backgroundColor="blue">
+        <Pager ref="pager" height="0" :items="messages" backgroundColor="blue">
             <v-template>
                 <GridLayout columns="*,auto,auto" rows="auto,*" padding="5" width="100%" height="100%">
                     <Label :text="item.title" color="white" fontSize="14" fontWeight="bold" lineBreak="end" verticalTextAlignment="center" />
@@ -40,7 +40,20 @@ export default class App extends BaseVueComponent {
         };
     }> = new ObservableArray([]);
 
-    showMessages = false;
+    mShowMessages = false;
+
+    set showMessages(value) {
+        if (this.mShowMessages !== value) {
+            this.mShowMessages = value;
+            this.getRef('pager').animate({
+                height: value ? 60 : 0,
+                duration: 100
+            });
+        }
+    }
+    get showMessages() {
+        return this.mShowMessages;
+    }
     mounted() {
         super.mounted();
         on('appMessage', this.setMessage, this);

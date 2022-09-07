@@ -4,6 +4,7 @@ import { IBgServiceBinder } from '~/services/android/BgServiceBinder';
 import { BgServiceCommon, BgServiceLoadedEvent } from '~/services/BgService.common';
 
 export { BgServiceLoadedEvent };
+const TAG = '[BgService]';
 
 export class BgService extends BgServiceCommon {
     private serviceConnection: android.content.ServiceConnection;
@@ -13,10 +14,12 @@ export class BgService extends BgServiceCommon {
         super();
         this.serviceConnection = new android.content.ServiceConnection({
             onServiceDisconnected: (name: android.content.ComponentName) => {
+                DEV_LOG && console.log(TAG, 'onServiceDisconnected');
                 this.unbindService();
             },
 
             onServiceConnected: (name: android.content.ComponentName, binder: android.os.IBinder) => {
+                DEV_LOG && console.log(TAG, 'onServiceConnected');
                 this.handleBinder(binder);
             },
             onNullBinding(param0: globalAndroid.content.ComponentName) {},
@@ -37,44 +40,54 @@ export class BgService extends BgServiceCommon {
     }
 
     async start() {
-        const context = this.context;
-        const intent = new android.content.Intent(context, com.akylas.juleverne.BgService.class);
-        context.startService(intent);
-        this.bindService(context, intent);
+        DEV_LOG && console.log(TAG, 'start');
+        try {
+            const context = this.context;
+            const intent = new android.content.Intent(context, com.akylas.juleverne.BgService.class);
+            this.bindService(context, intent);
+        } catch (error) {
+            console.error('error starting android service', error);
+        }
     }
 
     async stop() {
-        DEV_LOG && console.log('BgService', 'stop');
-        const bgService = this.bgService && this.bgService.get();
-        bgService.removeForeground();
+        try {
+            const bgService = this.bgService?.get();
+            DEV_LOG && console.log(TAG, 'stop', bgService);
         await super.stop();
-        DEV_LOG && console.log('BgService', 'stopService');
-        const context = this.context;
-        const intent = new android.content.Intent(context, com.akylas.juleverne.BgService.class);
-        context.stopService(intent);
-        context.unbindService(this.serviceConnection);
-        this._loaded = false;
+            if (bgService) {
+                const context = this.context;
+                bgService.removeForeground();
+                const intent = new android.content.Intent(context, com.akylas.juleverne.BgService.class);
+                DEV_LOG && console.log(TAG, 'stopService');
+                context.stopService(intent);
+                context.unbindService(this.serviceConnection);
+                this._loaded = false;
+            }
+        } catch (error) {
+            console.error('BgService stop failed', error);
+        }
     }
-    handleBinder(binder: android.os.IBinder) {
-        const bgBinder = binder as IBgServiceBinder;
-        const localservice = bgBinder.getService();
-        bgBinder.setService(null);
-        this.bgService = new WeakRef(localservice);
-        localservice.onBounded();
-        this._handlerLoaded();
-        super.start();
+    async handleBinder(binder: android.os.IBinder) {
+        try {
+            const bgBinder = binder as IBgServiceBinder;
+            const localservice = bgBinder.getService();
+            bgBinder.setService(null);
+            this.bgService = new WeakRef(localservice);
+            localservice.onBounded();
+            this._handlerLoaded();
+            await super.start();
+        } catch (err) {
+            console.error('BgService start failed', err);
+        }
     }
 
     get geoHandler() {
-        const bgService = this.bgService && this.bgService.get();
-        if (bgService) {
-            return bgService.geoHandler;
-        }
+        return this.bgService?.get()?.geoHandler;
+
     }
     get bluetoothHandler() {
-        const bgService = this.bgService && this.bgService.get();
-        if (bgService) {
-            return bgService.bluetoothHandler;
-        }
+        return this.bgService?.get()?.bluetoothHandler;
+
     }
 }

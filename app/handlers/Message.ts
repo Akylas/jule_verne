@@ -6,6 +6,7 @@ export const FOOTER = 0xaa;
 export const CONFIG_NAME = 'julesverne';
 export const CONFIG_VERSION = 1;
 export const CONFIG_PASSWORD = 'julesverne';
+export const FULLSCREEN = [0, 0, 303, 255];
 
 export function numberToUint16Array(n: number) {
     return [(n >> 8) & 0xff, n & 0xff];
@@ -565,6 +566,7 @@ export function buildMessageData<T extends CommandType>(
             break;
         case CommandType.Shift:
         case CommandType.Rectf:
+        case CommandType.Rect:
             const params = getTypeParam(CommandType.Rectf, options.params);
             data = params.map(numberToUint16Array).flat();
             // data = numberToUint16Array(options.params[0]).concat(numberToUint16Array(options.params[1])).concat(numberToUint16Array(options.params[2])).concat(numberToUint16Array(options.params[3]));

@@ -44,10 +44,14 @@ export function show(_options: ProgressOptions): CommonNotification {
         ongoing: _options.ongoing !== undefined && _options.ongoing !== null ? _options.ongoing : true
     };
     const builder = NotificationHelper.getBuilder(getActivity(), NOTIFICATION_CHANEL_ID_DOWNLOAD_CHANNEL);
-    const color = android.graphics.Color.parseColor(new Color(primaryColor).hex);
-    builder.setContentTitle(options.title).setContentText(options.message).setSmallIcon(ad.resources.getDrawableId('ic_notification')).setColor(color);
-    builder.setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX);
-    builder.setOnlyAlertOnce(true);
+    builder
+        .setContentTitle(options.title)
+        .setContentText(options.message)
+        .setSmallIcon(17301633)
+        .setColor(new Color(primaryColor).android)
+        .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+        .setOngoing(true)
+        .setOnlyAlertOnce(true);
     const REQUEST_CODE = 200;
     if (_options.actions) {
         try {

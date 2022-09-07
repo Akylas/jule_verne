@@ -110,7 +110,7 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         super.mounted();
     }
     getDefaultMBTilesDir() {
-        return path.join(getWorkingDir(), 'tiles');
+        return path.join(getWorkingDir(false), 'tiles');
     }
     async onMapReady(e) {
         const cartoMap = (this.mCartoMap = e.object as CartoMap<LatLonKeys>);
@@ -186,9 +186,6 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         return layer;
     }
     async loadLocalMbtiles(directory: string) {
-        if (!PRODUCTION) {
-            await request('storage');
-        }
         if (!Folder.exists(directory)) {
             return;
         }
