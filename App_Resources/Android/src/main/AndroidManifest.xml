@@ -86,5 +86,10 @@
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </receiver>
+        <receiver android:name=".BlueToothHeadSetEventReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.bluetooth.headset.action.STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

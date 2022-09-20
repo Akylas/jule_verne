@@ -356,31 +356,13 @@ export class GeoHandler extends Observable {
             // });
         }
     }
-    async checkEnabledAndAuthorized(always = false) {
-        try {
-            await this.checkAndAuthorize(always);
-            return this.askToEnableIfNotEnabled();
-        } catch (err) {
-            if (err && /denied/i.test(err.message)) {
-                await alert({
-                    title: $tc('permissionRequestTitle'),
-                    message: $tc('permissionRequest'),
-                    okButtonText: $t('ok')
-                });
-                try {
-                    perms.openSettings();
-                } catch (error) {
-                    console.error(err);
-                }
-                return Promise.reject();
-            } else {
-                return Promise.reject(err);
-            }
-        }
+    async checkAuthorizedAndEnabled(always = false) {
+        await this.checkAndAuthorize(always);
+        return this.checkIfEnabled();
     }
 
     enableLocation() {
-        return this.checkEnabledAndAuthorized();
+        return this.checkAuthorizedAndEnabled();
     }
 
     isBatteryOptimized(context: android.content.Context) {
@@ -522,94 +504,13 @@ export class GeoHandler extends Observable {
                     DEV_LOG && console.log('playableStories', playableStories);
                     if (playableStories.indexOf(nextStoryIndex) !== -1) {
                         const featuresViewed = this.featuresViewed;
-                        let needsToplayMusic = false;
-                        let configurationAlreadyLoaded = true;
 
-                        let currentConfigs;
-                        if (this.bluetoothHandler.currentConfigs) {
-                            currentConfigs = this.bluetoothHandler.currentConfigs.slice(0);
-                            configurationAlreadyLoaded = currentConfigs?.findIndex((c) => c.name === featureId) !== -1;
-                        }
-
-                        // for now we play music ONLY if we need to load the config
-                        if (/* name.endsWith('_out') || */ !configurationAlreadyLoaded) {
-                            needsToplayMusic = true;
-                        }
-                        DEV_LOG && console.log('nextStoryIndex', this._playedHistory, nextStoryIndex, featuresViewed, currentConfigs, configurationAlreadyLoaded, needsToplayMusic);
                         if (featuresViewed.indexOf(featureId) === -1) {
                             featuresViewed.push(featureId);
                             featuresViewed.push(featureId + '_out');
                         }
                         this.featuresViewed = featuresViewed;
-
-                        (async () => {
-                            try {
-                                await this.bluetoothHandler.stopPlayingInstruction();
-                                console.log('about to start story', nextStoryIndex, configurationAlreadyLoaded);
-                                if (configurationAlreadyLoaded) {
-                                    await this.bluetoothHandler.playInstruction('starting_story');
-                                } else {
-                                    this.bluetoothHandler.playInstruction('starting_story');
-                                }
-                                if (needsToplayMusic) {
-                                    // story will be queued after
-                                    this.bluetoothHandler.playMusic(nextStoryIndex, !configurationAlreadyLoaded);
-                                }
-                                console.log('playRideauAndStory', configurationAlreadyLoaded);
-                                if (!configurationAlreadyLoaded) {
-                                    const configsInMemory = currentConfigs
-                                        .map((c) => c.name)
-                                        .map((s) => parseInt(s, 10))
-                                        .filter((s) => !isNaN(s));
-                                    const alreadyPlayedStoriesInMemory = configsInMemory.filter((value) => this._playedHistory.includes(value));
-                                    DEV_LOG && console.log('alreadyPlayedStoriesInMemory', alreadyPlayedStoriesInMemory);
-
-                                    let memory = await this.bluetoothHandler.getMemory();
-                                    const storyFolder = path.join(getGlassesImagesFolder(), 'stories', featureId);
-                                    let availableSpace = memory.freeSpace;
-                                    let needToGetMemoryAgain = false;
-
-                                    const deleteConfig = async (configToRemove: string) => {
-                                        needToGetMemoryAgain = true;
-                                        const configData = currentConfigs.find((d) => d.name === `${configToRemove}`);
-                                        const configIndex = currentConfigs.findIndex((d) => d.name === `${configToRemove}`);
-                                        DEV_LOG && console.log('deleting config to get space', availableSpace, configToRemove, JSON.stringify(configData), configIndex);
-                                        await this.bluetoothHandler.deleteConfig(configData.name);
-                                        if (configIndex !== -1) {
-                                            currentConfigs.splice(configIndex, 1);
-                                        }
-                                        availableSpace += configData.size;
-                                        DEV_LOG && console.log('deleting config done', configToRemove, availableSpace);
-                                    };
-                                    for (let index = 0; index < alreadyPlayedStoriesInMemory.length; index++) {
-                                        const configToRemove = alreadyPlayedStoriesInMemory[index] + '';
-                                        // delete already played stories
-                                        DEV_LOG && console.log('deleting played config', configToRemove, availableSpace, needToGetMemoryAgain);
-                                        await deleteConfig(configToRemove);
-                                        DEV_LOG && console.log('deleted played config', configToRemove, availableSpace, needToGetMemoryAgain);
-                                    }
-                                    const newStorySize = JSON.parse(File.fromPath(path.join(storyFolder, 'info.json')).readTextSync()).totalImageSize;
-                                    DEV_LOG && console.log('newStorySize', featureId, newStorySize, availableSpace);
-                                    while (newStorySize >= availableSpace) {
-                                        // we need more space!
-                                        const configToRemove = configsInMemory.shift();
-                                        await deleteConfig(configToRemove + '');
-                                    }
-                                    DEV_LOG && console.log('needToGetMemoryAgain', availableSpace, needToGetMemoryAgain);
-                                    if (needToGetMemoryAgain) {
-                                        // ask glasses memory again to ensue we have enough space!
-                                        memory = await this.bluetoothHandler.getMemory(true);
-                                    }
-                                    await this.bluetoothHandler.sendConfigToGlasses(storyFolder, memory);
-                                    // music is looping we need to stop it
-                                    this.bluetoothHandler.stopPlayingLoop({ fade: true });
-                                }
-                                this.bluetoothHandler.playRideauAndStory(nextStoryIndex);
-                            } catch (error) {
-                                console.error(error);
-                                this.notify({ eventName: 'error', data: error });
-                            }
-                        })();
+                        this.loadAndPlayStory(nextStoryIndex);
                     }
                 }
 
@@ -638,6 +539,98 @@ export class GeoHandler extends Observable {
 
     get insideFeature() {
         return this._insideFeature;
+    }
+
+    async loadAndPlayStory(storyIndex: number, shouldPlayStart = true, shouldPlayMusic = true, shouldPlayRideau = true) {
+        try {
+            let needsToplayMusic = false;
+            let configurationAlreadyLoaded = true;
+            const featureId = storyIndex + '';
+
+            let currentConfigs;
+            if (this.bluetoothHandler.currentConfigs) {
+                currentConfigs = this.bluetoothHandler.currentConfigs.slice(0);
+                configurationAlreadyLoaded = currentConfigs?.findIndex((c) => c.name === featureId) !== -1;
+            }
+
+            // for now we play music ONLY if we need to load the config
+            if (shouldPlayMusic && /* name.endsWith('_out') || */ !configurationAlreadyLoaded) {
+                needsToplayMusic = true;
+            }
+            DEV_LOG && console.log('nextStoryIndex', this._playedHistory, storyIndex, currentConfigs, configurationAlreadyLoaded, needsToplayMusic);
+
+            await this.bluetoothHandler.stopPlayingInstruction();
+            console.log('about to start story', storyIndex, configurationAlreadyLoaded);
+            if (shouldPlayStart) {
+                if (configurationAlreadyLoaded) {
+                    await this.bluetoothHandler.playInstruction('starting_story');
+                } else {
+                    this.bluetoothHandler.playInstruction('starting_story');
+                }
+            }
+
+            if (needsToplayMusic) {
+                // story will be queued after
+                this.bluetoothHandler.playMusic(storyIndex, !configurationAlreadyLoaded);
+            }
+            console.log('playRideauAndStory', configurationAlreadyLoaded);
+            if (!configurationAlreadyLoaded) {
+                const configsInMemory = currentConfigs
+                    .map((c) => c.name)
+                    .map((s) => parseInt(s, 10))
+                    .filter((s) => !isNaN(s));
+                const alreadyPlayedStoriesInMemory = configsInMemory.filter((value) => this._playedHistory.includes(value));
+                DEV_LOG && console.log('alreadyPlayedStoriesInMemory', alreadyPlayedStoriesInMemory);
+
+                let memory = await this.bluetoothHandler.getMemory();
+                const storyFolder = path.join(getGlassesImagesFolder(), 'stories', featureId);
+                let availableSpace = memory.freeSpace;
+                let needToGetMemoryAgain = false;
+
+                const deleteConfig = async (configToRemove: string) => {
+                    needToGetMemoryAgain = true;
+                    const configData = currentConfigs.find((d) => d.name === `${configToRemove}`);
+                    const configIndex = currentConfigs.findIndex((d) => d.name === `${configToRemove}`);
+                    DEV_LOG && console.log('deleting config to get space', availableSpace, configToRemove, JSON.stringify(configData), configIndex);
+                    await this.bluetoothHandler.deleteConfig(configData.name);
+                    if (configIndex !== -1) {
+                        currentConfigs.splice(configIndex, 1);
+                    }
+                    availableSpace += configData.size;
+                    DEV_LOG && console.log('deleting config done', configToRemove, availableSpace);
+                };
+                for (let index = 0; index < alreadyPlayedStoriesInMemory.length; index++) {
+                    const configToRemove = alreadyPlayedStoriesInMemory[index] + '';
+                    // delete already played stories
+                    DEV_LOG && console.log('deleting played config', configToRemove, availableSpace, needToGetMemoryAgain);
+                    await deleteConfig(configToRemove);
+                    DEV_LOG && console.log('deleted played config', configToRemove, availableSpace, needToGetMemoryAgain);
+                }
+                const newStorySize = JSON.parse(File.fromPath(path.join(storyFolder, 'info.json')).readTextSync()).totalImageSize;
+                DEV_LOG && console.log('newStorySize', featureId, newStorySize, availableSpace);
+                while (newStorySize >= availableSpace) {
+                    // we need more space!
+                    const configToRemove = configsInMemory.shift();
+                    await deleteConfig(configToRemove + '');
+                }
+                DEV_LOG && console.log('needToGetMemoryAgain', availableSpace, needToGetMemoryAgain);
+                if (needToGetMemoryAgain) {
+                    // ask glasses memory again to ensue we have enough space!
+                    memory = await this.bluetoothHandler.getMemory(true);
+                }
+                await this.bluetoothHandler.sendConfigToGlasses(storyFolder, memory);
+                // music is looping we need to stop it
+                this.bluetoothHandler.stopPlayingLoop({ fade: true });
+            }
+            if (shouldPlayRideau) {
+                this.bluetoothHandler.playRideauAndStory(storyIndex);
+            } else {
+                this.bluetoothHandler.playStory(storyIndex, shouldPlayStart);
+            }
+        } catch (error) {
+            console.error(error);
+            this.notify({ eventName: 'error', data: error });
+        }
     }
     async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {
         const insideFeatures = events.filter((e) => e.state !== 'leaving');
@@ -1114,6 +1107,9 @@ export class GeoHandler extends Observable {
         } as UserLocationdEventData);
     }
     startWatch() {
+        if (this.watchId) {
+            this.stopWatch();
+        }
         const options: GeolocationOptions = { minimumUpdateTime, desiredAccuracy, onDeferred: this.onDeferred, nmeaAltitude: true, skipPermissionCheck: true };
         if (__IOS__) {
             // if (this._isIOSBackgroundMode) {

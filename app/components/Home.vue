@@ -9,15 +9,9 @@
             }"
         >
             <GridLayout rows="auto,*" ~mainContent>
-                <CActionBar
-                    showMenuIcon
-                    showGlassesIcon="true"
-                    :glasses="connectedGlasses"
-                    :battery="glassesBattery"
-                    @longPressGlass="onLongPress('disconnectGlasses', $event)"
-                    @tapGlass="onTap('connectGlasses')"
-                >
+                <CActionBar showMenuIcon>
                     <MDButton variant="text" v-show="!bluetoothEnabled" class="icon-btn" text="mdi-bluetooth-off" />
+                    <GlassesIcon :glasses="connectedGlasses" :battery="glassesBattery" @longPress="onLongPress('disconnectGlasses', $event)" @tap="onTap('connectGlasses')" />
                 </CActionBar>
                 <MapComponent ref="mapComp" @mapReady="onMapReady" showLocationButton row="1" :tracks="selectedTracks" :viewedFeature="viewedFeatures" />
                 <Label row="1" horizontalAlignment="left" color="blue" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentBearing" padding="10" />
@@ -28,7 +22,7 @@
                     <MDButton variant="text" v-show="!!insideFeature" :text="insideFeature ? `play ${insideFeatureName}` : ''" @tap="playCurrentStory" />
                 </StackLayout> -->
 
-                <AudioPlayerWidget row="1" verticalAlignment="bottom" marginBottom="90"/>
+                <!-- <AudioPlayerWidget row="1" verticalAlignment="bottom" marginBottom="90" /> -->
                 <!-- <MDButton
                     row="1"
                     @tap="onTap('toggleMusicPlayPause', $event)"
@@ -48,27 +42,6 @@
                     <MDButton class="floating-btn" v-show="sessionPaused" :text="'mdi-stop'" @tap="onTap('stopSession')" />
                 </StackLayout>
                 <MDButton class="small-floating-btn" text="mdi-cog" @tap="onTap('settings')" verticalAlignment="bottom" row="1" horizontalAlignment="left" marginBottom="8" />
-            </GridLayout>
-            <GridLayout ~leftDrawer rows="auto, *, auto" height="100%" :backgroundColor="backgroundColor" width="80%">
-                <GridLayout padding="10" height="80" rows="auto, *" columns="auto, *">
-                    <Label marginLeft="15" fontSize="20" :text="$t('menu') | titlecase" :color="textColor" />
-                </GridLayout>
-                <CollectionView :items="menuItems" row="1" paddingTop="10" rowHeight="50" @tap="noop">
-                    <v-template>
-                        <GridLayout columns="50, *" class="menu" :active="item.activated" :rippleColor="accentColor" @tap="onNavItemTap(item)">
-                            <Label col="0" class="menuIcon" :text="item.icon" verticalAlignment="center" />
-                            <Label col="1" class="menuText" :text="item.title | titlecase" verticalAlignment="center" :active="item.activated" />
-                        </GridLayout>
-                    </v-template>
-                </CollectionView>
-                <StackLayout row="2" width="100%" padding="10">
-                    <Label @longPress="$switchDevMode" textWrap textAlignment="center">
-                        <Span :text="'Glasses data version: ' + (glassesDataUpdateDate ? date(glassesDataUpdateDate, 'lll') : '')" />
-                        <Span :text="'\n' + 'Map data version: ' + (mapDataUpdateDate ? date(mapDataUpdateDate, 'lll') : '')" />
-                        <Span :text="'\n' + 'GeoJSON version: ' + (geojsonDataUpdateDate ? date(geojsonDataUpdateDate, 'lll') : '')" />
-                        <Span :text="'\n' + 'App version: ' + (appVersion || '')" />
-                    </Label>
-                </StackLayout>
             </GridLayout>
             <GridLayout ~rightDrawer rows="auto, *, auto" height="100%" width="70%" :backgroundColor="backgroundColor">
                 <GridLayout v-show="!!connectedGlasses" columns="auto,*,auto" rows="*,auto,auto,auto,*,30" margin="15 15 30 15">

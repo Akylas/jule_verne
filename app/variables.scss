@@ -3,7 +3,7 @@ $accent-color: #BA9432;
 $dark-color: #ffffff;
 $background-color: #E6DCCB;
 $text-color: black;
-$border-color: #dddddd;
+$border-color: darken($background-color, 10%);
 $text-color-sub: #ddd;
 $disabled-color: #aaa;
 $actionbar-height: 56;

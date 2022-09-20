@@ -10,7 +10,7 @@ import player from 'node-wav-player';
 import path from 'path';
 import SerialPort from 'serialport';
 import Lyric from '../app/handlers/Lyric';
-import ora from 'ora';
+// import ora from 'ora';
 import {
     CONFIG_NAME,
     CONFIG_PASSWORD,
@@ -22,20 +22,27 @@ import {
     ParseResult,
     ParsingState,
     ProgressData,
-    buildMessageData
+    buildMessageData,
+    concatBuffers
 } from '../app/handlers/Message';
-import { buildDataSet, getFolder, pictureDimensionToByteArray } from './common';
+import { buildDataSet, createBitmapData, getAllFiles, getFolder, pictureDimensionToByteArray } from './common';
 let isInDemo = false;
 let connectThroughBLE = true;
 
 let configId = '1';
+let cmdOptions;
+let cmdArguments;
 program
     .option('--id [id]', 'config id', { default: '1' })
     .option('--serial', 'only serial', { default: false })
+    .option('--command [command]', 'command', { default: null })
+    .argument('<args...>', 'arguments', { default: [] })
     .action(({ logger, args, options }) => {
+        cmdArguments = args;
+        cmdOptions = options;
         configId = options.id + '';
         connectThroughBLE = !options.serial;
-        console.log('options', options);
+        log('options', JSON.stringify(options), JSON.stringify(args));
         main();
     });
 
@@ -68,7 +75,7 @@ export const FLOW_SERVER_UUID = '0783b03e8535b5a07140a304d2495cb9';
 export const GESTURE_CHAR_UUID = '0783b03e8535b5a07140a304d2495cbb';
 export const BUTTON_CHAR_UUID = '0783b03e8535b5a07140a304d2495cbc';
 
-const DEFAULT_MTU = 253;
+const DEFAULT_MTU = 128;
 const CONTROL_CHAR = String.fromCharCode(0);
 const DEFAULT_WRITE_TIMEOUT = 0;
 
@@ -135,7 +142,7 @@ class BluetoothDevice extends EventEmitter {
             return new Promise<void>((resolve, reject) => {
                 // log('write', serviceUUID, characteristicUUID, value, withoutResponse);
                 characteristic.write(value, withoutResponse, function (error) {
-                    log('write done', error);
+                    // log('write done', error);
                     if (error) {
                         reject(error);
                     } else {
@@ -266,7 +273,7 @@ class BufferSendingCharacteristic {
             } else {
                 this.toSend = this.toSend.slice(this.mtu);
             }
-            // console.log('write', slice.length, slice.byteLength, this.writeWithoutResponse, slice);
+            // log('write', slice.length, slice.byteLength, this.writeWithoutResponse, slice);
             this.characteristic.write(slice as any, this.writeWithoutResponse, (error) => {
                 // log('write done', error);
                 if (error) {
@@ -359,7 +366,7 @@ class BinaryCommandSendingCharacteristic extends BufferSendingCharacteristic {
         } = {}
     ) {
         const messageData = buildMessageData(commandType, options);
-        // console.log('sendBinaryCommand', CommandType[commandType], messageData, Date.now());
+        // log('sendBinaryCommand', CommandType[commandType], messageData, Date.now());
         if (this.sendingCommand || this.writing || !this.canSendData) {
             this.pendingCommands.push({
                 data: messageData,
@@ -428,7 +435,7 @@ class UARTDevice extends BluetoothDevice {
                         reject(error);
                     } else {
                         this.txCharacteristic.on('data', (data, isNotification) => {
-                            // console.log('tx', data);
+                            // log('tx', data);
                             this.emit('data', { data, isNotification });
                         });
                         resolve();
@@ -511,11 +518,11 @@ class MicrooledDevice extends UARTDevice {
     }
     discoverAll() {
         return super.discoverAll().then(() => {
-            log(
-                'discoveredAll',
-                this.services.map((s) => s.uuid),
-                this.characteristics.map((s) => s.uuid)
-            );
+            // log(
+            //     'discoveredAll',
+            //     this.services.map((s) => s.uuid),
+            //     this.characteristics.map((s) => s.uuid)
+            // );
             const index = this.services.findIndex((s) => s.uuid.toLowerCase() === SERVER_SERVICE_UUID);
             this.hasFlowControl = this.services[index].characteristics.findIndex((c) => c.uuid.toLowerCase() === FLOW_SERVER_UUID) !== -1;
         });
@@ -590,7 +597,7 @@ class MicrooledDevice extends UARTDevice {
             });
             delete this.messagePromises[id];
         } else {
-            console.log(CommandType[message.commandType], message.data);
+            log(CommandType[message.commandType], message.data);
         }
         // this.notify({
         //     eventName: 'message',
@@ -624,16 +631,16 @@ function onGlassesConnected(peripheral: noble.Peripheral) {
     }
 
     bluetoothDevice.on('data', (data, isNotification) => {
-        // console.log("read on BLE TX:", data, data.data);
+        // log("read on BLE TX:", data, data.data);
 
         bluetoothDevice.parser.parseData(data.data);
     });
-    bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Power, { params: ['on'] });
-    bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Gesture, { params: ['off'] });
-    bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Als, { params: ['off'] });
-    bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Luma, { params: [6] });
-    bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Clear);
-    bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Shift, { params: [0, 0] });
+    // bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Power, { params: ['on'] });
+    // bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Gesture, { params: ['off'] });
+    // bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Als, { params: ['off'] });
+    // bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Luma, { params: [6] });
+    // bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Clear);
+    // bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Shift, { params: [0, 0] });
     bluetoothDevice.sendBinaryCommandToGlasses(CommandType.Settings);
     bluetoothDevice.sendBinaryCommandToGlasses(CommandType.cfgFreeSpace);
     bluetoothDevice.sendBinaryCommandToGlasses(CommandType.cfgList);
@@ -662,11 +669,12 @@ let bluetoothDevice: MicrooledDevice;
 let port: SerialPort;
 let connecting = false;
 let glassesName; //= '23400000000';
+// const glassesName = 'ENGO'; //= '23400000000';
 
 function onDeviceMessage(device: MicrooledDevice, results: ParseResult[]) {
     results.forEach((result) => {
         if (result.message) {
-            // console.log('received device message', result);
+            // log('received device message', result);
         } else if (result.state === ParsingState.ParsingPayload) {
             this.handleProgress(device, result.progressData);
         }
@@ -688,7 +696,7 @@ function removeKeyListener(listener) {
 }
 
 process.stdin.on('keypress', function (ch, key) {
-    // log('got "keypress"', JSON.stringify(key));
+    log('got "keypress"', JSON.stringify(key));
     if (!key) {
         return;
     }
@@ -713,7 +721,7 @@ async function connectSerial() {
     const result = await SerialPort.list();
     const microoledSerial = result.find((r) => r.vendorId && r.vendorId.toLowerCase() === 'fffe');
     if (microoledSerial) {
-        console.log('microoledSerial', microoledSerial);
+        log('microoledSerial', microoledSerial);
         port = new SerialPort(microoledSerial.path, {
             autoOpen: false,
             baudRate: 115200
@@ -739,16 +747,16 @@ async function connectSerial() {
     }
 }
 
-function main() {
+async function main() {
     log('main');
     if (connectThroughBLE) {
         log('discover');
-        noble.on('discover', (peripheral) => {
+        noble.on('discover', async (peripheral) => {
             if (!connecting && peripheral.advertisement) {
                 const manufacturerId = peripheral.advertisement.manufacturerData && new DataView(new Uint8Array(peripheral.advertisement.manufacturerData).buffer, 0).getUint16(0, true);
                 const name = peripheral.advertisement.localName;
-                if (manufacturerId === 56058 && /Jules/.test(name)) {
-                    log('discovered', name, manufacturerId, peripheral.id, peripheral.advertisement.toString());
+                if (manufacturerId === 56058) {
+                    log('discovered', name, manufacturerId, peripheral.id);
                     if (!glassesName || name.indexOf(glassesName) !== -1) {
                         ui.updateBottomBar(`connecting to your glasses ${name}`);
                         connecting = true;
@@ -763,17 +771,17 @@ function main() {
                             }
                             bluetoothDevice = null;
                         });
-                        bluetoothDevice
-                            .connect()
-                            .then(() => {
-                                connecting = false;
-                                ui.updateBottomBar('');
-                            })
-                            .then(() => onGlassesConnected(peripheral))
-                            .then(() => connectSerial())
-                            .then(() => {
-                                promptForAction();
-                            });
+                        await bluetoothDevice.connect();
+                        connecting = false;
+                        ui.updateBottomBar('');
+                        onGlassesConnected(peripheral);
+                        connectSerial();
+
+                        if (cmdOptions.command) {
+                            handleCommand(cmdOptions);
+                        } else {
+                            promptForAction();
+                        }
                     }
                 }
             }
@@ -821,7 +829,7 @@ function sendLayoutConfigSerial(filePath: string) {
     if (!filePath || filePath.length === 0) {
         throw new Error(`wrong file path: ${filePath}`);
     }
-    const spinner = ora(`sending layout: ${filePath}`).start();
+    // const spinner = ora(`sending layout: ${filePath}`).start();
     return readFile(filePath)
         .then((r) => {
             const toSend = r.split('\n');
@@ -838,7 +846,8 @@ function sendLayoutConfigSerial(filePath: string) {
                                     return reject(err);
                                 }
                                 done++;
-                                spinner.text = `sending layout(${Math.round((done / toSend.length) * 100)}%): ${filePath}`;
+                                ui.updateBottomBar(`sending layout(${Math.round((done / toSend.length) * 100)}%): ${filePath}`);
+                                // spinner.text = `sending layout(${Math.round((done / toSend.length) * 100)}%): ${filePath}`;
                                 resolve();
                             });
                         }, 500);
@@ -848,19 +857,28 @@ function sendLayoutConfigSerial(filePath: string) {
             return promise;
         })
         .then(() => {
-            spinner.succeed('layout data sent!');
+            ui.updateBottomBar('layout data sent!');
+            // spinner.succeed('layout data sent!');
         })
         .catch((err) => {
-            spinner.fail(err);
+            log(err);
+            // spinner.fail(err);
         });
 }
 
+async function sendBinaryCommands(commands: { commandType: CommandType; params?: InputCommandType<any> }[], options: { progressCallback?: ProgressCallback } = {}) {
+    const messageData: any = commands.reduce(function (prev, current) {
+        return concatBuffers(prev, buildMessageData(current.commandType, { params: current.params }));
+    }, new Uint8Array());
+    sendRawCommands([messageData], '');
+}
 async function sendRawCommands(commandsToSend: number[][], message) {
-    const spinner = ora(`${message}`).start();
+    // const spinner = ora(`${message}`).start();
     try {
         const datalength = commandsToSend.reduce((accumulator, currentValue) => accumulator + currentValue.length, 0);
         let dataSent = 0;
-        spinner.text = `${message}(0%)`;
+        // spinner.text = `${message}(0%)`;
+        ui.updateBottomBar(`${message}(0%)`);
         const startTime = Date.now();
         // bluetoothDevice.rxCharacteristic.writeWithoutResponse = true;
 
@@ -869,7 +887,8 @@ async function sendRawCommands(commandsToSend: number[][], message) {
                 return reject(err);
             }
             const p = (progress * total + dataSent) / datalength;
-            spinner.text = `${message}(${Math.round(p * 100)}%, ${datalength},  ${Date.now() - startTime} ms)`;
+            // spinner.text = `${message}(${Math.round(p * 100)}%, ${datalength},  ${Date.now() - startTime} ms)`;
+            ui.updateBottomBar(`${message}(${Math.round(p * 100)}%, ${datalength},  ${Date.now() - startTime} ms)`);
             if (progress === 1) {
                 dataSent += total;
                 resolve();
@@ -879,7 +898,7 @@ async function sendRawCommands(commandsToSend: number[][], message) {
         const createPromise = () =>
             new Promise((resolve, reject) => {
                 const currentCommandToSend = commandsToSend.shift();
-                // console.log('currentCommandToSend', commandsToSend.length, JSON.stringify(currentCommandToSend));
+                // log('currentCommandToSend', commandsToSend.length, JSON.stringify(currentCommandToSend));
                 bluetoothDevice.sendBinaryCommand(CommandType.RawCommand, {
                     params: [currentCommandToSend],
                     progressCallback: promisedCallback(resolve, reject)
@@ -890,16 +909,17 @@ async function sendRawCommands(commandsToSend: number[][], message) {
                 }
             });
         await createPromise();
-        // console.log('finished sendRawCommands');
-        bluetoothDevice.clearFullScreen();
-        spinner.succeed(`sendRawCommands sent,  ${Date.now() - startTime} ms`);
+        // log('finished sendRawCommands');
+        // bluetoothDevice.clearFullScreen();
+        // spinner.succeed(`sendRawCommands sent,  ${Date.now() - startTime} ms`);
+        ui.updateBottomBar(`sendRawCommands sent,  ${Date.now() - startTime} ms`);
     } catch (err) {
-        console.log('catched sendRawCommands error', err);
-        spinner.fail(err);
+        log('catched sendRawCommands error', err);
+        // spinner.fail(err);
     } finally {
         // bluetoothDevice.rxCharacteristic.writeWithoutResponse = false;
         setTimeout(() => {
-            spinner.stop();
+            // spinner.stop();
         }, 500);
     }
 }
@@ -912,211 +932,233 @@ async function sendLayoutConfig(filePath: string) {
     return sendRawCommands(commandsToSend, `sending layout: ${filePath}`);
 }
 
-function promptForAction() {
+async function handleCommand(promptAnswers: { command: string }) {
+    try {
+        if (promptAnswers) {
+            process.stdin.setRawMode(true);
+            process.stdin.resume(); // so the program will not close instantly
+            log('handling command', promptAnswers.command);
+            switch (promptAnswers.command) {
+                case 'exit':
+                    process.exit(0);
+                    break;
+                // case 'sendBitmap': {
+                //     const filePath = path.join(__dirname, storiesFolder, 'zr_test2.png');
+                //     const [data, x, y] = createBitmapData(filePath);
+                //     await bluetoothDevice.sendWriteConfig(CONFIG_PARAMS);
+                //     await sendRawCommands(data, `sending bitmap: ${filePath}`);
+                //     await bluetoothDevice.sendReadConfig(2);
+                //     promptForAction();
+                //     break;
+                // }
+                case 'buildFolderData':
+                    const { data } = await buildDataSet(configId);
+                    break;
+                case 'sendBitmapFolder': {
+                    // const configId = 'nav';
+                    const { data, files } = await buildDataSet(configId);
+                    const start = Date.now();
+                    await sendRawCommands(data, 'sending bitmaps:');
+                    log(`sent ${files.length} images in`, Date.now() - start, 'ms');
+                    const resultMem = await bluetoothDevice.sendBinaryCommand(CommandType.cfgFreeSpace, { timestamp: Date.now() });
+                    log('memory:', resultMem.data);
+
+                    const result = await bluetoothDevice.sendBinaryCommand(CommandType.cfgList, { timestamp: Date.now() });
+                    log('configs:', result.data);
+                    // await bluetoothDevice.sendReadConfig(2);
+                    break;
+                }
+                case 'sendBitmapConfig': {
+                    const filePath = getFolder(configId);
+                    await sendLayoutConfig(path.join(filePath, 'images.txt'));
+                    break;
+                }
+                case 'streamImage': {
+                    await streamImage(cmdArguments?.args?.[0] || '/Volumes/data/mguillon/Desktop/aristideadulte1_resized.png');
+                    break;
+                }
+                case 'streamFolder': {
+                    await streamFolder(cmdArguments?.args?.[0] || '/Volumes/data/mguillon/Desktop/aristideadulte1_resized.png');
+                    break;
+                }
+                case 'formatDisk': {
+                    sendRawCommands([[...Uint8Array.from('FFB6000ADEADBEEF11AA'.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)))]], 'test');
+                    break;
+                }
+                case 'sendBitmapConfigSerial': {
+                    const filePath = getFolder(configId);
+                    await sendLayoutConfigSerial(path.join(filePath, 'images.txt'));
+                    break;
+                }
+                case 'bmplist': {
+                    const result = await bluetoothDevice.sendBinaryCommand(CommandType.BmpList, { timestamp: Date.now() });
+                    log(result);
+                    break;
+                }
+                case 'memory': {
+                    const result = await bluetoothDevice.sendBinaryCommand(CommandType.cfgFreeSpace, { timestamp: Date.now() });
+                    log(result);
+                    break;
+                }
+                case 'nbConfigs': {
+                    const result = await bluetoothDevice.sendBinaryCommand(CommandType.NbConfigs, { timestamp: Date.now() });
+                    log(result);
+                    break;
+                }
+                case 'cfgList': {
+                    const result = await bluetoothDevice.sendBinaryCommand(CommandType.cfgList, { timestamp: Date.now() });
+                    log(result);
+                    promptForAction();
+                    break;
+                }
+                case 'reset': {
+                    bluetoothDevice.sendBinaryCommand(CommandType.DeleteBmp, { params: [0xff] });
+                    break;
+                }
+                case 'deleteCfg': {
+                    bluetoothDevice.sendBinaryCommand(CommandType.cfgDelete, { params: { name: configId } });
+                    bluetoothDevice.sendBinaryCommand(CommandType.cfgList);
+                    break;
+                }
+
+                case 'startDemo': {
+                    startDemo(0, 8);
+                    return;
+                }
+
+                case 'testBitmap': {
+                    // const configId = 'nav';
+                    await bluetoothDevice.sendBinaryCommand(CommandType.cfgSet, { params: { name: configId } });
+                    let imageID = 0;
+                    await bluetoothDevice.sendBinaryCommand(CommandType.Dim, { params: [70] });
+                    await bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
+                    // await bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
+
+                    function handleKey(key) {
+                        switch (key.name) {
+                            case 'left':
+                                imageID = Math.max(imageID - 1, 0);
+                                bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
+                                // bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
+                                break;
+                            case 'right':
+                                imageID++;
+                                bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
+                                // bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
+                                break;
+                            case 'escape':
+                                removeKeyListener(handleKey);
+                                promptForAction();
+                        }
+                    }
+                    addKeyListener(handleKey);
+                    return;
+                }
+
+                case 'storyDemo':
+                    await storyDemo();
+                    break;
+            }
+        }
+        promptForAction();
+    } catch (err) {
+        console.error(err);
+    }
+}
+async function promptForAction() {
     try {
         player.stop();
     } catch (error) {}
 
-    inquirer
-        .prompt([
-            {
-                type: 'list',
-                name: 'command',
-                message: 'Connected to Glasses, what do you want to do?',
-                choices: [
-                    'storyDemo',
-                    'startDemo',
-                    'sendBitmap',
-                    'testBitmap',
-                    'streamImage',
-                    'sendBitmapFolder',
-                    'sendBitmapConfig',
-                    'sendBitmapConfigSerial',
-                    'bmplist',
-                    'memory',
-                    'nbConfigs',
-                    'cfgList',
-                    'deleteCfg',
-                    'reset',
-                    'exit'
-                ]
-            }
-        ])
-        .then(async (promptAnswers: { command: string }) => {
-            try {
-                if (promptAnswers) {
-                    process.stdin.setRawMode(true);
-                    process.stdin.resume(); // so the program will not close instantly
-                    console.log('handling command', promptAnswers.command);
-                    switch (promptAnswers.command) {
-                        case 'exit':
-                            process.exit(0);
-                            break;
-                        // case 'sendBitmap': {
-                        //     const filePath = path.join(__dirname, storiesFolder, 'zr_test2.png');
-                        //     const [data, x, y] = createBitmapData(filePath);
-                        //     await bluetoothDevice.sendWriteConfig(CONFIG_PARAMS);
-                        //     await sendRawCommands(data, `sending bitmap: ${filePath}`);
-                        //     await bluetoothDevice.sendReadConfig(2);
-                        //     promptForAction();
-                        //     break;
-                        // }
-                        case 'buildFolderData':
-                            const { data } = buildDataSet(configId);
-                            promptForAction();
-                            break;
-                        case 'sendBitmapFolder': {
-                            // const configId = 'nav';
-                            const { data, files } = buildDataSet(configId);
-                            const start = Date.now();
-                            await sendRawCommands(data, 'sending bitmaps:');
-                            console.log(`sent ${files.length} images in`, Date.now() - start, 'ms');
-                            const resultMem = await bluetoothDevice.sendBinaryCommand(CommandType.cfgFreeSpace, { timestamp: Date.now() });
-                            console.log('memory:', resultMem.data);
-
-                            const result = await bluetoothDevice.sendBinaryCommand(CommandType.cfgList, { timestamp: Date.now() });
-                            console.log('configs:', result.data);
-                            // await bluetoothDevice.sendReadConfig(2);
-                            promptForAction();
-                            break;
-                        }
-                        case 'sendBitmapConfig': {
-                            const filePath = getFolder(configId);
-                            sendLayoutConfig(path.join(filePath, 'images.txt')).then(promptForAction);
-                            break;
-                        }
-                        case 'streamImage': {
-                            const filePath = getFolder(configId);
-                            streamImage(path.join(filePath, 'test.png')).then(promptForAction);
-                            break;
-                        }
-                        case 'sendBitmapConfigSerial': {
-                            const filePath = getFolder(configId);
-                            sendLayoutConfigSerial(path.join(filePath, 'images.txt')).then(promptForAction);
-                            break;
-                        }
-                        case 'bmplist': {
-                            const result = await bluetoothDevice.sendBinaryCommand(CommandType.BmpList, { timestamp: Date.now() });
-                            console.log(result);
-                            promptForAction();
-                            break;
-                        }
-                        case 'memory': {
-                            const result = await bluetoothDevice.sendBinaryCommand(CommandType.cfgFreeSpace, { timestamp: Date.now() });
-                            console.log(result);
-                            promptForAction();
-                            break;
-                        }
-                        case 'nbConfigs': {
-                            const result = await bluetoothDevice.sendBinaryCommand(CommandType.NbConfigs, { timestamp: Date.now() });
-                            console.log(result);
-                            promptForAction();
-                            break;
-                        }
-                        case 'cfgList': {
-                            const result = await bluetoothDevice.sendBinaryCommand(CommandType.cfgList, { timestamp: Date.now() });
-                            console.log(result);
-                            promptForAction();
-                            break;
-                        }
-                        case 'reset': {
-                            bluetoothDevice.sendBinaryCommand(CommandType.DeleteBmp, { params: [0xff] });
-                            promptForAction();
-                            break;
-                        }
-                        case 'deleteCfg': {
-                            bluetoothDevice.sendBinaryCommand(CommandType.cfgDelete, { params: { name: configId } });
-                            bluetoothDevice.sendBinaryCommand(CommandType.cfgList);
-                            promptForAction();
-                            break;
-                        }
-
-                        case 'startDemo': {
-                            startDemo(0, 8);
-                            break;
-                        }
-
-                        case 'testBitmap': {
-                            // const configId = 'nav';
-                            await bluetoothDevice.sendBinaryCommand(CommandType.cfgSet, { params: { name: configId } });
-                            let imageID = 0;
-                            await bluetoothDevice.sendBinaryCommand(CommandType.Dim, { params: [70] });
-                            await bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
-                            // await bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
-
-                            function handleKey(key) {
-                                switch (key.name) {
-                                    case 'left':
-                                        imageID = Math.max(imageID - 1, 0);
-                                        bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
-                                        // bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
-                                        break;
-                                    case 'right':
-                                        imageID++;
-                                        bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
-                                        // bluetoothDevice.sendBinaryCommand(CommandType.imgDisplay, { params: [imageID, 0, 0] });
-                                        break;
-                                    case 'escape':
-                                        removeKeyListener(handleKey);
-                                        promptForAction();
-                                }
-                            }
-                            addKeyListener(handleKey);
-
-                            break;
-                        }
-
-                        case 'storyDemo':
-                            await storyDemo();
-                            promptForAction();
-                            break;
-                    }
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        });
+    const promptAnswers: { command: string } = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'command',
+            message: 'Connected to Glasses, what do you want to do?',
+            choices: [
+                'storyDemo',
+                'startDemo',
+                'sendBitmap',
+                'testBitmap',
+                'streamImage',
+                'streamFolder',
+                'formatDisk',
+                'sendBitmapFolder',
+                'sendBitmapConfig',
+                'sendBitmapConfigSerial',
+                'bmplist',
+                'memory',
+                'nbConfigs',
+                'cfgList',
+                'deleteCfg',
+                'reset',
+                'exit'
+            ]
+        }
+    ]);
+    handleCommand(promptAnswers);
 }
 function dec2bin(dec) {
     return (dec >>> 0).toString(2);
 }
 
-function streamImage(filePath: string, compress) {
-    const gray = cv2.imread(filePath).rotate(cv2.ROTATE_180).cvtColor(cv2.COLOR_BGR2GRAY);
-    const imgHeight = gray.sizes[0];
-    const imgWidth = gray.sizes[1];
-    const commandsToSend = [[0xff, 0x44, 0x00, 0x0f].concat(pictureDimensionToByteArray(imgHeight, imgWidth)).concat([0x00, 0x00, 0x00, 0x00, 0xaa])];
-    let commandToSend = [];
-    let writeValueForStatus;
-    let val = 0;
-    let cptImg = 0;
-    for (let i = 0; i < imgHeight; i++) {
-        for (let j = 0; j < imgWidth; j++) {
-            const pixel = gray.at(i, j);
-            const modulo = cptImg % 8;
-            if (modulo === 7) {
-                commandToSend.push(val);
-                val = 0;
-                if (commandToSend.length >= 100) {
-                    commandToSend.unshift(0xff, 0x44, 0x00, commandToSend.length + 5);
-                    commandToSend.push(0xaa);
-                    commandsToSend.push(commandToSend);
-                    commandToSend = [];
-                }
-            } else {
-                val = val | ((pixel > 128 ? 1 : 0) << modulo);
-            }
-            cptImg++;
+async function streamFolder(folderPath: string, compress?) {
+    const files: string[] = getAllFiles(folderPath)
+        .filter((s) => s.endsWith('.jpg') || s.endsWith('.bmp') || s.endsWith('.png'))
+        .sort();
+    log('streamFolder', folderPath);
+
+    let index = 0;
+    function handleKey(key) {
+        switch (key.name) {
+            case 'left':
+                index = Math.max(0, index - 1);
+                log('left', index, files[index]);
+                streamImage(files[index], compress);
+                break;
+            case 'right':
+                index = Math.min(files.length - 1, index + 1);
+                log('right', index, files[index]);
+                streamImage(files[index], compress);
+                break;
+            case 'escape':
+                removeKeyListener(handleKey);
+                promptForAction();
         }
     }
-    if (commandToSend.length > 0) {
-        commandToSend.unshift(0xff, 0x44, 0x00, commandToSend.length + 5);
-        commandToSend.push(0xaa);
-        commandsToSend.push(commandToSend);
-        commandToSend = [];
-    }
-    // return commandsToSend;
-    // console.log(commandsToSend);
+    addKeyListener(handleKey);
+    streamImage(files[index], compress);
+}
+async function streamImage(filePath: string, compress?) {
+    let [commandsToSend, x, y, imgWidth, imgHeight, nb] = await createBitmapData({ id: 0, filePath, resize: false, crop: false, compress: true, stream: true });
+    log('streamImage', filePath, x, y, imgWidth, imgHeight, nb);
+    // const fileDataStr = commandsToSend.reduce(
+    //     (accumulator, currentValue) =>
+    //         accumulator +
+    //         Array.from(currentValue, (byte) => ('0' + (byte & 0xff).toString(16)).slice(-2))
+    //             .join('')
+    //             .toUpperCase() +
+    //         '\n',
+    //     ''
+    // );
+    // log('fileDataStr', fileDataStr)
+    commandsToSend = [
+        {
+            commandType: CommandType.HoldFlushw,
+            params: [0]
+        },
+        {
+            commandType: CommandType.Color,
+            params: [0]
+        },
+        {
+            commandType: CommandType.Rectf,
+            params: [0, 0, 303, 255]
+        }
+    ]
+        .map((current) => buildMessageData(current.commandType, { params: current.params }))
+        .concat(commandsToSend)
+        .concat(buildMessageData(CommandType.HoldFlushw, { params: [1] }));
     return sendRawCommands(commandsToSend, `streaming bitmap: ${filePath}`);
 }
 
@@ -1129,7 +1171,7 @@ function streamImage(filePath: string, compress) {
 // }
 
 async function startLoop(index: number) {
-    // console.log('startLoop', index);
+    // log('startLoop', index);
     await bluetoothDevice.sendBinaryCommand(CommandType.Clear);
     await bluetoothDevice.sendBinaryCommand(CommandType.Dim, { params: [0] });
     await delay(50); // ms
@@ -1141,7 +1183,7 @@ async function fadein() {
     }
 }
 // async function stopLoop(index: number) {
-//     console.log('stopLoop', index);
+//     log('stopLoop', index);
 // }
 async function fadeout() {
     for (let i = 20; i >= 0; i--) {
@@ -1160,7 +1202,7 @@ async function demoLoop(bmpIndex: number, count = 3, pauseOnFirst = false) {
 }
 
 async function startDemo(index: number, count = 3) {
-    // console.log('startDemo', index);
+    // log('startDemo', index);
     // Oeil
     isInDemo = true;
     function handleKey(key) {
@@ -1237,7 +1279,7 @@ function parseLottieFile(data: any) {
 async function storyDemo() {
     try {
         const storyFolder = getFolder(configId);
-        console.log('storyFolder', storyFolder);
+        log('storyFolder', storyFolder);
         const data = await readFile(path.join(storyFolder, 'composition.json'));
         const imagesMap = JSON.parse(await readFile(path.join(storyFolder, 'image_map.json')));
         const result = parseLottieFile(JSON.parse(data));
@@ -1261,7 +1303,7 @@ async function storyDemo() {
                         console.error('missing image', text, cleaned);
                     }
                 } else {
-                    // console.log('clear screen');
+                    // log('clear screen');
                     bluetoothDevice.clearScreen();
                 }
             }

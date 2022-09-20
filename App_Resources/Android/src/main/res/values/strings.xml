@@ -10,6 +10,7 @@
   <string name="uncompress_glasses_data">"décompression de l\'histoire \"%1$s\""</string>
   <string name="tracks">"tracés"</string>
   <string name="total">"total"</string>
+  <string name="test_image_see_glasses">"Placez le dispositif sur votre test. Vous devez voir l image affichée ci-dessous"</string>
   <string name="tap_to_open">"appuyez pour ouvrir"</string>
   <string name="story_sent_glasses">"histoire %1$s envoyé aux lunettes! (%2$s)"</string>
   <string name="story">"Histoire: \"%1$s\""</string>
@@ -17,9 +18,11 @@
   <string name="stop_session_are_you_sure">"êtes-vous sur de vouloir arréter la session?"</string>
   <string name="stop_session">"arréter la session"</string>
   <string name="stop">"arrêter"</string>
+  <string name="still_adventure">"aventure immobile"</string>
   <string name="shift_desc">"décalage actuel de l\'écran"</string>
   <string name="settings">"paramétres"</string>
   <string name="set_wallpaper">"Appliquer fond d\'écran"</string>
+  <string name="set_as_config_image">"utiliser commen image de configuration"</string>
   <string name="set">"appliquer"</string>
   <string name="session_state">"état de la session"</string>
   <string name="sensor_desc">"luminosité automatique en fonction de la luminosité ambiente"</string>
@@ -35,6 +38,7 @@
   <string name="reboot_glasses_required">"un redémarrage des lunettes est nécessaire"</string>
   <string name="reboot_glasses">"redémarrer les lunettes"</string>
   <string name="reboot">"redémarrer"</string>
+  <string name="place_audio_headphones">"placez les ecouteurs sur vos oreilles"</string>
   <string name="pick_firmware">"choisir un firmware"</string>
   <string name="pick_config_to_send">"choisissez une config a envoyer"</string>
   <string name="open">"ouvrir"</string>
@@ -47,6 +51,7 @@
   <string name="no_config_found">"aucune configuration trouvée"</string>
   <string name="name">"nom"</string>
   <string name="music_notification">"notification de musique"</string>
+  <string name="missing">"manquant"</string>
   <string name="menu">"menu"</string>
   <string name="memory">"mémoire"</string>
   <string name="map">"carte"</string>
@@ -56,6 +61,7 @@
   <string name="light_desc">"luminance manuelle"</string>
   <string name="light">"luminance"</string>
   <string name="leaving_feature">"vous quittez %1$s"</string>
+  <string name="jules_verne_adventure">"aventure Jules Verne"</string>
   <string name="internet_needed">"Une connexion internet est nécessaire"</string>
   <string name="instruction_repeat_interval">"intervalle de répétition d\'une même instruction"</string>
   <string name="instruction_interval_interval">"intervalle minimum entre 2 instructions différentes"</string>
@@ -82,10 +88,12 @@
   <string name="download">"téléchargement"</string>
   <string name="disconnect_glasses_are_you_sure">"êtes-vous sur de vouloir vous déconneter des lunettes?"</string>
   <string name="disconnect">"déconnexion"</string>
+  <string name="dev_mode">"dev mode"</string>
   <string name="delete_config">"supprimer la configuration \"%1$s\" ?"</string>
   <string name="delete">"supprimer"</string>
   <string name="create_track">"créer un tracé"</string>
   <string name="connection_lost_reconnecting">"la connexion à été perdue, reconnexion en cours"</string>
+  <string name="connecting_glasses">"Connexion au lunettes %1$s ..."</string>
   <string name="configs">"configurations"</string>
   <string name="config_deleted">"configuration supprimée"</string>
   <string name="close">"fermer"</string>
@@ -101,5 +109,6 @@
   <string name="auto_luminance">"luminosité automatique"</string>
   <string name="app_name">"Jules Verne"</string>
   <string name="title_activity_kimera">"Jules Verne"</string>
+  <string name="adjust_glasses_luminosity">"ajustez la luminosité des lunettes"</string>
   <string name="add">"ajouter"</string>
 </resources>

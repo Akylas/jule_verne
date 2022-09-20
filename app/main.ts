@@ -1,11 +1,13 @@
-// import {Trace} from '@nativescript/core/trace';
+import { Trace } from '@nativescript/core/trace';
+import { ImageViewTraceCategory } from '@nativescript-community/ui-image';
 // import {CollectionViewTraceCategory} from '@nativescript-community/ui-collectionview';
 // import {BleTraceCategory} from '@nativescript-community/ble';
 // Trace.addCategories(Trace.categories.NativeLifecycle);
 // Trace.addCategories(BleTraceCategory);
 // Trace.addCategories(Trace.categories.Navigation);
 // Trace.addCategories(Trace.categories.Transition);
-// Trace.addCategories(Trace.categories.ViewHierarchy);
+// Trace.addCategories(ImageViewTraceCategory);
+
 // Trace.enable();
 import { setMapPosKeys } from '@nativescript-community/ui-carto/core';
 import { themer } from '@nativescript-community/ui-material-core';
@@ -17,7 +19,6 @@ import { primaryColor } from '~/variables';
 // importing filters
 import FiltersPlugin from '~/vue.filters';
 import MixinsPlugin from '~/vue.mixins';
-// adding to Vue prototype
 import PrototypePlugin from '~/vue.prototype';
 import ViewsPlugin from '~/vue.views';
 
@@ -38,6 +39,28 @@ if (!global.window) {
         } as any;
     }
 }
+
+// if (__ANDROID__) {
+//     (global as any).setInterval = (handler, timeout, ...args) => {
+//         timeout += 0;
+//         const invoke = () => handler(...args);
+//         const zoneBound = zonedCallback(invoke);
+//         return (global as any).__setInterval(() => {
+//             zoneBound();
+//         }, timeout || 0);
+//     };
+//     (global as any).clearInterval = (global as any).__clearInterval;
+//     (global as any).setTimeout = (handler, timeout, ...args) => {
+//         timeout += 0;
+//         const invoke = () => handler(...args);
+//         const zoneBound = zonedCallback(invoke);
+//         return (global as any).__setTimeout(() => {
+//             zoneBound();
+//         }, timeout || 0);
+//     };
+
+//     (global as any).clearTimeout = (global as any).__clearTimeout;
+// }
 const crashReportService = new CrashReportService();
 // start it as soon as possible
 crashReportService.start();

@@ -5,7 +5,6 @@
                 <StackLayout verticalAlignment="center" orientation="horizontal">
                     <!-- <MDButton variant="text" class="icon-btn" :text="'mdi-plus'" @tap="createTrack" v-if="!inSelection" /> -->
                     <!-- <MDButton variant="text" class="icon-btn" :text="'mdi-file-import'" @tap="importTrace" v-if="!inSelection" /> -->
-                    <!-- <MDButton variant="text" class="icon-btn" :text="'mdi-database'" @tap="shareDB" v-if="devMode && !inSelection" /> -->
                     <!-- <MDButton v-show="inSelection" variant="text" class="icon-btn" :text="'mdi-delete'" @tap="deleteSelectedSessions" /> -->
                 </StackLayout>
                 <MDButton v-if="inSelection" slot="left" variant="text" class="icon-btn" :text="'mdi-close'" @tap="unselectAllSessions" />

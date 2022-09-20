@@ -1,45 +1,16 @@
+import { isSimulator } from '@nativescript-community/extendedinfo';
 import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { CartoMap } from '@nativescript-community/ui-carto/ui';
 import { Drawer } from '@nativescript-community/ui-drawer';
 import { alert, prompt } from '@nativescript-community/ui-material-dialogs';
-import {
-    AndroidActivityBackPressedEventData,
-    AndroidApplication,
-    Application,
-    ApplicationSettings,
-    EventData,
-    File,
-    Frame,
-    GestureEventData,
-    ObservableArray,
-    knownFolders,
-    path
-} from '@nativescript/core';
+import { AndroidActivityBackPressedEventData, AndroidApplication, Application, ApplicationSettings, EventData, File, Frame, GestureEventData, knownFolders, path } from '@nativescript/core';
 import fileSize from 'filesize';
-import { bind } from 'helpful-decorators';
-import { Vibrate } from 'nativescript-vibrate';
-import Vue from 'nativescript-vue';
-import { VueConstructor } from 'vue';
 import { Component } from 'vue-property-decorator';
-import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
-import { isSimulator } from '@nativescript-community/extendedinfo';
-import { GlassesDevice, GlassesVersions } from '~/handlers/bluetooth/GlassesDevice';
+import { BaseVueComponentRefs } from '~/components/BaseVueComponent';
+import { BgServiceMethodParams } from '~/components/BgServiceComponent';
+import MapComponent from '~/components/MapComponent';
+import { AvailableConfigsEvent, GlassesMemoryChangeEvent } from '~/handlers/BluetoothHandler';
 import {
-    AvailableConfigsEvent,
-    BLEBatteryEventData,
-    BLEConnectionEventData,
-    GlassesBatteryEvent,
-    GlassesConnectedEvent,
-    GlassesDisconnectedEvent,
-    GlassesMemoryChangeEvent,
-    Peripheral,
-    SPOTA_SERVICE_UUID,
-    SerialEvent,
-    StatusChangedEvent,
-    VersionEvent
-} from '~/handlers/BluetoothHandler';
-import {
-    AvailableStoriesEvent,
     FeatureViewedEvent,
     GeoLocation,
     InsideFeatureEvent,
@@ -54,40 +25,28 @@ import {
 import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
 import { $tc } from '~/helpers/locale';
 import Track, { TrackFeature } from '~/models/Track';
-import { off as appOff, on as appOn } from '~/utils';
+import { Catch, off as appOff, on as appOn } from '~/utils';
 import { confirm } from '~/utils/dialogs';
 import { bboxify } from '~/utils/geo';
-import { getGlassesImagesFolder, getWorkingDir } from '~/utils/utils';
+import { getWorkingDir } from '~/utils/utils';
 import { backgroundColor, mdiFontFamily, textColor } from '~/variables';
 import { date } from '~/vue.filters';
 import { ComponentIds } from '~/vue.prototype';
-import { BaseVueComponentRefs } from './BaseVueComponent';
-import DeviceSelect from './DeviceSelect';
-import Map from './Map';
-import MapComponent from './MapComponent';
-import MapOnlyComponent from './MapOnlyComponent';
-import AudioPlayerWidget from './AudioPlayerWidget.vue';
-import { showSnack } from '@nativescript-community/ui-material-snackbar';
+// import AudioPlayerWidget from '~/component/AudioPlayerWidget';
+import GlassesConnectionComponent from '~/components/GlassesConnectionComponent';
+import GlassesIcon from '~/components/GlassesIcon.vue';
 
-const production = TNS_ENV === 'production';
-const TAG = 'Home';
-
-function timeout(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
 export interface HomeRefs extends BaseVueComponentRefs {
     [key: string]: any;
 }
 
 @Component({
     components: {
-        MapOnlyComponent,
         MapComponent,
-        AudioPlayerWidget,
-        Map
+        GlassesIcon
     }
 })
-export default class Home extends BgServiceComponent {
+export default class Home extends GlassesConnectionComponent {
     date = date;
     mdiFontFamily = mdiFontFamily;
     backgroundColor = backgroundColor;
@@ -100,13 +59,9 @@ export default class Home extends BgServiceComponent {
     public currentSessionState: SessionState = SessionState.STOPPED;
     public shouldConfirmBack = true;
 
-    public connectedGlasses: GlassesDevice = null;
-    public glassesBattery: number = 0;
-    public glassesSerialNumber = null;
-    public glassesVersions: GlassesVersions = null;
     glassesMemory: FreeSpaceData = null;
-    bluetoothEnabled = true;
     appVersion = __APP_VERSION__ + '.' + __APP_BUILD_NUMBER__;
+    item: { title: string; icon: string; component; url: string; activated: boolean };
 
     bigImage = false;
     aimingAngle: number = 0;
@@ -122,43 +77,6 @@ export default class Home extends BgServiceComponent {
     mapDataUpdateDate = ApplicationSettings.getNumber('MAP_DATA_LASTDATE', null);
     geojsonDataUpdateDate = ApplicationSettings.getNumber('GEOJSON_DATA_LASTDATE', null);
     needsImportOldSessionsOnLoaded = false;
-
-    menuItems = new ObservableArray([
-        {
-            title: this.$t('map'),
-            icon: 'mdi-map',
-            component: async () => (await import('~/components/Home')).default,
-            url: ComponentIds.Activity,
-            activated: false
-        },
-        {
-            title: this.$t('tracks'),
-            icon: 'mdi-map-marker-path',
-            component: async () => (await import('~/components/Tracks')).default,
-            url: ComponentIds.Tracks,
-            activated: false
-        },
-        // {
-        //     title: this.$t('create_track'),
-        //     icon: 'mdi-map-marker-distance',
-        //     url: ComponentIds.Leaflet,
-        //     activated: false
-        // },
-        {
-            title: this.$t('settings'),
-            icon: 'mdi-cogs',
-            component: async () => (await import('~/components/Settings')).default,
-            url: ComponentIds.Settings,
-            activated: false
-        },
-        {
-            title: this.$t('images'),
-            icon: 'mdi-image',
-            component: async () => (await import('~/components/Images.vue')).default,
-            url: ComponentIds.Images,
-            activated: false
-        }
-    ]);
 
     get drawer() {
         return this.getRef<Drawer>('drawer');
@@ -266,7 +184,6 @@ export default class Home extends BgServiceComponent {
     onLoaded() {
         // GC();
         // console.log('onLoaded', this.needsImportOldSessionsOnLoaded);
-        Vue.prototype.$drawer = this.drawer;
         if (this.dbHandler && this.dbHandler.started) {
             this.importDevSessions();
         } else {
@@ -364,6 +281,7 @@ export default class Home extends BgServiceComponent {
     }
 
     setup(handlers: BgServiceMethodParams) {
+        super.setup(handlers);
         if (!handlers.geoHandler) {
             return;
         }
@@ -380,38 +298,10 @@ export default class Home extends BgServiceComponent {
             isInTrackBounds: handlers.geoHandler.isInTrackBounds
         } as any);
         this.geoHandlerOn(FeatureViewedEvent, this.onFeatureViewed, this);
-        this.geoHandlerOn('error', this.onError);
 
         this.bluetoothHandlerOn(AvailableConfigsEvent, this.onAvailableConfigs, this);
-        this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
-        this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
-        this.bluetoothHandlerOn(SerialEvent, this.onGlassesSerialNumber);
-        this.bluetoothHandlerOn(VersionEvent, this.onGlassesVersion);
-        this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
         this.bluetoothHandlerOn(GlassesMemoryChangeEvent, this.onGlassesMemory);
-        this.bluetoothHandlerOn(StatusChangedEvent, this.onBLEStatus);
-        this.bluetoothHandlerOn('error', this.onError);
 
-        this.connectingToGlasses = handlers.bluetoothHandler.connectingToGlasses;
-        if (handlers.bluetoothHandler.glasses) {
-            this.onGlassesBattery({
-                data: handlers.bluetoothHandler.glassesBattery
-            } as any);
-            this.onGlassesSerialNumber({
-                data: handlers.bluetoothHandler.glasses.serialNumber
-            } as any);
-            this.onGlassesVersion({
-                data: handlers.bluetoothHandler.glasses.versions
-            } as any);
-        }
-        handlers.bluetoothHandler.isEnabled().then((r) => {
-            this.bluetoothEnabled = r;
-            if (r && !handlers.bluetoothHandler.glasses) {
-                this.tryToAutoConnect();
-            } else if (!r && handlers.bluetoothHandler.savedGlassesUUID) {
-                showSnack({message:this.$t('bluetooth_not_enabled')});
-            }
-        });
         this.isWatchingLocation = handlers.geoHandler.isWatching();
         this.onTrackSelected({ track: this.geoHandler.currentTrack } as any);
     }
@@ -429,7 +319,6 @@ export default class Home extends BgServiceComponent {
         return 0;
     }
 
-    @bind
     onNewLocation(data: UserLocationdEventData) {
         if (data.error) {
             this.showError(data.error);
@@ -498,160 +387,121 @@ export default class Home extends BgServiceComponent {
         });
     }
 
+    @Catch()
     async onTap(command: string, ...args) {
-        try {
-            switch (command) {
-                case 'location':
-                    if (this.searchingLocation) {
-                        return;
-                    }
+        switch (command) {
+            case 'location':
+                if (this.searchingLocation) {
+                    return;
+                }
+                try {
+                    await this.geoHandler.enableLocation();
+                    this.searchingLocation = true;
+                    await this.geoHandler.getLocation();
+                } catch (err) {
+                    this.showError(err);
+                } finally {
+                    this.searchingLocation = false;
+                }
+                break;
+            case 'startSession':
+                if (this.currentSessionState === SessionState.PAUSED) {
+                    this.geoHandler.resumeSession();
+                } else if (this.currentSessionState === SessionState.RUNNING) {
+                    this.geoHandler.pauseSession();
+                } else {
                     try {
-                        await this.geoHandler.enableLocation();
-                        this.searchingLocation = true;
-                        await this.geoHandler.getLocation();
+                        await this.geoHandler.askForSessionPerms();
+                        await this.geoHandler.startSession();
                     } catch (err) {
                         this.showError(err);
-                    } finally {
-                        this.searchingLocation = false;
                     }
-                    break;
-                case 'startSession':
-                    if (this.currentSessionState === SessionState.PAUSED) {
-                        this.geoHandler.resumeSession();
-                    } else if (this.currentSessionState === SessionState.RUNNING) {
-                        this.geoHandler.pauseSession();
-                    } else {
-                        try {
-                            await this.geoHandler.askForSessionPerms();
-                            await this.geoHandler.startSession();
-                        } catch (err) {
-                            this.showError(err);
-                        }
-                    }
+                }
 
-                    break;
-                case 'stopSession':
-                    await confirm({
-                        title: this.$t('stop_session'),
-                        message: this.$t('stop_session_are_you_sure'),
-                        okButtonText: this.$t('stop'),
-                        cancelButtonText: this.$t('cancel')
+                break;
+            case 'stopSession':
+                await confirm({
+                    title: this.$t('stop_session'),
+                    message: this.$t('stop_session_are_you_sure'),
+                    okButtonText: this.$t('stop'),
+                    cancelButtonText: this.$t('cancel')
+                })
+                    .then((result) => {
+                        if (result) {
+                            return this.geoHandler.stopSession().then((session) => {
+                                this.lastLocation = null;
+                            });
+                        }
                     })
-                        .then((result) => {
-                            if (result) {
-                                return this.geoHandler.stopSession().then((session) => {
-                                    this.lastLocation = null;
-                                });
-                            }
+                    .catch(this.showError);
+                break;
+            case 'menu':
+                this.$drawer.toggle('left');
+                break;
+            case 'settings':
+                await this.$navigateToUrl(ComponentIds.Settings);
+                break;
+            case 'connectGlasses':
+                if (this.connectedGlasses) {
+                    this.drawer.toggle('right');
+                } else {
+                    if (!this.bluetoothHandler.isEnabled()) {
+                        await this.bluetoothHandler.enable();
+                    }
+                    this.pickGlasses();
+                }
+
+                break;
+            case 'playStory':
+                await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                // await this.bluetoothHandler.playInstruction('starting_story');
+                await this.bluetoothHandler.playRideauAndStory(args[0]);
+                break;
+            case 'start':
+                await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                await this.bluetoothHandler.playInstruction(command);
+                break;
+            case 'exit':
+            case 'uturn':
+            case 'right':
+                await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                await this.bluetoothHandler.playNavigationInstruction(command);
+                break;
+            case 'stopPlaying':
+                await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                break;
+            case 'changeDeviceName':
+                const result = await prompt({
+                    title: $tc('change_glasses_name'),
+                    // message: $tc('change_glasses_name'),
+                    okButtonText: $tc('change'),
+                    cancelButtonText: $tc('cancel'),
+                    autoFocus: true,
+                    defaultText: this.connectedGlasses.localName,
+                    textFieldProperties: {
+                        marginLeft: 10,
+                        marginRight: 10,
+                        hint: $tc('name')
+                    }
+                });
+                if (result && !!result.result && result.text.length > 0 && result.text !== this.connectedGlasses.localName) {
+                    return this.bluetoothHandler.setGlassesName(result.text).then(() =>
+                        alert({
+                            title: $tc('glasses_updated'),
+                            message: $tc('reboot_glasses_required'),
+                            okButtonText: $tc('ok')
                         })
-                        .catch(this.showError);
-                    break;
-                case 'menu':
-                    this.drawer.toggle('left');
-                    break;
-                case 'settings':
-                    await this.$navigateToUrl(ComponentIds.Settings);
-                    break;
-                case 'connectGlasses':
-                    if (this.connectedGlasses) {
-                        this.drawer.toggle('right');
-                    } else {
-                        if (!this.bluetoothHandler.isEnabled()) {
-                            this.bluetoothHandler.enable();
-                        } else {
-                            this.pickGlasses();
-                        }
-                    }
-
-                    break;
-                case 'playStory':
-                    await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
-                    // await this.bluetoothHandler.playInstruction('starting_story');
-                    await this.bluetoothHandler.playRideauAndStory(args[0]);
-                    break;
-                case 'start':
-                    await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
-                    await this.bluetoothHandler.playInstruction(command);
-                    break;
-                case 'exit':
-                case 'uturn':
-                case 'right':
-                    await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
-                    await this.bluetoothHandler.playNavigationInstruction(command);
-                    break;
-                case 'stopPlaying':
-                    await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
-                    break;
-                case 'changeDeviceName':
-                    const result = await prompt({
-                        title: $tc('change_glasses_name'),
-                        // message: $tc('change_glasses_name'),
-                        okButtonText: $tc('change'),
-                        cancelButtonText: $tc('cancel'),
-                        autoFocus: true,
-                        defaultText: this.connectedGlasses.localName,
-                        textFieldProperties: {
-                            marginLeft: 10,
-                            marginRight: 10,
-                            hint: $tc('name')
-                        }
-                    });
-                    if (result && !!result.result && result.text.length > 0 && result.text !== this.connectedGlasses.localName) {
-                        return this.bluetoothHandler.setGlassesName(result.text).then(() =>
-                            alert({
-                                title: $tc('glasses_updated'),
-                                message: $tc('reboot_glasses_required'),
-                                okButtonText: $tc('ok')
-                            })
-                        );
-                    }
-                    break;
-            }
-        } catch (err) {
-            this.showError(err);
+                    );
+                }
+                break;
         }
     }
 
+    @Catch()
     async onNavItemTap(item) {
-        try {
-            this.$navigateToUrl(item.url, { component: item.component });
-        } catch (error) {
-            this.showError(error);
-        }
+        this.$navigateToUrl(item.url, { component: item.component });
     }
-    enableForScan() {
-        return this.bluetoothHandler.enableForScan();
-    }
-    connectingToGlasses = false;
-    async pickGlasses() {
-        try {
-            await this.enableForScan();
-            const options = {
-                props: {
-                    title: this.$t('looking_for_glasses'),
-                    scanningParams: {
-                        glasses: true,
-                        // nameFilter: /Microoled/,
-                        filters: [
-                            {
-                                serviceUUID: SPOTA_SERVICE_UUID
-                            }
-                        ]
-                    }
-                },
-                animated: true,
-                fullscreen: true
-            };
-            const device: Peripheral = await this.$showModal(DeviceSelect, options);
-            // console.log(TAG, 'connecting to picked device', device);
-            if (device) {
-                this.connectingToGlasses = true;
-                return this.bluetoothHandler.connect(device.UUID);
-            }
-        } catch (err) {
-            this.showError(err);
-        }
-    }
+
     get insideFeatureName() {
         const properties = this.insideFeature.properties;
         const name = 'index' in properties ? properties.index : properties.name;
@@ -665,6 +515,7 @@ export default class Home extends BgServiceComponent {
     //     }
     // }
 
+    @Catch()
     onLongPress(command: string, args: GestureEventData) {
         if (args.ios && args.ios.state !== 3) {
             return;
@@ -687,18 +538,6 @@ export default class Home extends BgServiceComponent {
         }
     }
 
-    updateGlassesBattery(value: number) {
-        if (value >= 0) {
-            this.glassesBattery = value;
-        } else {
-            this.glassesBattery = 0;
-        }
-    }
-
-    onGlassesBattery(e: BLEBatteryEventData) {
-        this.updateGlassesBattery(e.data);
-    }
-
     onGlassesMemory(e: { data: FreeSpaceData }) {
         this.glassesMemory = e.data;
     }
@@ -708,85 +547,5 @@ export default class Home extends BgServiceComponent {
     }
     closeDrawer() {
         this.drawer && this.drawer.close();
-    }
-    tryToAutoConnect() {
-        if (this.bluetoothHandler.isEnabled() && this.bluetoothHandler.hasSavedGlasses() && !this.bluetoothHandler.connectingToGlasses) {
-            // this.enableForScan()
-            //     .then(() => {
-            this.connectingToGlasses = true;
-            return this.bluetoothHandler
-                .connectToSaved()
-                .then(() => {
-                    console.log(TAG, 'Pairing connectToSaved done', this.bluetoothHandler.connectingToSavedGlasses, this.bluetoothHandler.connectingToGlasses);
-                    this.connectingToGlasses = this.bluetoothHandler.connectingToSavedGlasses || this.bluetoothHandler.connectingToGlasses;
-                })
-                .catch(this.showError);
-        }
-    }
-    onBLEStatus(e) {
-        console.log(TAG, 'onBLEStatus', e.data.state);
-        const newValue = e.data.state === 'on';
-        if (newValue !== this.bluetoothEnabled) {
-            this.bluetoothEnabled = newValue;
-            if (newValue) {
-                this.tryToAutoConnect();
-            }
-        }
-    }
-
-    onGlassesDisconnected(e: BLEConnectionEventData) {
-        this.connectedGlasses = null;
-        this.connectingToGlasses = false;
-        this.glassesBattery = -1;
-        this.glassesVersions = null;
-        this.glassesSerialNumber = null;
-        this.hideLoading();
-        // if not manual disconnect we are going to try and reconnect
-
-        this.$crashReportService.setExtra('glasses', null);
-        if (this.devMode) {
-            const vibrator = new Vibrate();
-            vibrator.vibrate(2000);
-        }
-    }
-    onGlassesConnected(e: BLEConnectionEventData) {
-        const glasses = (this.connectedGlasses = e.data as GlassesDevice);
-        this.connectingToGlasses = false;
-        this.glassesVersions = glasses.versions;
-        this.glassesSerialNumber = glasses.serialNumber;
-        this.updateSentryInfos();
-        this.hideLoading();
-    }
-    updateSentryInfos() {
-        const glasses = this.connectedGlasses;
-        if (glasses) {
-            this.$crashReportService.setExtra(
-                'glasses',
-                JSON.stringify({
-                    name: glasses.localName,
-                    uuid: glasses.UUID,
-                    versions: this.glassesVersions,
-                    serial: this.glassesSerialNumber
-                })
-            );
-        } else {
-            this.$crashReportService.setExtra('glasses', null);
-        }
-    }
-    onGlassesReconnecting() {
-        this.showLoading(this.$t('connection_lost_reconnecting'));
-    }
-    onGlassesReconnectingFailed() {
-        this.hideLoading();
-    }
-    onGlassesVersion(e) {
-        this.glassesVersions = e.data;
-        DEV_LOG && console.log('onGlassesVersion', this.glassesVersions);
-        this.$networkService.checkFirmwareUpdateOnline(this.glassesVersions);
-        this.updateSentryInfos();
-    }
-    onGlassesSerialNumber(e) {
-        this.glassesSerialNumber = e.data;
-        this.updateSentryInfos();
     }
 }

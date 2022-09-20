@@ -1,13 +1,4 @@
-const timeExp = /^\[([\d:.]*)\]{1}/g;
-const tagRegMap = {
-    title: 'ti',
-    artist: 'ar',
-    album: 'al',
-    offset: 'offset',
-    by: 'by'
-};
-
-import { cancelAnimationFrame, getNow, requestAnimationFrame } from '~/animationFrame';
+const getNow = Date.now.bind(Date);
 
 const timeoutTools = {
     invokeTime: 0,

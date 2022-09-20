@@ -43,6 +43,7 @@ import { getDataFolder, getWorkingDir } from '~/utils/utils';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 import { setShowDebug, setShowError, setShowInfo, setShowWarn } from '@nativescript-community/ui-carto/utils';
 import { AdditiveTweening } from 'additween';
+import { Catch } from '~/utils';
 
 const LOCATION_ANIMATION_DURATION = 300;
 const production = TNS_ENV === 'production';
@@ -113,6 +114,7 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         return path.join(getWorkingDir(false), 'tiles');
     }
     async onMapReady(e) {
+        DEV_LOG && console.log('MapComponent', 'onMapReady');
         const cartoMap = (this.mCartoMap = e.object as CartoMap<LatLonKeys>);
 
         setShowDebug(true);
@@ -417,7 +419,7 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
                         width: 2
                     }
                 });
-                this.localVectorDataSource.add(this.mAimingLine);
+                this.localVectorDataSource?.add(this.mAimingLine);
             } else if (this.mAimingLine) {
                 this.mAimingLine.positions = [loc, { lat: center[1], lon: center[0] }];
                 this.mAimingLine.visible = true;
@@ -478,18 +480,16 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         });
     }
     searchingForUserLocation = false;
-    askUserLocation() {
+
+    @Catch()
+    async askUserLocation() {
         if (!this.locationEnabled) {
             return;
         }
         this.userFollow = true;
-        return this.geoHandler
-            .enableLocation()
-            .then(() => {
-                this.searchingForUserLocation = true;
-                return this.geoHandler.getLocation();
-            })
-            .catch(this.showError);
+        await this.geoHandler.enableLocation();
+        this.searchingForUserLocation = true;
+        await this.geoHandler.getLocation();
     }
 
     // showErrorInternal(err: Error | string) {

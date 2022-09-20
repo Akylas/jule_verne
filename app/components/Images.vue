@@ -1,7 +1,7 @@
 <template>
     <Page ref="page" :actionBarHidden="true">
         <StackLayout>
-            <CActionBar :title="$t('images')" showMenuIcon />
+            <CActionBar :title="$t('images')" :subtitle="folder" showMenuIcon />
             <CollectionView :items="items" spanCount="2" colWidth="50%" :spanSize="(item) => (item.type === 'image' ? 1 : 2)">
                 <v-template if="item.type === 'folder'">
                     <Label
@@ -11,20 +11,15 @@
                         height="60"
                         padding="12"
                         verticalTextAlignment="center"
-                        fontSize="20"
-                        :borderBottomColor="textColor"
+                        fontSize="16"
+                        :borderBottomColor="borderColor"
                         borderBottomWidth="1"
                     />
                 </v-template>
                 <v-template if="item.type === 'image'">
                     <GridLayout>
-                    <Image :src="item.path" @tap="onItemTap(item)" backgroundColor="red" stretch="aspectFit" />
-                     <Label
-                        :text="item.name"
-                        verticalTextAlignment="bottom"
-                        fontSize="12"
-                        color="white"
-                    />
+                        <NSImg :src="item.path" @tap="onItemTap(item)" stretch="aspectFill" :colorMatrix="colorMatrix" height="200" backgroundColor="black" />
+                        <Label :text="item.name" verticalTextAlignment="bottom" fontSize="12" color="white" backgroundColor="#00000088" verticalAlignment="bottom" />
                     </GridLayout>
                 </v-template>
             </CollectionView>
@@ -32,22 +27,26 @@
     </Page>
 </template>
 <script lang="ts">
-import { Folder, knownFolders, path } from '@nativescript/core';
+import { ApplicationSettings, Folder, knownFolders, path } from '@nativescript/core';
 import { Component, Prop } from 'vue-property-decorator';
 import { CommandType, FULLSCREEN, InputCommandType } from '~/handlers/Message';
+import { Catch } from '~/utils';
 import { getGlassesImagesFolder } from '~/utils/utils';
-import { textColor } from '~/variables';
+import { borderColor, textColor } from '~/variables';
+import { IMAGE_COLORMATRIX } from '~/vue.views';
 import BaseVueComponent from './BaseVueComponent';
 import BgServiceComponent from './BgServiceComponent';
 
 interface Item {
-    type: 'image' | 'folder',
-                name: string,
-                path: string
+    type: 'image' | 'folder';
+    parent: string;
+    name: string;
+    path: string;
 }
 
-async function getImagesAndFolder(folder: string) {
-    const entities = await Folder.fromPath(folder).getEntities();
+async function getImagesAndFolder(folderStr: string) {
+    const folder = Folder.fromPath(folderStr);
+    const entities = await Folder.fromPath(folderStr).getEntities();
     const images = [];
     const folders = [];
 
@@ -62,6 +61,7 @@ async function getImagesAndFolder(folder: string) {
         } else if (e.name.endsWith('.png') || e.name.endsWith('.jpg') || e.name.endsWith('.bmp')) {
             images.push({
                 type: 'image',
+                parent: folder.name,
                 name: e.name,
                 path: e.path
             });
@@ -72,93 +72,70 @@ async function getImagesAndFolder(folder: string) {
 @Component({})
 export default class ImagesView extends BgServiceComponent {
     textColor = textColor;
-    items:Item[] = null;
-    item:Item;
+    borderColor = borderColor;
+    items: Item[] = null;
+    item: Item;
+    colorMatrix = IMAGE_COLORMATRIX;
 
-    @Prop({ type: String }) folder;
+    @Prop({ type: String, default: getGlassesImagesFolder() }) folder;
     mounted() {
         super.mounted();
         (async () => {
-            this.items = await getImagesAndFolder(this.folder || getGlassesImagesFolder());
+            this.items = await getImagesAndFolder(this.folder);
         })();
     }
     destroyed() {
         super.destroyed();
     }
 
+    @Catch()
     async onItemTap(item) {
-        try {
-            switch (item.type) {
-                case 'image':
-                    const useCrop = this.bluetoothHandler.setUsesCrop('navigation');
-                    const navImages = this.bluetoothHandler.navigationImageMap;
-                    const commands: { commandType: CommandType; params?: InputCommandType<any> }[] = [];
-                    const cleaned = item.name.split('.')[0];
-                    console.log('drawing image', item.type, item.name, useCrop , navImages[cleaned])
-                    if (useCrop) {
-                        commands.push(
-                            {
-                                commandType: CommandType.HoldFlushw,
-                                params: [0]
-                            },
-                            {
-                                commandType: CommandType.Color,
-                                params: [0]
-                            },
-                            {
-                                commandType: CommandType.Rectf,
-                                params: FULLSCREEN
-                            }
-                        );
+        switch (item.type) {
+            case 'image': {
+                this.bluetoothHandler.drawImageFromPathWithMire(item.path);
+                const component = (await import('~/components/ImagesViewer.vue')).default;
+                const index = this.items.findIndex((i) => i.path === item.path);
+                this.$navigateTo(component, {
+                    props: {
+                        images: this.items,
+                        startIndex: index
                     }
-
-                    if (navImages[cleaned]) {
-                        commands.push({
-                            commandType: CommandType.cfgSet,
-                            params: { name: 'nav' }
-                        });
-                        const data = navImages[cleaned];
-                        commands.push({
-                            commandType: CommandType.imgDisplay,
-                            params: data.slice(0, 3)
-                        });
-                    } else {
-                        const array = this.folder.split('/');
-                        const cfgId = array[array.length - 2];
-                        const imagesMap = this.bluetoothHandler.storyImageMap(cfgId);
-                        if (imagesMap[cleaned]) {
-                            commands.push({
-                                commandType: CommandType.cfgSet,
-                                params: { name: cfgId }
-                            });
-                            commands.push({
-                                commandType: CommandType.imgDisplay,
-                                params: imagesMap[cleaned]
-                            });
-                        }
-                    }
-                    if (useCrop) {
-                        commands.push({
-                            commandType: CommandType.HoldFlushw,
-                            params: [1]
-                        });
-                    }
-                    this.bluetoothHandler.sendCommands(commands);
-                    // } else {
-                    //     console.error('image missing', cleaned);
-                    // }
-
-                    break;
-                case 'folder':
-                    const component = (await import('~/components/Images.vue')).default;
-                    this.$navigateTo(component, {
-                        props: {
-                            folder: item.path
-                        }
-                    });
+                });
+                break;
             }
-        } catch (err) {
-            this.showError(err);
+            case 'folder': {
+                const component = (await import('~/components/Images.vue')).default;
+                this.$navigateTo(component, {
+                    props: {
+                        folder: item.path
+                    }
+                });
+            }
+        }
+    }
+
+    @Catch()
+    async onLongPress(item: Item) {
+        const OptionSelect = (await import('~/components/OptionSelect.vue')).default;
+        const result = await this.$showBottomSheet(OptionSelect, {
+            ignoreTopSafeArea: true,
+            props: {
+                showCancel: false,
+                options: [
+                    {
+                        id: 'set_as_config_image',
+                        title: this.$tc('set_as_config_image')
+                    }
+                ]
+            },
+            trackingScrollView: 'collectionView'
+        });
+        if (result) {
+            switch (result.id) {
+                case 'set_as_config_image':
+                    ApplicationSettings.setString('glasses_config_image', item.path);
+                    break;
+            }
         }
     }
 }

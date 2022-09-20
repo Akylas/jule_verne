@@ -28,6 +28,7 @@ import { SuotaCharacteristic, getUint32 } from '../handlers/bluetooth/SuotaChara
 import filesize from 'filesize';
 import { ComponentIds } from '~/vue.prototype';
 import { concatBuffers } from '~/handlers/Message';
+import { Catch } from '~/utils';
 
 const TAG = '[FirmwareUpdate]';
 
@@ -46,6 +47,10 @@ export default class FirmwareUpdate extends BgServiceComponent {
     public updatingFirmware = false;
 
     firmwareRunLog = '';
+
+    get devMode() {
+        return this.$getDevMode();
+    }
 
     mounted() {
         super.mounted();
@@ -112,7 +117,9 @@ export default class FirmwareUpdate extends BgServiceComponent {
         this.glassesBattery = -1;
         this.close();
     }
-    onTap(command: string, event) {
+
+    @Catch()
+    onTap(command: string, event?) {
         switch (command) {
             case 'sendUpdate':
                 this.updateFirmware();

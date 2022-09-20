@@ -1,5 +1,5 @@
 <template>
-    <GridLayout class="actionBar" columns="auto,*, auto" paddingLeft="5" paddingRight="5">
+    <GridLayout class="actionBar" columns="auto,*, auto" paddingLeft="5" paddingRight="5" :backgroundColor="backgroundColor">
         <StackLayout col="1" colSpan="3" verticalAlignment="center">
             <Label class="actionBarTitle" :visibility="!!title ? 'visible' : 'hidden'" textAlignment="left" :text="title || '' | uppercase" />
             <Label :visibility="!!subtitle ? 'visible' : 'collapse'" textAlignment="left" class="actionBarSubtitle" :text="subtitle" />
@@ -11,16 +11,71 @@
         </StackLayout>
         <StackLayout col="2" orientation="horizontal">
             <slot />
-            <GridLayout class="glassIconLayout" rows="*,6,10,8,4,auto,*" columns="*,21,9,*" :visibility="shouldShowGlassesIcon ? 'visible' : 'collapse'">
-                <MDButton rowSpan="6" colSpan="4" class="icon-btn" variant="text" :text="'mdi-sunglasses'" @tap="onGlassesButton" @longPress="onLongGlassesButton" />
-                <Label isUserInteractionEnabled="false" :backgroundColor="glasses ? '#53da22' : '#ed243e'" borderRadius="4.5" row="2" col="2" />
-                <GridLayout :columns="glassesBatteryColumns" backgroundColor="#E4E4E4" width="24" borderRadius="1" height="4" row="4" col="1" colSpan="2">
-                    <AbsoluteLayout col="0" :backgroundColor="glassBatteryColor" />
-                </GridLayout>
-                <Label isUserInteractionEnabled="false" horizontalAlignment="center" fontSize="7" fontWeight="bold" :text="battery + '%'" row="5" col="1" colSpan="2" />
-            </GridLayout>
         </StackLayout>
     </GridLayout>
 </template>
 
-<script lang="ts" src="./CActionBar.ts" />
+<script lang="ts">
+import { Component, Prop } from 'vue-property-decorator';
+import BaseVueComponent from './BaseVueComponent';
+
+@Component({})
+export default class ActionBar extends BaseVueComponent {
+    @Prop({
+        default: null
+    })
+    public title: string;
+
+    @Prop({ default: null })
+    public subtitle: string;
+
+    @Prop({ default: false, type: Boolean })
+    public showMenuIcon: boolean;
+
+    @Prop({ default: false, type: Boolean })
+    public disableBackButton: boolean;
+    @Prop({ type: String })
+    public backgroundColor: string;
+
+    // @Prop({ default: false })
+    public canGoBack = false;
+
+    @Prop({ default: true })
+    public showLogo: boolean;
+    @Prop({ default: false, type: Boolean })
+    public modal: boolean;
+
+    get menuIcon() {
+        if (this.modal) {
+            return 'mdi-close';
+        }
+        if (this.canGoBack) {
+            return __IOS__ ? 'mdi-chevron-left' : 'mdi-arrow-left';
+        }
+        return 'mdi-menu';
+    }
+    get menuIconVisible() {
+        return (this.canGoBack && !this.disableBackButton) || this.showMenuIcon;
+    }
+    get menuIconVisibility() {
+        return this.menuIconVisible ? 'visible' : 'collapsed';
+    }
+
+    mounted() {
+        setTimeout(() => {
+            this.canGoBack = this.modal || this.$canGoBack();
+        }, 0);
+    }
+    onMenuIcon() {
+        if (this.modal) {
+            this.$modal.close();
+        } else {
+            if (this.$canGoBack()) {
+                this.$navigateBack();
+            } else {
+                this.$openDrawer();
+            }
+        }
+    }
+}
+</script>

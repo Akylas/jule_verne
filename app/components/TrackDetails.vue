@@ -7,7 +7,7 @@
                 <MDButton v-show="isEditing" variant="text" class="icon-btn" :text="'mdi-close'" @tap="leaveEditing()" />
             </CActionBar>
             <GridLayout row="1" @layoutChanged="onMapLayoutChange">
-                <MapComponent ref="mapComp" height="100%" width="100%" :tracks="[track]" @mapReady="onMapReady" :showFiltered="devMode" :locationEnabled="false" />
+                <MapComponent ref="mapComp" height="100%" width="100%" :tracks="[track]" @mapReady="onMapReady" :locationEnabled="false" />
             </GridLayout>
             <TabView row="2" :androidSelectedTabHighlightColor="accentColor">
                 <TabViewItem title="Items">

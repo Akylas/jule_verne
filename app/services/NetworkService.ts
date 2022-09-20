@@ -263,7 +263,7 @@ export class NetworkService extends Observable {
                         message: `${fileSize(Math.round(current), { round: 1, pad: true })}/${fileSize(total)} (${perc}%)`,
                         progressValue: perc
                     });
-                }, 1000);
+                }, 2000);
                 const file = await getFile(
                     {
                         url,
@@ -372,7 +372,7 @@ export class NetworkService extends Observable {
                         message: `${fileSize(Math.round(current), { round: 1, pad: true })}/${fileSize(total)} (${perc}%)`,
                         progressValue: perc
                     });
-                }, 1000);
+                }, 2000);
                 const file = await getFile(
                     {
                         url,

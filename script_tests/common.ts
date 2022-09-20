@@ -5,7 +5,6 @@ import { CommandType, buildMessageData } from '../app/handlers/Message';
 import { Encoder } from '@fsiot/heatshrink';
 import fileSize from 'filesize';
 
-
 function uint16ToByteArray(value) {
     const result = [];
     result.push((value & 0xff00) >> 8);
@@ -24,7 +23,7 @@ export function pictureDimensionToByteArray(height, width) {
     const result = [];
 
     const size = (height * Math.ceil(width / 2) * 2) / 2;
-    return uint32ToByteArray(size).concat(uint16ToByteArray(width))
+    return uint32ToByteArray(size).concat(uint16ToByteArray(width));
     return result;
 }
 const { Readable } = require('stream');
@@ -36,21 +35,20 @@ export async function compressHs(buffer: Buffer) {
             windowSize: 8,
             lookaheadSize: 4
         });
-        let stream = new Duplex();
+        const stream = new Duplex();
         stream.push(buffer);
         stream.push(null);
-        stream.pipe(encoder)
-        stream.on('end', ()=>{
+        stream.pipe(encoder);
+        stream.on('end', () => {
             resolve(encoder.read());
-
-        })
+        });
     });
 }
 
 export function compress4bpp(mat) {
-    let imgHeight = mat.sizes[0];
-    let imgWidth = mat.sizes[1];
-    let encodedImg = [];
+    const imgHeight = mat.sizes[0];
+    const imgWidth = mat.sizes[1];
+    const encodedImg = [];
     // let val0;
     let byte = 0;
     let shift = 0;
@@ -78,11 +76,41 @@ export function compress4bpp(mat) {
     return encodedImg;
 }
 
-export async function createBitmapData(id: number, filePath: string, crop = false, compress = false): Promise<[number[][], number, number, number, number, number]> {
-    let gray = cv2.imread(filePath);
-    gray = gray.cvtColor(cv2.COLOR_BGR2GRAY);
+export async function createBitmapData({
+    id,
+    filePath,
+    mat,
+    crop = false,
+    resize = true,
+    compress = false,
+    stream = false,
+    chunkSize = 512,
+    width = 244
+}: {
+    id: number;
+    mat?;
+    filePath?: string;
+    crop?: boolean;
+    compress?: boolean;
+    stream?: boolean;
+    resize?: boolean;
+    chunkSize?: number;
+    width?: number;
+}): Promise<[number[][], number, number, number, number, number, number]> {
+    let gray = mat;
+    if (!mat && filePath) {
+        gray = cv2.imread(filePath);
+        gray = gray.cvtColor(cv2.COLOR_BGR2GRAY);
+    }
     let imgHeight = gray.sizes[0];
     let imgWidth = gray.sizes[1];
+    console.log('createBitmapData', mat, imgWidth, imgHeight, resize);
+    if (resize && imgWidth !== width) {
+        //228/192
+        gray = gray.resize(Math.round(width * 0.844), width, 1, 1, cv2.INTER_AREA);
+        imgHeight = gray.sizes[0];
+        imgWidth = gray.sizes[1];
+    }
     let x = 0;
     let y = 0;
     if (crop) {
@@ -122,7 +150,6 @@ export async function createBitmapData(id: number, filePath: string, crop = fals
             maxy += 1;
         }
         if (minx > 0 || miny > 0 || maxx < imgWidth || maxy < imgHeight) {
-            console.log('cropping', filePath, minx, miny, maxx, maxy);
             gray = gray.getRegion(new cv2.Rect(minx, miny, maxx - minx, maxy - miny));
             gray = gray.rotate(cv2.ROTATE_180);
             x = (imgWidth - gray.sizes[1]) / 2;
@@ -135,76 +162,51 @@ export async function createBitmapData(id: number, filePath: string, crop = fals
     } else {
         gray = gray.rotate(cv2.ROTATE_180);
     }
-    // let match = gray.findNonZero();
-    // let minx = imgWidth;
-    // let miny = imgHeight;
-    // let maxx = 0;
-    // let maxy = 0;
-    // match.forEach((point) => {
-    //     if (point.x < minx) {
-    //         minx = point.x;
-    //     }
-    //     if (point.x > maxx) {
-    //         maxx = point.x;
-    //     }
-    //     if (point.y < miny) {
-    //         miny = point.y;
-    //     }
-    //     if (point.y > maxy) {
-    //         maxy = point.y;
-    //     }
-    // });
-    // minx = Math.max(0, minx - 1);
-    // miny = Math.max(0, miny - 1);
-    // maxx = Math.max(0, maxx + 1);
-    // maxy = Math.max(0, maxy + 1);
-    // console.log(filePath, minx, miny, maxx, maxy);
-    // if (minx > 0 || miny > 0 || maxx < imgWidth || maxy < imgHeight) {
-    //     gray = gray.getRegion(new cv2.Rect(minx, miny, maxx - minx, maxy - miny));
-    //     gray = gray.rotate(cv2.ROTATE_180);
-    //     imgHeight = gray.sizes[0];
-    //     imgWidth = gray.sizes[1];
-    // } else {
-    // gray = gray.rotate(cv2.ROTATE_180);
-    // }
-    // let cptImg = 0;
-    const inData = gray.getData();
     let commandToSend: Buffer | number[] = compress4bpp(gray);
 
     let compressed = false;
+
+    let dataSize = commandToSend.length;
     if (compress) {
-        console.log('compressing', filePath, commandToSend.length);
+        // console.log('compressing', filePath, commandToSend.length);
         try {
-            
             const compressedData = await compressHs(Uint8Array.from(commandToSend) as any);
-        console.log('compress done', filePath, compressedData.byteLength);
-        if (compressedData.byteLength < commandToSend.length) {
+            // console.log('compress done', filePath, compressedData.byteLength);
+            if (compressedData.byteLength < dataSize) {
                 console.log('compressed', filePath, commandToSend.length, compressedData.byteLength, Math.round((1 - compressedData.byteLength / commandToSend.length) * 100) + '%');
                 compressed = true;
+                dataSize = compressedData.byteLength;
                 commandToSend = [...Uint8Array.from(compressedData)];
             }
         } catch (error) {
-            console.error('compressing error', error)
+            console.error('compressing error', error);
         }
     }
-    console.log('commandToSend', filePath, inData.byteLength, commandToSend.length);
-    const commandsToSend = [[0xff, CommandType.SaveBmp, 0x00, 0x0d, id].concat(pictureDimensionToByteArray(imgHeight, imgWidth)).concat([compressed ? 0x03 : 0x00, 0xaa])];
-
+    const commandType = stream ? CommandType.StreamBmp : CommandType.SaveBmp;
+    // console.log('commandToSend', filePath, inData.byteLength, commandToSend.length);
+    const commandsToSend = [];
+    if (stream) {
+        commandsToSend.push(
+            [0xff, commandType, 0x00, 0x10].concat(pictureDimensionToByteArray(imgHeight, imgWidth)).concat([...uint16ToByteArray(x), ...uint16ToByteArray(y), compressed ? 0x02 : 0x00, 0xaa])
+        );
+    } else {
+        commandsToSend.push([0xff, commandType, 0x00, 0x0d, id].concat(pictureDimensionToByteArray(imgHeight, imgWidth)).concat([compressed ? 0x03 : 0x00, 0xaa]));
+    }
     let temporary;
-    const chunk = 512;
+    const chunk = chunkSize;
     for (let i = 0, j = commandToSend.length; i < j; i += chunk) {
         temporary = commandToSend.slice(i, i + chunk);
         const dataLength = temporary.length;
-        let framelength = dataLength + 5 ;
+        let framelength = dataLength + 5;
         let lenNbByte = 1;
-        if (framelength > 0xFF) {
+        if (framelength > 0xff) {
             framelength += 1;
             lenNbByte = 2;
         }
-        let header = lenNbByte === 2 ?[0xff, CommandType.SaveBmp, 0x10, ...uint16ToByteArray(framelength)]:[0xff, CommandType.SaveBmp, 0x00, framelength]
+        const header = lenNbByte === 2 ? [0xff, commandType, 0x10, ...uint16ToByteArray(framelength)] : [0xff, commandType, 0x00, framelength];
         commandsToSend.push(header.concat(temporary).concat([0xaa]));
     }
-    return [commandsToSend, x, y, imgWidth, imgHeight, commandToSend.length];
+    return [commandsToSend, x, y, imgWidth, imgHeight, commandToSend.length, dataSize];
 }
 
 export function getAllFiles(dirPath, arrayOfFiles?) {
@@ -236,7 +238,7 @@ export function getFolder(configId: string) {
 }
 
 const nmReg = new RegExp('"nm":\\s*"(.*?)"', 'gm');
-export async function buildDataSet(configId: string, crop = false, compress = false) {
+export async function buildDataSet(configId: string, crop = false, compress = false, width = 244) {
     const folder = getFolder(configId);
     // const filePath = path.resolve(path.join(__dirname, storyFolder));
     // const filePath = '/Volumes/data/mguillon/Downloads/Illustrations Flore';
@@ -244,11 +246,9 @@ export async function buildDataSet(configId: string, crop = false, compress = fa
     const files: string[] = getAllFiles(folder)
         .filter((s) => s.endsWith('.jpg') || s.endsWith('.bmp') || s.endsWith('.png'))
         .filter((s) => s !== 'cover.png');
-        // const files = ['/Volumes/dev/nativescript/jule_verne/jules_verne/glasses_images/navigation/right/30_pieds_droite_3.png'];
-        const fileNames = files.map((s) => s.split('/').slice(-1)[0]);
+    // const files = ['/Volumes/dev/nativescript/jule_verne/jules_verne/glasses_images/navigation/right/30_pieds_droite_3.png'];
+    const fileNames = files.map((s) => s.split('/').slice(-1)[0]);
     console.log('files', files.length);
-    
-
 
     const compositionPath = path.join(folder, 'composition.json');
     if (fs.existsSync(compositionPath)) {
@@ -305,12 +305,12 @@ export async function buildDataSet(configId: string, crop = false, compress = fa
         const key = item.split('/').slice(-1)[0].split('.')[0];
         if (!jsonOrderData[key]) {
             const relative = path.relative(folder, path.dirname(item));
-            const [imgData, x, y, width, height, size] = await createBitmapData(imgIndex, item, crop, compress);
+            const [imgData, x, y, w, h, size] = await createBitmapData({ id: imgIndex, filePath: item, crop, compress, width });
             totalImageSize += size;
             if (configId === 'nav') {
-                jsonOrderData[key] = [imgIndex, x, y, width, height, relative];
+                jsonOrderData[key] = [imgIndex, x, y, w, h, relative];
             } else {
-                jsonOrderData[key] = [imgIndex, x, y, width, height];
+                jsonOrderData[key] = [imgIndex, x, y, w, h];
             }
             data.push(...imgData);
             imgIndex++;
@@ -329,7 +329,15 @@ export async function buildDataSet(configId: string, crop = false, compress = fa
     // const data = files.reduce((accumulator, currentValue) => accumulator.concat(createBitmapData(currentValue)), [] as number[][]);
     console.log('data', fileSize(totalImageSize));
 
-    const fileDataStr = data.reduce((accumulator, currentValue) => accumulator + Array.from(currentValue, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('').toUpperCase() + '\n', '');
+    const fileDataStr = data.reduce(
+        (accumulator, currentValue) =>
+            accumulator +
+            Array.from(currentValue, (byte) => ('0' + (byte & 0xff).toString(16)).slice(-2))
+                .join('')
+                .toUpperCase() +
+            '\n',
+        ''
+    );
 
     // const fileDataStr = data.reduce((accumulator, currentValue) => accumulator + '0x' + Array.from(currentValue, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('') + '\n', '');
 

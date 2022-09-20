@@ -11,6 +11,7 @@ import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServic
 import OptionSelect from '~/components/OptionSelect';
 import TrackDetails from '~/components/TrackDetails';
 import Track from '~/models/Track';
+import { Catch } from '~/utils';
 import { ComponentIds } from '~/vue.prototype';
 
 interface Item {
@@ -29,6 +30,7 @@ export default class Tracks extends BgServiceComponent {
     navigateUrl = ComponentIds.Tracks;
 
     dataItems: ObservableArray<Item> = null;
+    item: Item;
 
     get listView() {
         return this.$refs.collectionView && (this.$refs.collectionView.nativeView as CollectionView);
@@ -202,21 +204,17 @@ export default class Tracks extends BgServiceComponent {
         };
     }
 
-    @profile
+    @Catch()
     async refresh() {
-        try {
-            const results = await this.dbHandler.trackRepository.searchItem();
-            const selectedTrack = (this.currentTrackId = getString('selectedTrackId'));
-            this.dataItems = new ObservableArray(
-                results.map((s) => ({
-                    track: s,
-                    checked: selectedTrack === s.id,
-                    selected: false
-                }))
-            );
-        } catch (err) {
-            this.showError(err);
-        }
+        const results = await this.dbHandler.trackRepository.searchItem();
+        const selectedTrack = (this.currentTrackId = getString('selectedTrackId'));
+        this.dataItems = new ObservableArray(
+            results.map((s) => ({
+                track: s,
+                checked: selectedTrack === s.id,
+                selected: false
+            }))
+        );
     }
 
     ignoreTap = false;
@@ -250,51 +248,48 @@ export default class Tracks extends BgServiceComponent {
     onServiceLoaded(handlers: BgServiceMethodParams) {
         this.refresh();
     }
+    @Catch()
     async importTrace() {
-        try {
-            let result;
-            if (__IOS__) {
-                const docs = knownFolders.documents();
-                result = await docs
-                    .getEntities()
-                    .then((result) => result.map((e) => e.path).filter((s) => s.endsWith('.gpx') || s.endsWith('.json')))
-                    .then((r) => {
-                        if (r && r.length > 0) {
-                            return this.$showModal(OptionSelect, {
-                                props: {
-                                    title: this.$t('pick_file'),
-                                    options: r.map((e) => ({ title: e.split('/').slice(-1)[0], data: e }))
-                                },
-                                fullscreen: false
-                            }).then((result: { title: string; data: string }) => result && { files: [result.data] });
-                        } else {
-                            showSnack({ message: this.$t('no_file_found') });
-                            return undefined;
-                        }
-                    });
-            } else {
-                result = await openFilePicker({
-                    extensions: __IOS__ ? ['com.akylas.juleverne.json', 'com.gpsakylas.julevernetest.gpx'] : ['*/*'],
-                    multipleSelection: false,
-                    pickerMode: 0
+        let result;
+        if (__IOS__) {
+            const docs = knownFolders.documents();
+            result = await docs
+                .getEntities()
+                .then((result) => result.map((e) => e.path).filter((s) => s.endsWith('.gpx') || s.endsWith('.json')))
+                .then((r) => {
+                    if (r && r.length > 0) {
+                        return this.$showModal(OptionSelect, {
+                            props: {
+                                title: this.$t('pick_file'),
+                                options: r.map((e) => ({ title: e.split('/').slice(-1)[0], data: e }))
+                            },
+                            fullscreen: false
+                        }).then((result: { title: string; data: string }) => result && { files: [result.data] });
+                    } else {
+                        showSnack({ message: this.$t('no_file_found') });
+                        return undefined;
+                    }
                 });
-            }
-            if (result && result.files.length > 0) {
-                this.showLoading(this.$t('importing'));
-                await Promise.all(
-                    result.files.map((f) => {
-                        if (f.endsWith('.json')) {
-                            return this.geoHandler.importJSONFile(f);
-                            // } else if (f.endsWith('.gpx')) {
-                            // return this.geoHandler.importGPXFile(f);
-                        }
-                    })
-                );
-                this.hideLoading();
-                this.refresh();
-            }
-        } catch (err) {
-            this.showError(err);
+        } else {
+            result = await openFilePicker({
+                extensions: __IOS__ ? ['com.akylas.juleverne.json', 'com.gpsakylas.julevernetest.gpx'] : ['*/*'],
+                multipleSelection: false,
+                pickerMode: 0
+            });
+        }
+        if (result && result.files.length > 0) {
+            this.showLoading(this.$t('importing'));
+            await Promise.all(
+                result.files.map((f) => {
+                    if (f.endsWith('.json')) {
+                        return this.geoHandler.importJSONFile(f);
+                        // } else if (f.endsWith('.gpx')) {
+                        // return this.geoHandler.importGPXFile(f);
+                    }
+                })
+            );
+            this.hideLoading();
+            this.refresh();
         }
     }
 

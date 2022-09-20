@@ -1,47 +1,183 @@
 <template>
-    <StackLayout ref="page" actionBarHidden>
-        <Pager ref="pager" height="0" :items="messages" backgroundColor="blue">
-            <v-template>
-                <GridLayout columns="*,auto,auto" rows="auto,*" padding="5" width="100%" height="100%">
-                    <Label :text="item.title" color="white" fontSize="14" fontWeight="bold" lineBreak="end" verticalTextAlignment="center" />
-                    <Label col="1" :text="item.message" color="white" fontSize="10" textAlign="right" verticalTextAlignment="center" />
-                    <GridLayout row="1" colSpan="2" orientation="horizontal" columns="*, auto">
-                        <MDProgress v-show="item.progress !== undefined" :value="item.progress" verticalAlignment="center" color="white" />
-                        <MDButton fontSize="12" padding="2" variant="text" v-show="item.action" :text="item.action.text" color="white" @tap="onButtonTap(item)" col="1" />
-                    </GridLayout>
+    <Page>
+        <Drawer
+            ref="drawer"
+            @loaded="onLoaded"
+            :gestureEnabled="true"
+            :leftSwipeDistance="20"
+            :gestureHandlerOptions="{
+                failOffsetYStart: -10,
+                failOffsetYEnd: 10
+            }"
+        >
+            <BottomSheet :stepIndex="stepIndex" :steps="[0, 70]" :gestureEnabled="false" ~mainContent>
+                <StackLayout ref="page" actionBarHidden>
+                    <Pager ref="pager" height="0" :items="messages" backgroundColor="blue" +alias="messageItem">
+                        <v-template>
+                            <GridLayout columns="*,auto,auto" rows="auto,*" padding="5" width="100%" height="100%">
+                                <Label :text="messageItem.title" color="white" fontSize="14" fontWeight="bold" lineBreak="end" verticalTextAlignment="center" />
+                                <Label col="1" :text="messageItem.message" color="white" fontSize="10" textAlign="right" verticalTextAlignment="center" />
+                                <GridLayout row="1" colSpan="2" orientation="horizontal" columns="*, auto">
+                                    <MDProgress v-show="messageItem.progress !== undefined" :value="messageItem.progress" verticalAlignment="center" color="white" />
+                                    <MDButton
+                                        fontSize="12"
+                                        padding="2"
+                                        variant="text"
+                                        v-show="messageItem.action"
+                                        :text="messageItem.action.text"
+                                        color="white"
+                                        @tap="onButtonTap(messageItem)"
+                                        col="1"
+                                    />
+                                </GridLayout>
+                            </GridLayout>
+                        </v-template>
+                    </Pager>
+                    <Frame>
+                        <MainMenu />
+                    </Frame>
+                </StackLayout>
+                <BarAudioPlayerWidget ~bottomSheet />
+            </BottomSheet>
+            <GridLayout ~leftDrawer rows="auto, *, auto" height="100%" :backgroundColor="backgroundColor" width="80%">
+                <GridLayout padding="10" height="80" rows="auto, *" columns="auto, *">
+                    <Label marginLeft="15" fontSize="20" :text="$t('menu') | titlecase" :color="textColor" />
+                    <GlassesIcon
+                        horizontalAlignment="right"
+                        col="1"
+                        :glasses="connectedGlasses"
+                        :battery="glassesBattery"
+                        @longPress="onLongPress('disconnectGlasses', $event)"
+                        @tap="onTap('connectGlasses')"
+                    />
                 </GridLayout>
-            </v-template>
-        </Pager>
-        <Frame>
-            <Home />
-        </Frame>
-    </StackLayout>
+                <CollectionView :items="menuItems" row="1" paddingTop="10" rowHeight="50" @tap="noop" +alias="menuItem">
+                    <v-template>
+                        <GridLayout columns="50, *" class="menu" :active="menuItem.activated" :rippleColor="accentColor" @tap="onNavItemTap(menuItem)">
+                            <Label col="0" class="menuIcon" :text="menuItem.icon" verticalAlignment="center" />
+                            <Label col="1" class="menuText" :text="menuItem.title | titlecase" verticalAlignment="center" :active="menuItem.activated" />
+                        </GridLayout>
+                    </v-template>
+                </CollectionView>
+                <StackLayout row="2" padding="10">
+                    <Label @longPress="$switchDevMode" textWrap textAlignment="center" fontSize="13">
+                        <Span :text="'Glasses data version: ' + (glassesDataUpdateDate ? date(glassesDataUpdateDate, 'L LT') : $tc('missing'))" />
+                        <Span :text="'\n' + 'Map data version: ' + (mapDataUpdateDate ? date(mapDataUpdateDate, 'L LT') : $tc('missing'))" />
+                        <Span :text="'\n' + 'GeoJSON version: ' + (geojsonDataUpdateDate ? date(geojsonDataUpdateDate, 'L LT') : $tc('missing'))" />
+                        <Span :text="'\n' + 'App version: ' + (appVersion || '')" />
+                    </Label>
+                </StackLayout>
+            </GridLayout>
+        </Drawer>
+    </Page>
 </template>
 <script lang="ts">
-import { ObservableArray } from '@akylas/nativescript';
+import { ApplicationSettings, ObservableArray } from '@akylas/nativescript';
+import { isSimulator } from '@nativescript-community/extendedinfo';
+import { MapBounds } from '@nativescript-community/ui-carto/core';
+import { Drawer } from '@nativescript-community/ui-drawer';
+import { File, knownFolders, path } from '@nativescript/core/file-system';
+import Vue from 'nativescript-vue';
 import { Component } from 'vue-property-decorator';
-import BaseVueComponent from '~/components/BaseVueComponent';
-import Home from '~/components/Home';
-import { off, on } from '~/utils';
+import GlassesIcon from '~/components/GlassesIcon.vue';
+import BarAudioPlayerWidget from '~/components/BarAudioPlayerWidget.vue';
+import { BgServiceMethodParams } from '~/components/BgServiceComponent';
+import GlassesConnectionComponent from '~/components/GlassesConnectionComponent';
+import MainMenu from '~/components/MainMenu.vue';
+import { Catch, off as appOff, on as appOn, off, on } from '~/utils';
+import { bboxify } from '~/utils/geo';
+import { getWorkingDir } from '~/utils/utils';
+import { backgroundColor, textColor } from '~/variables';
+import { date } from '~/vue.filters';
+import { ComponentIds } from '~/vue.prototype';
+import { GestureEventData } from '@nativescript/core/ui';
+import { confirm } from '@nativescript-community/ui-material-dialogs';
+
+interface MessageItem {
+    id: number;
+    title: string;
+    message: string;
+    progress: number;
+    action?: {
+        text: string;
+        callback: Function;
+    };
+}
+interface MenuItem {
+    title: string;
+    icon: string;
+    component;
+    url: string;
+    activated: boolean;
+}
+
 @Component({
     components: {
-        Home
+        BarAudioPlayerWidget,
+        MainMenu,
+        GlassesIcon
     }
 })
-export default class App extends BaseVueComponent {
-    messages: ObservableArray<{
-        id: number;
-        title: string;
-        message: string;
-        progress: number;
-        action?: {
-            text: string;
-            callback: Function;
-        };
-    }> = new ObservableArray([]);
+export default class App extends GlassesConnectionComponent {
+    date = date;
+    backgroundColor = backgroundColor;
+    textColor = textColor;
+    messages: ObservableArray<MessageItem> = new ObservableArray([]);
 
+    stepIndex = 0;
     mShowMessages = false;
+    messageItem: MessageItem;
+    menuItem: MenuItem;
 
+    appVersion = __APP_VERSION__ + '.' + __APP_BUILD_NUMBER__;
+    glassesDataUpdateDate = ApplicationSettings.getNumber('GLASSES_DATA_LASTDATE', null);
+    mapDataUpdateDate = ApplicationSettings.getNumber('MAP_DATA_LASTDATE', null);
+    geojsonDataUpdateDate = ApplicationSettings.getNumber('GEOJSON_DATA_LASTDATE', null);
+    needsImportOldSessionsOnLoaded = false;
+    menuItems = new ObservableArray([
+        // {
+        //     title: this.$t('map'),
+        //     icon: 'mdi-map',
+        //     component: async () => (await import('~/components/Home')).default,
+        //     url: ComponentIds.Activity,
+        //     activated: false
+        // },
+        {
+            title: this.$t('tracks'),
+            icon: 'mdi-map-marker-path',
+            component: async () => (await import('~/components/Tracks')).default,
+            url: ComponentIds.Tracks,
+            activated: false
+        },
+        // {
+        //     title: this.$t('create_track'),
+        //     icon: 'mdi-map-marker-distance',
+        //     url: ComponentIds.Leaflet,
+        //     activated: false
+        // },
+        {
+            title: this.$t('settings'),
+            icon: 'mdi-cogs',
+            component: async () => (await import('~/components/Settings.vue')).default,
+            url: ComponentIds.Settings,
+            activated: false
+        },
+        {
+            title: this.$t('images'),
+            icon: 'mdi-image',
+            component: async () => (await import('~/components/Images.vue')).default,
+            url: ComponentIds.Images,
+            activated: false
+        }
+    ]);
+
+    constructor() {
+        super();
+        this.autoConnect = !PRODUCTION;
+    }
+    get drawer() {
+        return this.getRef<Drawer>('drawer');
+    }
     set showMessages(value) {
         if (this.mShowMessages !== value) {
             this.mShowMessages = value;
@@ -56,11 +192,40 @@ export default class App extends BaseVueComponent {
     }
     mounted() {
         super.mounted();
+        this.$onAppMounted();
         on('appMessage', this.setMessage, this);
         on('appMessageUpdate', this.updateMessage, this);
         on('appMessageRemove', this.removeMessage, this);
+        appOn('GLASSES_DATA_LASTDATE', this.onGlassesDataUpdateDate, this);
+        appOn('MAP_DATA_LASTDATE', this.onMapDataUpdateDate, this);
+        appOn('GEOJSON_DATA_LASTDATE', this.onGeojsonDataUpdateDate, this);
     }
-    onButtonTap(item) {
+    destroyed() {
+        super.destroyed();
+        off('appMessage', this.setMessage, this);
+        off('appMessageUpdate', this.updateMessage, this);
+        off('appMessageRemove', this.removeMessage, this);
+        appOff('GLASSES_DATA_LASTDATE', this.onGlassesDataUpdateDate, this);
+        appOff('MAP_DATA_LASTDATE', this.onMapDataUpdateDate, this);
+        appOff('GEOJSON_DATA_LASTDATE', this.onGeojsonDataUpdateDate, this);
+    }
+    onLoaded() {
+        // GC();
+        // console.log('onLoaded', this.needsImportOldSessionsOnLoaded);
+        Vue.prototype.$drawer = this.drawer;
+        if (this.dbHandler && this.dbHandler.started) {
+            this.importDevSessions();
+        } else {
+            this.needsImportOldSessionsOnLoaded = true;
+        }
+        if (PRODUCTION || !isSimulator()) {
+            this.$networkService.checkForMapDataUpdate();
+        }
+        if (!DISABLE_UPDATES && (PRODUCTION || !isSimulator())) {
+            this.$networkService.checkForGlassesDataUpdate();
+        }
+    }
+    onButtonTap(item: MessageItem) {
         console.log('onButtonTap', item);
         item.action?.callback?.();
     }
@@ -101,11 +266,128 @@ export default class App extends BaseVueComponent {
             console.error(error);
         }
     }
-    destroyed() {
-        super.destroyed();
-        off('appMessage', this.setMessage, this);
-        off('appMessageUpdate', this.updateMessage, this);
-        off('appMessageRemove', this.removeMessage, this);
+    onPlayerState(event) {
+        const state = event.data;
+        this.stepIndex = state === 'stopped' ? 0 : 1;
+        console.log('onPlayerState', state, this.stepIndex);
+    }
+    setup(handlers: BgServiceMethodParams) {
+        super.setup(handlers);
+        if (!handlers.geoHandler) {
+            return;
+        }
+        this.bluetoothHandlerOn('playback', this.onPlayerState);
+        this.onPlayerState({ data: handlers.bluetoothHandler.playerState });
+    }
+    async onServiceStarted(handlers: BgServiceMethodParams) {
+        // console.log('onServiceStarted', this.needsImportOldSessionsOnLoaded);
+        if (this.needsImportOldSessionsOnLoaded) {
+            this.needsImportOldSessionsOnLoaded = false;
+            this.importDevSessions();
+        }
+    }
+    async importDevSessions() {
+        try {
+            let geojsonPath = path.join(getWorkingDir(false), 'map.geojson');
+            if (PRODUCTION || !isSimulator()) {
+                await this.$networkService.checkForGeoJSONUpdate(geojsonPath);
+            }
+            if (!File.exists(geojsonPath)) {
+                geojsonPath = path.join(knownFolders.currentApp().path, 'assets/data/map.geojson');
+            }
+            if (!File.exists(geojsonPath)) {
+                return;
+            }
+            // this.showLoading({ text: this.$t('importing_data'), progress: 0 });
+            const file = File.fromPath(geojsonPath);
+            const lastChecked = ApplicationSettings.getNumber('map.geojson_date', 0);
+            if (file.lastModified.getTime() <= lastChecked) {
+                return;
+            }
+            const importData = file.readTextSync();
+            const data = JSON.parse(importData);
+            const existing = (await this.dbHandler.trackRepository.searchItem()).map((t) => t.id);
+            for (let index = 0; index < data.length; index++) {
+                const d = data[index];
+                const track = { ...d, id: (d.name || Date.now()) + '' };
+                const geojson = bboxify(track.geometry);
+                track.geometry = geojson as any;
+                // track.geometry = reader.readFeatureCollection(JSON.stringify(d.geometry));
+                track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.bbox[3], lon: geojson.bbox[2] }, { lat: geojson.bbox[1], lon: geojson.bbox[0] });
+
+                let newTrack;
+                if (existing.indexOf(track.id) === -1) {
+                    newTrack = await this.dbHandler.trackRepository.createItem(track);
+                } else {
+                    newTrack = await this.dbHandler.trackRepository.updateItem(track);
+                }
+                if (this.geoHandler.currentTrack?.id === newTrack.id) {
+                    this.geoHandler.currentTrack = newTrack;
+                }
+            }
+            ApplicationSettings.setNumber('map.geojson_date', file.lastModified.getTime());
+        } catch (err) {
+            this.showError(err);
+        } finally {
+            // this.hideLoading();
+        }
+    }
+    onGlassesDataUpdateDate(event) {
+        this.glassesDataUpdateDate = event.data;
+    }
+    onMapDataUpdateDate(event) {
+        this.mapDataUpdateDate = event.data;
+    }
+    onGeojsonDataUpdateDate(event) {
+        this.geojsonDataUpdateDate = event.data;
+    }
+
+    openDrawer() {
+        this.drawer.open();
+    }
+    closeDrawer() {
+        this.drawer && this.drawer.close();
+    }
+    @Catch()
+    async onNavItemTap(item: MenuItem) {
+        this.$navigateToUrl(item.url, { component: item.component });
+    }
+
+    @Catch()
+    async onTap(command: string, ...args) {
+        switch (command) {
+            case 'connectGlasses': {
+                if (!PRODUCTION && !this.connectedGlasses) {
+                    if (!this.bluetoothHandler.isEnabled()) {
+                        await this.bluetoothHandler.enable();
+                    }
+                    this.pickGlasses();
+                }
+                break;
+            }
+        }
+    }
+    @Catch()
+    onLongPress(command: string, args: GestureEventData) {
+        if (__IOS__ && args?.ios?.state !== 3) {
+            return;
+        }
+        switch (command) {
+            case 'disconnectGlasses':
+                if (!PRODUCTION && this.connectedGlasses) {
+                    confirm({
+                        title: this.$tt('disconnect_glasses'),
+                        message: this.$tc('disconnect_glasses_are_you_sure'),
+                        okButtonText: this.$t('disconnect'),
+                        cancelButtonText: this.$t('cancel')
+                    }).then((result) => {
+                        if (!!result) {
+                            this.bluetoothHandler.disconnectGlasses(true);
+                        }
+                    });
+                }
+                break;
+        }
     }
 }
 </script>

@@ -1,7 +1,7 @@
 <template>
     <GridLayout width="100%" height="100%">
         <CartoMap ref="mapView" zoom="16" @mapReady="onMapReady" @mapMoved="onMapMove" />
-        <Label
+        <!-- <Label
             v-if="devMode && mLastUserLocation"
             backgroundColor="rgba(0, 0, 0, 0.533)"
             borderRadius="10"
@@ -13,7 +13,7 @@
             horizontalAlignment="center"
             verticalAlignment="top"
             :text="lastLocationDetails"
-        />
+        /> -->
 
         <GridLayout
             v-if="locationEnabled && showLocationButton"

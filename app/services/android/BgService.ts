@@ -17,6 +17,18 @@ export function getInstance() {
 }
 const TAG = '[BgServiceAndroid]';
 
+export interface PlayingInfo {
+    duration: number;
+    name: string;
+    cover?: string;
+    canPause?: boolean;
+    canStop?: boolean;
+}
+
+const ic_play_id = Utils.android.resources.getId(':drawable/' + 'icon_play');
+const ic_pause_id = Utils.android.resources.getId(':drawable/' + 'icon_pause');
+const ic_stop_id = Utils.android.resources.getId(':drawable/' + 'ic_end');
+
 @NativeClass
 @JavaProxy('com.akylas.juleverne.BgService')
 export class BgService extends android.app.Service {
@@ -30,12 +42,14 @@ export class BgService extends android.app.Service {
     notificationManager: any;
     recording: boolean;
     playingState: 'play' | 'pause' | 'stopped' = 'stopped';
-    playingInfo: { duration: number; name: string; cover?: string; canPause?: boolean } = null;
+    playingInfo: PlayingInfo = null;
 
     onStartCommand(intent: android.content.Intent, flags: number, startId: number) {
         super.onStartCommand(intent, flags, startId);
         console.log('onStartCommand', intent);
-        instance = this;
+        if (!instance) {
+            instance = this;
+        }
         if (intent != null) {
             com.akylas.juleverne.CustomMediaButtonReceiver.handleIntent(this.getMediaSessionCompat(), intent);
         }
@@ -48,6 +62,9 @@ export class BgService extends android.app.Service {
         return android.app.Service.START_STICKY;
     }
     onCreate() {
+        if (!instance) {
+            instance = this;
+        }
         DEV_LOG && console.log(TAG, 'onCreate');
         this.currentNotifText = $tc('tap_to_open');
         this.recording = false;
@@ -203,7 +220,6 @@ export class BgService extends android.app.Service {
             const MediaSessionCompat = android.support.v4.media.session.MediaSessionCompat;
             const mediaSessionCompat = (this.mMediaSessionCompat = new MediaSessionCompat(context, 'AudioPlayer'));
             mediaSessionCompat.setActive(true);
-            // const transportControls = mediaSessionCompat.getController().getTransportControls();
             mediaSessionCompat.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
 
             const stateBuilder = (this.stateBuilder = new PlaybackStateCompat.Builder().setActions(
@@ -266,14 +282,11 @@ export class BgService extends android.app.Service {
             mediaSessionCompat.setCallback(
                 new MediaSessionCompatCallback({
                     onPlay: () => {
-                        console.log('onPlay');
                         this.getMediaSessionCompat().setActive(true);
                         this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
-
                         this.showPlayingNotification();
                     },
                     onPause: () => {
-                        console.log('onPause');
                         if (this.playingState === 'play') {
                             this.bluetoothHandler.pauseStory();
                             this.setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
@@ -289,10 +302,7 @@ export class BgService extends android.app.Service {
     updateMediaSessionMetadata(image?: string) {
         const MediaMetadataCompat = android.support.v4.media.MediaMetadataCompat;
         const metadataBuilder = new MediaMetadataCompat.Builder();
-        //Notification icon in card
-        // metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher));
         // metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher));
-
         //lock screen icon for pre lollipop
         // metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher));
         const playingInfo = this.playingInfo;
@@ -308,8 +318,6 @@ export class BgService extends android.app.Service {
             metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, android.graphics.BitmapFactory.decodeResource(resources, identifier));
         }
         metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, playingInfo.duration);
-        // metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, 1);
-        // metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, 1);
         this.getMediaSessionCompat().setMetadata(metadataBuilder.build());
     }
     setMediaPlaybackState(state) {
@@ -331,7 +339,6 @@ export class BgService extends android.app.Service {
     showPlayingNotification() {
         const context = Utils.ad.getApplicationContext();
         const builder = (this.playingNotifBuilder = NotificationHelper.getMediaNotification(context, this.getMediaSessionCompat()));
-        console.log('showPlayingNotification', builder, this.getMediaSessionCompat()?.getSessionToken());
         if (builder === null) {
             return;
         }
@@ -339,10 +346,16 @@ export class BgService extends android.app.Service {
         const NotificationCompat = androidx.core.app.NotificationCompat;
         const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
         const playingInfo = this.playingInfo;
-        builder.addAction(
-            new NotificationCompat.Action(17301539, 'Pause', com.akylas.juleverne.CustomMediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_PLAY_PAUSE))
-        );
-        builder.setStyle(new MediaStyle().setShowActionsInCompactView([0]).setMediaSession(this.getMediaSessionCompat().getSessionToken()));
+        const actionsInCompactView = [];
+        if (playingInfo.canPause) {
+            actionsInCompactView.push(0);
+            builder.addAction(ic_pause_id, 'Pause', com.akylas.juleverne.CustomMediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_PLAY_PAUSE));
+        }
+        if (playingInfo.canStop) {
+            actionsInCompactView.push(1);
+            builder.addAction(ic_stop_id, 'Stop', com.akylas.juleverne.CustomMediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_STOP));
+        }
+        builder.setStyle(new MediaStyle().setShowActionsInCompactView(actionsInCompactView).setMediaSession(this.getMediaSessionCompat().getSessionToken()));
         NotificationHelper.showNotification(PLAYING_NOTIFICATION_ID, builder);
     }
     showPausedNotification() {
@@ -355,10 +368,14 @@ export class BgService extends android.app.Service {
         const NotificationCompat = androidx.core.app.NotificationCompat;
         const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
 
-        builder.addAction(
-            new NotificationCompat.Action(17301540, 'Play', com.akylas.juleverne.CustomMediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_PLAY_PAUSE))
-        );
-        builder.setStyle(new MediaStyle().setShowActionsInCompactView([0]).setMediaSession(this.getMediaSessionCompat().getSessionToken()));
+        const playingInfo = this.playingInfo;
+        const actionsInCompactView = [0];
+        builder.addAction(ic_play_id, 'Play', com.akylas.juleverne.CustomMediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_PLAY_PAUSE));
+        if (playingInfo.canStop) {
+            actionsInCompactView.push(1);
+            builder.addAction(ic_stop_id, 'Stop', com.akylas.juleverne.CustomMediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_STOP));
+        }
+        builder.setStyle(new MediaStyle().setShowActionsInCompactView(actionsInCompactView).setMediaSession(this.getMediaSessionCompat().getSessionToken()));
         NotificationHelper.showNotification(PLAYING_NOTIFICATION_ID, builder);
     }
 

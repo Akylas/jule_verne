@@ -35,7 +35,7 @@ declare module 'vue/types/vue' {
 
         $getDevMode(): boolean;
         $setDevMode(value);
-        $switchDevMode(args: GestureEventData);
+        $switchDevMode(args?: GestureEventData);
 
         $updateLoadingProgress(msg: Partial<ShowLoadingOptions>);
         $showLoading(msg?: string | ShowLoadingOptions);

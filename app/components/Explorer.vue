@@ -20,7 +20,7 @@ import { MICROOLED_MANUFACTURER_ID, MICROOLED_MANUFACTURER_NAME, StartScanningOp
 import BaseVueComponent from './BaseVueComponent';
 
 @Component({})
-export default class DeviceSelect extends BaseVueComponent {
+export default class Explorer extends BaseVueComponent {
     @Prop({})
     title: string;
     mounted() {

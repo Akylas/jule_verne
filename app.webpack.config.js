@@ -92,7 +92,13 @@ module.exports = (env, params = {}) => {
     env.appPath = appPath;
     env.appResourcesPath = appResourcesPath;
     env.appComponents = env.appComponents || [];
-    env.appComponents.push('~/services/android/BgService', '~/services/android/BgServiceBinder', '~/services/android/CustomMediaButtonReceiver', '~/android/ActionReceiver');
+    env.appComponents.push(
+        '~/services/android/BgService',
+        '~/services/android/BgServiceBinder',
+        '~/services/android/CustomMediaButtonReceiver',
+        '~/services/android/BlueToothHeadSetEventReceiver',
+        '~/android/ActionReceiver'
+    );
     const config = webpackConfig(env, params);
     const mode = production ? 'production' : 'development';
     const platform = env && ((env.android && 'android') || (env.ios && 'ios'));
@@ -176,7 +182,8 @@ module.exports = (env, params = {}) => {
     //         appIcons[v.name.replace('$icon-', '')] = String.fromCharCode(parseInt(v.value.slice(2), 16));
     //     });
 
-    const scssPrepend = `$mdi-fontFamily: ${isAndroid ? 'materialdesignicons-webfont' : 'Material Design Icons'};`;
+    const scssPrepend = `$mdi-fontFamily: ${isAndroid ? 'materialdesignicons-webfont' : 'Material Design Icons'};
+    $inter-fontFamily: ${isAndroid ? 'res/inter' : 'Inter'};`;
 
     const scssLoaderRuleIndex = config.module.rules.findIndex((r) => r.test && r.test.toString().indexOf('scss') !== -1);
     config.module.rules.splice(

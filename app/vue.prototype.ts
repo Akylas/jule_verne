@@ -4,7 +4,6 @@ import { Device, Frame, GestureEventData, NavigationEntry, Page, Screen } from '
 import { on as applicationOn, exitEvent } from '@nativescript/core/application';
 import { setBoolean } from '@nativescript/core/application-settings';
 import VueType, { VueConstructor } from 'vue';
-import Home from '~/components/Home';
 import LoadingIndicator from '~/components/LoadingIndicator.vue';
 import { $t, $tc, $tt, $tu } from '~/helpers/locale';
 import { BgService } from '~/services/BgService';
@@ -32,6 +31,8 @@ export enum ComponentIds {
     Tracks = 'tracks',
     Images = 'images',
     Firmware = 'firmware',
+    MainMenu = 'MainMenu',
+    ImagesViewer = 'imagesviewer',
     Map = 'map'
 }
 const Plugin = {
@@ -57,11 +58,8 @@ const Plugin = {
 
         let navigating = false;
         const routes: { [k: string]: { component: typeof Vue | Function } } = {
-            [ComponentIds.Activity]: {
-                component: Home
-            },
             [ComponentIds.Settings]: {
-                component: async () => (await import('~/components/Settings')).default
+                component: async () => (await import('~/components/Settings.vue')).default
             }
         };
 
@@ -162,20 +160,21 @@ const Plugin = {
                 return navigateBackToUrl(url);
             }
         };
-        let bDevMode = true;
+        let bDevMode = !PRODUCTION;
 
         Vue.prototype.$getDevMode = function () {
             return bDevMode;
         };
         const setDevMode = (Vue.prototype.$setDevMode = function (value) {
             bDevMode = value;
-            // if (dbHandler) {
-            //     dbHandler.devMode = value;
-            // }
+            if (bgService) {
+                bgService.bluetoothHandler.devMode = value;
+                bgService.geoHandler.dbHandler.devMode = value;
+            }
             setBoolean('devMode', value);
         });
         Vue.prototype.$switchDevMode = function (args: GestureEventData) {
-            if (args && args.ios && args.ios.state !== 3) {
+            if (__IOS__ && args?.ios?.state !== 3) {
                 return;
             }
             setDevMode(!bDevMode);

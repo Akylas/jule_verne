@@ -41,9 +41,6 @@ export default class BaseVueComponent extends Vue {
         return this.getRef<Page>('page');
     }
 
-    get devMode() {
-        return this.$getDevMode();
-    }
     getRef<T extends View = View>(key: string) {
         if (this.$refs[key]) {
             return (this.$refs[key] as NativeScriptVue<T>).nativeView;

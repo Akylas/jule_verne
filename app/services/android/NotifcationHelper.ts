@@ -111,7 +111,6 @@ export class NotificationHelper {
         const description = mediaMetadata.getDescription();
 
         const NotificationCompat = androidx.core.app.NotificationCompat;
-        const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
         const builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANEL_ID_MUSIC_CHANNEL);
         builder
             .setContentTitle(description.getTitle())
@@ -122,7 +121,7 @@ export class NotificationHelper {
             .setLargeIcon(description.getIconBitmap())
             .setContentIntent(controller.getSessionActivity())
             .setOngoing(true)
-            .setDeleteIntent(androidx.media.session.MediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_STOP))
+            .setDeleteIntent(androidx.media.session.MediaButtonReceiver.buildMediaButtonPendingIntent(context, 1 /* android.support.v4.media.session.PlaybackStateCompat.ACTION_STOP */))
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
         return builder;
     }

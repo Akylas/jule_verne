@@ -145,8 +145,8 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         return { geoHandler, dbHandler, bluetoothHandler };
     }
 
-    bluetoothHandlerSetupListeners: any[] = [];
-    bluetoothHandlerListeners: any[] = [];
+    private bluetoothHandlerSetupListeners: any[] = [];
+    private bluetoothHandlerListeners: any[] = [];
     bluetoothHandlerOn(event, listener, context = this) {
         if (this.inSetup) {
             this.bluetoothHandlerSetupListeners.push([event, listener]);
@@ -156,8 +156,8 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         this.bluetoothHandler.on(event, listener, context);
         return this;
     }
-    geoHandlerSetupListeners: any[] = [];
-    geoHandlerListeners: any[] = [];
+    private geoHandlerSetupListeners: any[] = [];
+    private geoHandlerListeners: any[] = [];
     geoHandlerOn(event, listener, context = this) {
         if (this.inSetup) {
             this.geoHandlerSetupListeners.push([event, listener]);

@@ -1,0 +1,126 @@
+<template>
+    <Page ref="page" id="history" :navigateUrl="navigateUrl">
+        <GridLayout rows="auto,*">
+            <CActionBar showMenuIcon />
+            <StackLayout row="1" horizontalAlignment="center" verticalAlignment="center" width="70%">
+                <Image src="res://ic_logo_splash" @tap="handleDevModeTap" />
+                <MDButton horizontalAlignment="center" :text="$tc('still_adventure')" @tap="onTap('still_adventure')" />
+                <MDButton horizontalAlignment="center" :text="$tc('jules_verne_adventure')" @tap="onTap('jules_verne_adventure')" />
+                <MDButton horizontalAlignment="center" :text="$tc('dev_mode')" @tap="onTap('dev_mode')" v-show="devMode" backgroundColor="red" />
+            </StackLayout>
+        </GridLayout>
+    </Page>
+</template>
+
+<script lang="ts">
+import { Component } from 'vue-property-decorator';
+import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
+import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
+import { BLEBatteryEventData, BLEConnectionEventData, GlassesBatteryEvent, GlassesConnectedEvent, GlassesDisconnectedEvent } from '~/handlers/BluetoothHandler';
+import { Catch } from '~/utils';
+import { backgroundColor, mdiFontFamily, textColor } from '~/variables';
+import { date } from '~/vue.filters';
+import { ComponentIds } from '~/vue.prototype';
+
+@Component({})
+export default class MainMenu extends BgServiceComponent {
+    navigateUrl = ComponentIds.MainMenu;
+    date = date;
+    mdiFontFamily = mdiFontFamily;
+    backgroundColor = backgroundColor;
+    textColor = textColor;
+    bluetoothEnabled = true;
+    gpsEnabled = true;
+    nbDevModeTap = 0;
+    devModeClearTimer;
+    public connectedGlasses: GlassesDevice = null;
+    public glassesBattery: number = 0;
+    devMode = this.$getDevMode();
+
+    mounted() {
+        super.mounted();
+    }
+    destroyed() {
+        super.destroyed();
+    }
+
+    @Catch()
+    async onTap(command: string, ...args) {
+        switch (command) {
+            case 'still_adventure': {
+                const component = (await import('~/components/StillAdventure.vue')).default;
+                await this.$navigateTo(component);
+                break;
+            }
+            case 'jules_verne_adventure': {
+                const component = (await import('~/components/Onboarding.vue')).default;
+                await this.$navigateTo(component);
+                break;
+            }
+            case 'dev_mode': {
+                const component = (await import('~/components/Home.vue')).default;
+                await this.$navigateTo(component);
+                break;
+            }
+        }
+    }
+    onError(event) {
+        this.showError(event.data);
+    }
+    setup(handlers: BgServiceMethodParams) {
+        if (!handlers.geoHandler) {
+            return;
+        }
+        this.geoHandlerOn('error', this.onError);
+        this.bluetoothHandlerOn('error', this.onError);
+
+        this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
+        this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
+        this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
+
+        if (handlers.bluetoothHandler.glasses) {
+            this.onGlassesBattery({
+                data: handlers.bluetoothHandler.glassesBattery
+            } as any);
+        }
+        handlers.bluetoothHandler.isEnabled().then((r) => {
+            this.bluetoothEnabled = r;
+        });
+    }
+    onGlassesBattery(e: BLEBatteryEventData) {
+        this.updateGlassesBattery(e.data);
+    }
+    updateGlassesBattery(value: number) {
+        if (value >= 0) {
+            this.glassesBattery = value;
+        } else {
+            this.glassesBattery = 0;
+        }
+    }
+    onGlassesDisconnected(e: BLEConnectionEventData) {
+        this.connectedGlasses = null;
+        this.glassesBattery = -1;
+    }
+    onGlassesConnected(e: BLEConnectionEventData) {
+        const glasses = (this.connectedGlasses = e.data as GlassesDevice);
+    }
+
+    handleDevModeTap() {
+        this.nbDevModeTap += 1;
+        if (this.devModeClearTimer) {
+            clearTimeout(this.devModeClearTimer);
+            this.devModeClearTimer = null;
+        }
+        if (this.nbDevModeTap === 6) {
+            this.$switchDevMode();
+            this.devMode = this.$getDevMode();
+            this.nbDevModeTap = 0;
+            return;
+        }
+        this.devModeClearTimer = setTimeout(() => {
+            this.devModeClearTimer = null;
+            this.nbDevModeTap = 0;
+        }, 500);
+    }
+}
+</script>

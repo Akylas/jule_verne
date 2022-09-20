@@ -36,6 +36,34 @@ export function getDataFolder() {
     return dataFolder;
 }
 
+function simplify_path(main_path) {
+    const parts = main_path.split('/'),
+        new_path = [];
+    let i,
+        length = 0;
+    for (i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (part === '.' || part === '' || part === '..') {
+            if (part === '..' && length > 0) {
+                length--;
+            }
+            continue;
+        }
+        new_path[length++] = part;
+    }
+
+    if (length === 0) {
+        return '/';
+    }
+
+    let result = '';
+    for (i = 0; i < length; i++) {
+        result += '/' + new_path[i];
+    }
+
+    return result;
+}
+
 export function getWorkingDir(allowDev = true) {
     if (!PRODUCTION && allowDev) {
         if (__ANDROID__) {
@@ -45,7 +73,7 @@ export function getWorkingDir(allowDev = true) {
             if (sdcardFolder) {
                 const sdcardPath = path.join(sdcardFolder, '../../../..');
                 if (Folder.exists(sdcardPath)) {
-                    return sdcardPath;
+                    return simplify_path(sdcardPath);
                 }
             }
         }

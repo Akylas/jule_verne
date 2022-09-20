@@ -141,6 +141,7 @@ export enum CommandType {
     SaveBmp = 0x41,
     imgDisplay = 0x42,
     EraseBmp = 0x43,
+    StreamBmp = 0x44,
     DeleteBmp = 0x46,
     FontList = 0x50,
     SaveFont = 0x51,
@@ -567,9 +568,9 @@ export function buildMessageData<T extends CommandType>(
         case CommandType.Shift:
         case CommandType.Rectf:
         case CommandType.Rect:
-            const params = getTypeParam(CommandType.Rectf, options.params);
+        case CommandType.Point:
+            const params = getTypeParam(CommandType.Point, options.params);
             data = params.map(numberToUint16Array).flat();
-            // data = numberToUint16Array(options.params[0]).concat(numberToUint16Array(options.params[1])).concat(numberToUint16Array(options.params[2])).concat(numberToUint16Array(options.params[3]));
             break;
         case CommandType.cfgWrite: {
             const params = getTypeParam(CommandType.cfgWrite, options.params);

@@ -17,6 +17,8 @@
 
         "android.os:Vibrator*",
 
+        "android.os:LocaleList*",
+
         "android.support.v4.media*:*", "androidx.media.session*:*", "androidx.media.app*:*"
     ],
     "blacklist": [
