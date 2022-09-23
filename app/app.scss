@@ -43,6 +43,11 @@ Page {
 
 mdbutton {
     shape: round;
+    padding: 18;
+}
+
+mdbutton[variant='text'] {
+    shape: round;
     padding: 10;
 }
 
@@ -77,6 +82,7 @@ TabViewItem {
     height: $actionbar-height;
     color: $text-color;
     font-size: 32;
+    padding: 0;
     border-radius: math.div($actionbar-height, 2);
 }
 

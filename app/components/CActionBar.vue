@@ -1,5 +1,5 @@
 <template>
-    <GridLayout class="actionBar" columns="auto,*, auto" paddingLeft="5" paddingRight="5" :backgroundColor="backgroundColor">
+    <GridLayout class="actionBar" columns="auto,*, auto" paddingLeft="5" paddingRight="5">
         <StackLayout col="1" colSpan="3" verticalAlignment="center">
             <Label class="actionBarTitle" :visibility="!!title ? 'visible' : 'hidden'" textAlignment="left" :text="title || '' | uppercase" />
             <Label :visibility="!!subtitle ? 'visible' : 'collapse'" textAlignment="left" class="actionBarSubtitle" :text="subtitle" />
@@ -34,9 +34,6 @@ export default class ActionBar extends BaseVueComponent {
 
     @Prop({ default: false, type: Boolean })
     public disableBackButton: boolean;
-    @Prop({ type: String })
-    public backgroundColor: string;
-
     // @Prop({ default: false })
     public canGoBack = false;
 

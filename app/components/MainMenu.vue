@@ -13,6 +13,7 @@
 </template>
 
 <script lang="ts">
+import { confirm } from '@nativescript-community/ui-material-dialogs';
 import { Component } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
@@ -48,13 +49,33 @@ export default class MainMenu extends BgServiceComponent {
     async onTap(command: string, ...args) {
         switch (command) {
             case 'still_adventure': {
-                const component = (await import('~/components/StillAdventure.vue')).default;
-                await this.$navigateTo(component);
+                const result = await this.$showModal((await import('~/components/Onboarding.vue')).default, { fullscreen: true, props: { forMap: false } });
+                if (result) {
+                    const component = (await import('~/components/StillAdventure.vue')).default;
+                    await this.$navigateTo(component);
+                }
                 break;
             }
             case 'jules_verne_adventure': {
-                const component = (await import('~/components/Onboarding.vue')).default;
-                await this.$navigateTo(component);
+                if (!this.geoHandler.currentTrack) {
+                    const result = await confirm({
+                        message: this.$tc('track_not_selected'),
+                        okButtonText: this.$tc('select'),
+                        cancelButtonText: this.$tc('cancel')
+                    });
+                    if (result) {
+                        const component = (await import('~/components/Tracks.vue')).default;
+                        await this.$navigateTo(component);
+                        return;
+                    }
+                }
+                await this.geoHandler.askForSessionPerms();
+                // await this.$navigateTo(component);
+                const lastLocation = await this.$showModal((await import('~/components/Onboarding.vue')).default, { fullscreen: true, props: { canSkip: !PRODUCTION } });
+                if (lastLocation) {
+                    const component = await import('~/components/Map.vue');
+                    this.$navigateTo(component.default);
+                }
                 break;
             }
             case 'dev_mode': {

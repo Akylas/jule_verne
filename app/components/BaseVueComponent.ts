@@ -9,10 +9,6 @@ import { ShowLoadingOptions } from '~/vue.prototype';
 import { accentColor, actionBarHeight, darkColor, primaryColor } from '../variables';
 import LoadingIndicator from './LoadingIndicator.vue';
 
-function timeout(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export interface BaseVueComponentRefs {
     [key: string]: any;
     page: NativeScriptVue<Page>;

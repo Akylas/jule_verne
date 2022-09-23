@@ -1,7 +1,7 @@
 import { Screen } from '@nativescript/core';
 import dayjs from 'dayjs';
 import { Component } from 'vue-property-decorator';
-import { PlayingInfo } from '~/services/android/BgService';
+import { PlayingInfo } from '~/handlers/BluetoothHandler';
 import { IMAGE_COLORMATRIX } from '~/vue.views';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 

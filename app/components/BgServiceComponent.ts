@@ -45,6 +45,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
             return;
         }
         this.backgrounded = false;
+        // DEV_LOG && console.log('onAppForgrounded');
         if (this.setup && this.$bgService.loaded) {
             this.inSetup = true;
             const params = this.getParams();
@@ -57,6 +58,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
             return;
         }
         this.backgrounded = true;
+        // DEV_LOG && console.log('onAppBackgrounded');
         if (this.unsetup) {
             const params = this.getParams();
             this.unsetup.call(this, params);

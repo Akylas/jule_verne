@@ -1,4 +1,4 @@
-import { EventData, Observable } from '@nativescript/core';
+import { EventData, Observable, Utils } from '@nativescript/core';
 
 export function pick<T extends object, U extends keyof T>(object: T, ...props: U[]): Pick<T, U> {
     return props.reduce((o, k) => ((o[k] = object[k]), o), {} as any);
@@ -120,4 +120,52 @@ function _handleError(ctx: any, error: Error, handler: HandlerFunction, errorTyp
     // Next decorator in chain can catch it
     throw error;
     // }
+}
+
+export function setVolumeLevel(audioVol: number) {
+    if (__ANDROID__) {
+        const AudioManager = android.media.AudioManager;
+        const ctx = Utils.ad.getApplicationContext();
+        const audioManager = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager;
+        const musicVolumeMax = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        const volumeIndex = Math.round((audioVol * musicVolumeMax) / 100);
+        console.log('setVolumeLevel', musicVolumeMax, audioVol, volumeIndex);
+        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volumeIndex, 0);
+    }
+    if (__IOS__) {
+        //@ts-ignore
+        const volumeView = MPVolumeView.alloc().init();
+        for (let i = 0; i < volumeView.subviews.count; i++) {
+            //@ts-ignore
+            if (volumeView.subviews[i] instanceof UISlider) {
+                //@ts-ignore
+                const volSlider = volumeView.subviews[i] as unknown as UISlider;
+                setTimeout(() => (volSlider.value = audioVol), 500);
+                break;
+            }
+        }
+    }
+}
+export function getVolumeLevel() {
+    if (__ANDROID__) {
+        const AudioManager = android.media.AudioManager;
+        const ctx = Utils.ad.getApplicationContext();
+        const audioManager = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager;
+        const musicVolumeMax = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        const musicVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+        console.log('getVolumeLevel', musicVolumeMax, musicVolume);
+        return (musicVolume / musicVolumeMax) * 100;
+    }
+    if (__IOS__) {
+        //@ts-ignore
+        const volumeView = MPVolumeView.alloc().init();
+        for (let i = 0; i < volumeView.subviews.count; i++) {
+            //@ts-ignore
+            if (volumeView.subviews[i] instanceof UISlider) {
+                //@ts-ignore
+                const volSlider = volumeView.subviews[i] as unknown as UISlider;
+                return volSlider.value;
+            }
+        }
+    }
 }

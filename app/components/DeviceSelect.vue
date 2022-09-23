@@ -1,6 +1,6 @@
 <template>
     <Page actionBarHidden ref="page">
-        <GridLayout rows="auto,auto,*,50">
+        <GridLayout rows="auto,auto,*,auto">
             <CActionBar modal :title="$t('pairing')" :showMenuIcon="false" />
             <GridLayout row="1" class="themedBack" columns="*,auto" paddingLeft="20%" paddingRight="20%">
                 <Label col="0" class="robotoMedium" fontWeight="800" :text="title | capitalize" verticalAlignment="center" textWrap />
@@ -12,8 +12,8 @@
                 </v-template>
             </CollectionView>
             <StackLayout class="themedBack" row="3" horizontalAlignment="right" orientation="horizontal" width="100%">
-                <MDButton variant="text" height="100%" class="buttontextwhite" :text="$t('cancel')" @tap="close()" verticalAlignment="center" />
-                <MDButton variant="text" height="100%" class="buttontextwhite" :visibility="scanning ? 'collapsed' : 'visible'" :text="$t('scan')" @tap="startScan()" verticalAlignment="center" />
+                <MDButton variant="text" class="buttontextwhite" :text="$t('cancel')" @tap="close()" verticalAlignment="center" />
+                <MDButton variant="text" class="buttontextwhite" :visibility="scanning ? 'collapsed' : 'visible'" :text="$t('scan')" @tap="startScan()" verticalAlignment="center" />
             </StackLayout>
         </GridLayout>
     </Page>

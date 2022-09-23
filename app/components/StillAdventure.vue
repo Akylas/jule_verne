@@ -60,9 +60,9 @@ export default class StillAdventure extends BgServiceComponent {
         const stories = await Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories')).getEntities();
         this.items = stories
             .map((s) => {
-                // if (s.name === '0') {
-                //     return;
-                // }
+                if (PRODUCTION && s.name === '1000') {
+                    return;
+                }
 
                 const metadata = this.bluetoothHandler.storyInfo(s.name);
                 return {
@@ -73,12 +73,13 @@ export default class StillAdventure extends BgServiceComponent {
                 };
             })
             .filter((s) => !!s);
+        console.log('items', this.items);
     }
 
     @Catch()
     async onItemTap(item: Item) {
         console.log('onItemTap', item);
-        await this.geoHandler.loadAndPlayStory(+item.id, false, true, false);
+        await this.geoHandler.loadAndPlayStory({ storyIndex: +item.id, shouldPlayStart: false, shouldPlayMusic: true, shouldPlayRideau: false, canStop: true });
     }
 }
 </script>

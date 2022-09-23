@@ -102,8 +102,8 @@ if (__IOS__) {
 themer.createShape('round', {
     cornerFamily: 'rounded' as any,
     cornerSize: {
-        value: 0.5,
-        unit: '%'
+        value: 10,
+        unit: 'dip'
     }
 });
 

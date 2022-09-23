@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <string name="you_can_now_turn_on_phone">"vous pouvez maintenant mettre le téléphone dans votre sac et partir à la découverte des histoires Jules Verne"</string>
   <string name="uploading_story_to_glasses">"Envoi histoire %1$s  %2$s"</string>
   <string name="uploading_glasses">"Envoie au lunettes"</string>
   <string name="upload_logs">"Envoyer les logs"</string>
@@ -9,6 +10,7 @@
   <string name="uncompress_map_data">"décompression des données de carte"</string>
   <string name="uncompress_glasses_data">"décompression de l\'histoire \"%1$s\""</string>
   <string name="tracks">"tracés"</string>
+  <string name="track_not_selected">"aucun tracé d\'aventure selectionné. Merci d\'en selectionner un"</string>
   <string name="total">"total"</string>
   <string name="test_image_see_glasses">"Placez le dispositif sur votre test. Vous devez voir l image affichée ci-dessous"</string>
   <string name="tap_to_open">"appuyez pour ouvrir"</string>
@@ -19,6 +21,8 @@
   <string name="stop_session">"arréter la session"</string>
   <string name="stop">"arrêter"</string>
   <string name="still_adventure">"aventure immobile"</string>
+  <string name="start">"Démarrer"</string>
+  <string name="skip">"passer"</string>
   <string name="shift_desc">"décalage actuel de l\'écran"</string>
   <string name="settings">"paramétres"</string>
   <string name="set_wallpaper">"Appliquer fond d\'écran"</string>
@@ -31,17 +35,25 @@
   <string name="send_story_write_timeout_desc">"Plus la valeur est faible, plus ca va vite au risque d\'erreurs d\'envoi!"</string>
   <string name="send_story_write_timeout">"BLE Paquet timeout en ms"</string>
   <string name="send">"envoyer"</string>
+  <string name="select">"sélectionner"</string>
+  <string name="searching_location_before_start">"L\'application Jules Verne recherche votre position GPS, l\'aventure démarrera dès que possible"</string>
   <string name="screen_offset">"décalage écran"</string>
+  <string name="reset_glasses_confirm">"réinitialiser et préparer les lunettes Jules Verne"</string>
+  <string name="reset">"réinitialiser"</string>
   <string name="report">"rapport"</string>
   <string name="refresh">"rafraichir"</string>
   <string name="rebooting_glasses">"redémarrage des lunettes..."</string>
   <string name="reboot_glasses_required">"un redémarrage des lunettes est nécessaire"</string>
   <string name="reboot_glasses">"redémarrer les lunettes"</string>
   <string name="reboot">"redémarrer"</string>
+  <string name="playing_instructions_story">"vous allez maintenant entendre des instructions. Le voyage demarrera juste après"</string>
+  <string name="play_test_desc">"Après avoir positionné les écouteurs, jouez le test audio et verifiez que vous entendez bien les petits pas de notre guide"</string>
+  <string name="play_test">"jouer test audio"</string>
   <string name="place_audio_headphones">"placez les ecouteurs sur vos oreilles"</string>
   <string name="pick_firmware">"choisir un firmware"</string>
   <string name="pick_config_to_send">"choisissez une config a envoyer"</string>
   <string name="open">"ouvrir"</string>
+  <string name="onboarding">"intégration"</string>
   <string name="ok">"ok"</string>
   <string name="notification_state_desc">"notification vous permettant de savoir qu\'une session est en cours"</string>
   <string name="notification_music_desc">"utilisées lors de la lecture des histoires"</string>
@@ -49,6 +61,7 @@
   <string name="not_enough_memory">"pas assez de mémoire: %1$s / %2$s"</string>
   <string name="no_file_found">"pas de fichier trouvé"</string>
   <string name="no_config_found">"aucune configuration trouvée"</string>
+  <string name="next">"suivant"</string>
   <string name="name">"nom"</string>
   <string name="music_notification">"notification de musique"</string>
   <string name="missing">"manquant"</string>
@@ -68,6 +81,7 @@
   <string name="importing_data">"import en cours"</string>
   <string name="importing">"import en cours"</string>
   <string name="images">"images"</string>
+  <string name="gps_not_enabled_desc">"le GPS est nécessaire pour l aventure Jules Verne"</string>
   <string name="gps_not_enabled">"GPS désactivé"</string>
   <string name="gps_not_authorized">"Notre application n\'a pas l\'autorisation d\'utiliser le GPS"</string>
   <string name="glasses_updated">"Lunettes mises à jour!"</string>
@@ -78,6 +92,7 @@
   <string name="firmware_update_available_desc">"une mise à jour du firmware est disponible pour vos lunettes"</string>
   <string name="firmware_update">"mise à jour de firmware %1$s"</string>
   <string name="firmware">"firmware"</string>
+  <string name="finish">"finir"</string>
   <string name="file_not_found">"fichier non trouvé: %1$s"</string>
   <string name="entering_feature">"vous entrez dans %1$s"</string>
   <string name="enable">"activer"</string>
@@ -93,7 +108,9 @@
   <string name="delete">"supprimer"</string>
   <string name="create_track">"créer un tracé"</string>
   <string name="connection_lost_reconnecting">"la connexion à été perdue, reconnexion en cours"</string>
-  <string name="connecting_glasses">"Connexion au lunettes %1$s ..."</string>
+  <string name="connecting_glasses">"connexion aux lunettes Jules Verne: %1$s ..."</string>
+  <string name="connect_glasses_desc">"Je n\'ai pas trouvé vos lunettes Jules Verne, vous pouvez essayer de les connecter maintenant"</string>
+  <string name="connect_glasses">"connecter les lunettes"</string>
   <string name="configs">"configurations"</string>
   <string name="config_deleted">"configuration supprimée"</string>
   <string name="close">"fermer"</string>
@@ -102,13 +119,16 @@
   <string name="change_glasses_name">"changer le nom des lunettes"</string>
   <string name="change">"changer"</string>
   <string name="cancel">"annuler"</string>
+  <string name="bluetooth_not_enabled_desc">"Le bluetooth est nécessaire pour pouvoir utiliser les Lunettes Jules Verne"</string>
   <string name="bluetooth_not_enabled">"Bluetooth désactivé"</string>
   <string name="beta_firmware">"firmware beta"</string>
   <string name="battery_saver_desc">"Il essentiel de s\'assurer que l\'appliction soit sur \"Pas de restriction\""</string>
   <string name="battery_saver">"Economiseur de batterie"</string>
   <string name="auto_luminance">"luminosité automatique"</string>
+  <string name="are_you_sure">"Etes-vous sûr?"</string>
   <string name="app_name">"Jules Verne"</string>
   <string name="title_activity_kimera">"Jules Verne"</string>
+  <string name="adjust_volume">"ajustez le volume des écouteurs"</string>
   <string name="adjust_glasses_luminosity">"ajustez la luminosité des lunettes"</string>
   <string name="add">"ajouter"</string>
 </resources>

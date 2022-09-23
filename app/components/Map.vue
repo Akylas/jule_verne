@@ -1,10 +1,21 @@
 <template>
-    <Page ref="page" :navigateUrl="navigateUrl">
-        <GridLayout backgroundColor="white" rows="auto,*">
-            <CActionBar showMenuIcon>
-                <GlassesIcon :glasses="connectedGlasses" :battery="glassesBattery" />
-            </CActionBar>
-            <MapComponent ref="mapComp" @mapReady="onMapReady" showLocationButton row="1" :tracks="selectedTracks" :viewedFeature="viewedFeatures" />
+    <Page ref="page" :navigateUrl="navigateUrl" @navigatingTo="onNavigatingTo" @navigatingFrom="onNavigatingFrom">
+        <GridLayout backgroundColor="white">
+            <MapComponent ref="mapComp" @mapReady="onMapReady" showLocationButton :tracks="selectedTracks" :viewedFeature="viewedFeatures" />
+            <GlassesIcon :glasses="connectedGlasses" :battery="glassesBattery" verticalAlignment="top" horizontalAlignment="right" />
+            <Label
+                v-show="showStartText"
+                row="1"
+                margin="40"
+                padding="40"
+                :text="$tc('you_can_now_turn_on_phone')"
+                borderRadius="30"
+                backgroundColor="#00000088"
+                @tap="showStartText = false"
+                verticalAlignment="center"
+                color="white"
+                textAlignment="center"
+            />
         </GridLayout>
     </Page>
 </template>
@@ -31,6 +42,7 @@ import {
     UserRawLocationEvent
 } from '~/handlers/GeoHandler';
 import Track, { TrackFeature } from '~/models/Track';
+import { Catch } from '~/utils';
 import { ComponentIds } from '~/vue.prototype';
 import { BaseVueComponentRefs } from './BaseVueComponent';
 import GlassesConnectionComponent from './GlassesConnectionComponent';
@@ -52,7 +64,7 @@ export default class Map extends GlassesConnectionComponent {
     loading = false;
     selectedTrack: Track = null;
     selectedTracks: Track[] = null;
-    insideFeature: TrackFeature = null;
+    // insideFeature: TrackFeature = null;
 
     inFront = true;
     viewedFeatures = null;
@@ -61,6 +73,7 @@ export default class Map extends GlassesConnectionComponent {
     public lastLocation: GeoLocation = null;
     public currentSessionState: SessionState = SessionState.STOPPED;
     public shouldConfirmBack = true;
+    public showStartText = true;
     get map() {
         const mapComp = this.$refs.mapComp as MapComponent;
         return mapComp && mapComp.cartoMap;
@@ -80,6 +93,13 @@ export default class Map extends GlassesConnectionComponent {
 
     protected onSessionStateEvent(e: SessionEventData) {
         this.currentSessionState = e.data.state;
+        if (this.currentSessionState === SessionState.STOPPED) {
+            this.$navigateBack();
+        }
+    }
+
+    unsetup() {
+        this.showStartText = false;
     }
     onNavigatingTo() {
         this.inFront = true;
@@ -89,7 +109,6 @@ export default class Map extends GlassesConnectionComponent {
     }
     onNavigatingFrom() {
         this.inFront = false;
-
         if (__ANDROID__) {
             Application.android.off(AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
         }
@@ -99,27 +118,32 @@ export default class Map extends GlassesConnectionComponent {
             if (!this.inFront) {
                 return;
             }
-            if (this.shouldConfirmBack && this.currentSessionState !== SessionState.STOPPED) {
+            if (this.currentSessionState !== SessionState.STOPPED) {
                 data.cancel = true;
-                const frame = Frame.topmost();
-                confirm({
-                    title: this.$t('stop_session'),
-                    message: this.$t('stop_session_are_you_sure'),
-                    okButtonText: this.$t('close'),
-                    cancelButtonText: this.$t('cancel')
-                })
-                    .then((result) => {
-                        if (result) {
-                            this.shouldConfirmBack = false;
-                            this.geoHandler.stopSession();
-                            setTimeout(() => {
-                                frame.android.activity.finish();
-                            }, 10);
-                        }
-                    })
-                    .catch(this.showError);
+
+                Application.android.foregroundActivity.moveTaskToBack(true);
             }
-            this.shouldConfirmBack = true;
+            // if (this.shouldConfirmBack && this.currentSessionState !== SessionState.STOPPED) {
+            //     data.cancel = true;
+            //     const frame = Frame.topmost();
+            //     confirm({
+            //         title: this.$t('stop_session'),
+            //         message: this.$t('stop_session_are_you_sure'),
+            //         okButtonText: this.$t('close'),
+            //         cancelButtonText: this.$t('cancel')
+            //     })
+            //         .then((result) => {
+            //             if (result) {
+            //                 this.shouldConfirmBack = false;
+            //                 this.geoHandler.stopSession();
+            //                 setTimeout(() => {
+            //                     frame.android.activity.finish();
+            //                 }, 10);
+            //             }
+            //         })
+            //         .catch(this.showError);
+            // }
+            // this.shouldConfirmBack = true;
         }
     }
     positions: GeoLocation[] = null;
@@ -130,18 +154,18 @@ export default class Map extends GlassesConnectionComponent {
         this.viewedFeatures = event['data'].featureViewed;
         DEV_LOG && console.log('onFeatureViewed', this.viewedFeatures);
     }
-    onTrackPositionState(event: EventData) {
-        const events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[] = event['data'].events;
-        // const { feature, index, distance, state } = event['data'];
-        // if (state === 'entering') {
-        //     this.insideFeature = feature;
-        // } else if (state === 'leaving' && this.insideFeature === feature) {
-        //     this.insideFeature = null;
-        // }
-        // events.forEach((e) => {
-        //     this.eLog(e.feature.id, e.feature.properties.name, e.state, e.distance, index);
-        // });
-    }
+    // onTrackPositionState(event: EventData) {
+    // const events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[] = event['data'].events;
+    // const { feature, index, distance, state } = event['data'];
+    // if (state === 'entering') {
+    //     this.insideFeature = feature;
+    // } else if (state === 'leaving' && this.insideFeature === feature) {
+    //     this.insideFeature = null;
+    // }
+    // events.forEach((e) => {
+    //     this.eLog(e.feature.id, e.feature.properties.name, e.state, e.distance, index);
+    // });
+    // }
     onTrackSelected(event: EventData) {
         const track = event['track'] as Track;
         this.selectedTrack = track;
@@ -160,7 +184,9 @@ export default class Map extends GlassesConnectionComponent {
         this.searchingLocation = false;
     }
 
-    setup(handlers: BgServiceMethodParams) {
+    @Catch()
+    async setup(handlers: BgServiceMethodParams) {
+        DEV_LOG && console.log('Map', 'setup');
         super.setup(handlers);
         if (!handlers.geoHandler) {
             return;
@@ -168,8 +194,13 @@ export default class Map extends GlassesConnectionComponent {
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
         this.geoHandlerOn(TrackSelecteEvent, this.onTrackSelected, this);
         this.geoHandlerOn(UserRawLocationEvent, this.onNewLocation, this);
-        this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
-        this.geoHandlerOn(InsideFeatureEvent, this.onInsideFeature, this);
+        // this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
+        this.geoHandlerOn(FeatureViewedEvent, this.onFeatureViewed, this);
+        // this.geoHandlerOn(InsideFeatureEvent, this.onInsideFeature, this);
+
+        this.geoHandlerOn('error', this.onError);
+        this.isWatchingLocation = handlers.geoHandler.isWatching();
+        this.onSessionStateEvent({ data: { state: handlers.geoHandler.sessionState } } as any);
         this.onNewLocation({
             error: null,
             location: handlers.geoHandler.lastLocation,
@@ -177,14 +208,13 @@ export default class Map extends GlassesConnectionComponent {
             aimingAngle: handlers.geoHandler.aimingAngle,
             isInTrackBounds: handlers.geoHandler.isInTrackBounds
         } as any);
-        this.geoHandlerOn(FeatureViewedEvent, this.onFeatureViewed, this);
-        this.geoHandlerOn('error', this.onError);
-
-        this.isWatchingLocation = handlers.geoHandler.isWatching();
         this.onTrackSelected({ track: this.geoHandler.currentTrack } as any);
+        this.onFeatureViewed({ data: { featureViewed: this.geoHandler.featuresViewed } } as any);
+        // this.onInsideFeature({ data: { featureViewed: this.geoHandler.featuresViewed } } as any);
+        await this.geoHandler.startSession();
     }
-    onInsideFeature(event: EventData) {
-        this.insideFeature = event['data'].feature;
-    }
+    // onInsideFeature(event: EventData) {
+    //     this.insideFeature = event['data'].feature;
+    // }
 }
 </script>

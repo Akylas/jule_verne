@@ -3,7 +3,7 @@ import { GeoHandler, SessionChronoEventData, SessionEventData, SessionState, Ses
 import { BgServiceBinder } from '~/services/android/BgServiceBinder';
 import { ACTION_PAUSE, ACTION_RESUME, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, NotificationHelper } from './NotifcationHelper';
 import { $tc } from '~/helpers/locale';
-import { BluetoothHandler, GlassesConnectedEvent, GlassesDisconnectedEvent } from '~/handlers/BluetoothHandler';
+import { BluetoothHandler, GlassesConnectedEvent, GlassesDisconnectedEvent, PlayingInfo } from '~/handlers/BluetoothHandler';
 import { MediaSessionCompatCallback } from './MediaSessionCompatCallback';
 
 const NOTIFICATION_ID = 3426824;
@@ -16,14 +16,6 @@ export function getInstance() {
     return instance;
 }
 const TAG = '[BgServiceAndroid]';
-
-export interface PlayingInfo {
-    duration: number;
-    name: string;
-    cover?: string;
-    canPause?: boolean;
-    canStop?: boolean;
-}
 
 const ic_play_id = Utils.android.resources.getId(':drawable/' + 'icon_play');
 const ic_pause_id = Utils.android.resources.getId(':drawable/' + 'icon_pause');
@@ -382,7 +374,7 @@ export class BgService extends android.app.Service {
     onPlayerStart(event) {
         this.playingState = 'play';
         this.playingInfo = event.data;
-        if (event.data.canPause === false) {
+        if (this.playingInfo.showPlayBar !== true) {
             return;
         }
         try {
@@ -398,23 +390,23 @@ export class BgService extends android.app.Service {
     onPlayerState(event) {
         if (event.data !== this.playingState) {
             this.playingState = event.data;
-            if (this.playingInfo && this.playingInfo.canPause === false) {
+            if (!this.playingInfo || this.playingInfo.showPlayBar !== true) {
                 return;
             }
-            if (this.playingInfo) {
-                const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
-                if (this.playingState === 'play') {
-                    this.getMediaSessionCompat().setActive(true);
-                    this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
-                    this.showPlayingNotification();
-                } else {
-                    this.setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
-                    this.showPausedNotification();
-                }
-                if (this.playingState === 'stopped') {
-                    this.hidePlayingNotification();
-                }
+            // if (this.playingInfo && this.playingInfo.canPause) {
+            const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
+            if (this.playingState === 'play') {
+                this.getMediaSessionCompat().setActive(true);
+                this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
+                this.showPlayingNotification();
+            } else {
+                this.setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
+                this.showPausedNotification();
             }
+            if (this.playingState === 'stopped') {
+                this.hidePlayingNotification();
+            }
+            // }
         }
     }
     handleMediaIntent(intent: android.content.Intent) {

@@ -74,6 +74,11 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         }
         DEV_LOG && console.log(TAG, 'setup', !!handlers.bluetoothHandler.glasses, this.bluetoothEnabled, this.gpsEnabled, this.autoConnect);
     }
+    onServiceStarted(handlers: BgServiceMethodParams) {
+        if (!handlers.bluetoothHandler.glasses && this.autoConnect) {
+            this.tryToAutoConnect();
+        }
+    }
     onBLEStatus(e) {
         console.log(TAG, 'onBLEStatus', e.data);
         this.bluetoothEnabled = e.data;
@@ -101,6 +106,7 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
     }
     onGlassesConnected(e: BLEConnectionEventData) {
         const glasses = (this.connectedGlasses = e.data as GlassesDevice);
+        this.hideLoading();
         DEV_LOG && console.log(TAG, 'onGlassesConnected');
         this.connectingToGlasses = false;
         this.glassesVersions = glasses.versions;
@@ -154,7 +160,7 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         // console.log(TAG, 'connecting to picked device', device);
         if (device) {
             this.connectingToGlasses = true;
-            return this.bluetoothHandler.connect(device.UUID);
+            return this.bluetoothHandler.connect(device.UUID, device.localName);
         }
     }
     @Catch()

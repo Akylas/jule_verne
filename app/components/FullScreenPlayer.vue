@@ -1,12 +1,12 @@
 <template>
     <Page ref="page" :actionBarHidden="true">
         <GridLayout backgroundColor="#000000" rows="auto,*, auto,auto,auto,auto">
-            <CActionBar showMenuIcon modal backgroundColor="transparent"/>
+            <CActionBar showMenuIcon modal backgroundColor="transparent" />
             <GridLayout row="1">
                 <Image ref="imageView" stretch="aspectFit" backgroundColor="black" :colorMatrix="colorMatrix" />
             </GridLayout>
 
-            <Label row="2" margin="10" :text="playingInfo && playingInfo.name" fontSize="15" color="white" fontWeight="800"/>
+            <Label row="2" margin="10" :text="playingInfo && playingInfo.name" fontSize="15" color="white" fontWeight="800" />
 
             <MDProgress row="3" margin="5" :value="progress" maxValue=" 100" verticalAlignment="bottom" color="white" />
             <CanvasLabel row="4" margin="10" fontSize="10" color="lightgray" height="14">
@@ -44,10 +44,16 @@ import AudioPlayerWidget from './AudioPlayerWidget';
 
 @Component({})
 export default class BarAudioPlayerWidget extends AudioPlayerWidget {
+    mounted() {
+        super.mounted();
+    }
+    destroyed() {
+        super.destroyed();
+    }
     show() {}
     hide() {}
     stopPlayback() {
-        super.stopPlayback();
+        this.bluetoothHandler.stopPlayingLoop({ fade: true });
         this.$modal.close();
     }
 }

@@ -44,7 +44,7 @@ export abstract class BgServiceCommon extends Observable {
     }
     async start() {
         DEV_LOG && console.log(TAG, ' start');
-        await  Promise.all([this.geoHandler.start(), this.bluetoothHandler.start()])
+        await Promise.all([this.geoHandler.start(), this.bluetoothHandler.start()]);
         this._started = true;
         DEV_LOG && console.log(TAG, 'started');
         this.notify({

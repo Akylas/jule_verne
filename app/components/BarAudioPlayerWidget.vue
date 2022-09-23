@@ -47,7 +47,7 @@ export default class BarAudioPlayerWidget extends AudioPlayerWidget {
     async showFullscreenPlayer() {
         const component = (await import('~/components/FullScreenPlayer.vue')).default;
         this.$showModal(component, {
-            fullscreen: true
+            fullscreen: true,
         });
     }
 }

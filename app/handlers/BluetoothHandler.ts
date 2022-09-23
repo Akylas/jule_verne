@@ -18,7 +18,7 @@ import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
 import { $t, $tc } from '~/helpers/locale';
 import * as ProgressNotification from '~/services/android/ProgressNotifications';
 import { GlassesError, MessageError } from '~/services/CrashReportService';
-import { hashCode, permResultCheck, versionCompare } from '~/utils';
+import { hashCode, permResultCheck, timeout, versionCompare } from '~/utils';
 import { alert, confirm } from '~/utils/dialogs';
 import { getGlassesImagesFolder } from '~/utils/utils';
 import { Characteristic } from './bluetooth/Characteristic';
@@ -81,9 +81,6 @@ export const GlassesErrorEvent = 'error';
 export const DevLogMessageEvent = 'devlogmessage';
 export const AvailableConfigsEvent = 'availableConfigs';
 
-export function timeout(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
 function shuffleArray(arr) {
     return arr.sort(() => Math.random() - 0.5);
 }
@@ -230,6 +227,15 @@ export interface Command<T extends CommandType = any> {
     params?: InputCommandType<T>;
 }
 
+export interface PlayingInfo {
+    canPause?: boolean;
+    canStop?: boolean;
+    showPlayBar?: boolean;
+    duration: number;
+    name: any;
+    cover?: string;
+}
+
 const TAG = '[Bluetooth]';
 
 export class BluetoothHandler extends Observable {
@@ -267,6 +273,7 @@ export class BluetoothHandler extends Observable {
     isPlayingMusic = false;
     isPlayingPastille = 0;
     isPlayingNavigationInstruction = null;
+    canStopStoryPlayback = false;
     toPlayNext: Function = null;
 
     get playerCurrentTime() {
@@ -290,12 +297,14 @@ export class BluetoothHandler extends Observable {
             return this.storiesInfo[id];
         };
     }
-    get playingInfo() {
+    get playingInfo(): PlayingInfo {
         if (this.isPlayingStory || this.isPlayingPastille) {
             const storyInfo = this.storyInfo(this.isPlayingStory + '');
+            console.log('playingInfo', storyInfo, this.canStopStoryPlayback);
             return {
                 canPause: true,
-                canStop: true,
+                canStop: this.canStopStoryPlayback,
+                showPlayBar: true,
                 duration: this.mPlayer?.duration || 0,
                 name: this.isPlayingStory ? storyInfo.title : `Pastille: ${this.isPlayingPastille}`,
                 cover: this.isPlayingStory ? path.join(getGlassesImagesFolder(), 'stories', this.isPlayingStory + '', storyInfo.cover) : path.join(getGlassesImagesFolder(), 'pastilles', 'cover.png')
@@ -691,10 +700,13 @@ export class BluetoothHandler extends Observable {
         delete this.connectingDevicesUUIDs[UUID];
         return options;
     }
-    async connect(UUID: string, options = {}) {
-        console.log('connect', UUID, options);
+    async connect(UUID: string, glassesName?) {
+        console.log('connect', UUID, glassesName);
         try {
-            this.connectingDevicesUUIDs[UUID] = options;
+            this.connectingDevicesUUIDs[UUID] = {};
+            if (glassesName) {
+                this.savedGlassesName = glassesName;
+            }
             await bluetooth.connect({
                 UUID,
                 autoDiscoverAll: false,
@@ -1159,7 +1171,7 @@ export class BluetoothHandler extends Observable {
             console.error(error);
         }
     }
-    sendRawCommands(commandsToSend: (number[] | Uint8Array)[], onProgress: (progress, current, total) => void) {
+    sendRawCommands(commandsToSend: (number[] | Uint8Array)[], onProgress?: (progress, current, total) => void) {
         let cancelled = false;
         const promise = new Promise<void>((resolveUp, rejectUp) => {
             const datalength = commandsToSend.reduce((accumulator, currentValue) => accumulator + currentValue.length, 0);
@@ -1171,7 +1183,7 @@ export class BluetoothHandler extends Observable {
                     return reject(err || 'cancelled');
                 }
                 const p = (progress * total + dataSent) / datalength;
-                onProgress(p, progress * total + dataSent, datalength);
+                onProgress?.(p, progress * total + dataSent, datalength);
                 if (progress === 1) {
                     dataSent += total;
                     resolve();
@@ -1375,7 +1387,7 @@ export class BluetoothHandler extends Observable {
             }
         }
     }
-    async playOfImages(images: string[], imagesFolder, options?: { frameDuration?; randomize?; iterations? }) {
+    async playOfImages(images: string[], imagesFolder, options?: { frameDuration?; randomize?; iterations?; useCrop? }) {
         if (!this.canDrawOnGlasses) {
             return;
         }
@@ -1408,7 +1420,34 @@ export class BluetoothHandler extends Observable {
                 this.sendImageToDraw(path.join(imagesFolder, images[index]));
                 if (this.glasses && imageMap[cleaned]) {
                     const data = imageMap[cleaned];
-                    this.glasses.sendCommand(CommandType.imgDisplay, { params: data.slice(0, 3) });
+                    const commands = [];
+                    if (options.useCrop) {
+                        commands.push(
+                            {
+                                commandType: CommandType.HoldFlushw,
+                                params: [0]
+                            },
+                            {
+                                commandType: CommandType.Color,
+                                params: [0]
+                            },
+                            {
+                                commandType: CommandType.Rectf,
+                                params: FULLSCREEN
+                            }
+                        );
+                    }
+                    commands.push({
+                        commandType: CommandType.imgDisplay,
+                        params: data.slice(0, 3)
+                    });
+                    if (options.useCrop) {
+                        commands.push({
+                            commandType: CommandType.HoldFlushw,
+                            params: [1]
+                        });
+                    }
+                    this.sendCommands(commands);
                     // await this.glasses.sendCommand(CommandType.Bitmap, { params: [bmpIndex + index, 0, 0] });
                 }
                 await timeout(options?.frameDuration || 200);
@@ -1547,9 +1586,23 @@ export class BluetoothHandler extends Observable {
     }
     async playInstruction(
         instruction: string,
-        options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio?; randomAudio?: boolean; loop?: boolean; instruction? }
+        options: {
+            audioFolder?: string;
+            audioFiles?: string[];
+            frameDuration?;
+            randomize?;
+            iterations?;
+            delay?;
+            queue?;
+            force?;
+            noAudio?;
+            randomAudio?: boolean;
+            loop?: boolean;
+            instruction?;
+            useCrop?: boolean;
+        } = {}
     ) {
-        // DEV_LOG && console.log('playInstruction', instruction, this.isPlaying, JSON.stringify(options));
+        DEV_LOG && console.log('playInstruction', instruction, this.isPlaying, JSON.stringify(options));
         if (this.isPlaying) {
             if (options?.force === true) {
                 await this.stopPlayingLoop({ fade: false, ignoreNext: true });
@@ -1578,19 +1631,27 @@ export class BluetoothHandler extends Observable {
         }
         this.isPlaying = true;
         const files = await Folder.fromPath(instFolder).getEntities();
-        const audioFiles = options?.audioFolder ? await Folder.fromPath(options?.audioFolder).getEntities() : files;
+
         const images = files
             .filter((f) => f.name.endsWith('.png') || f.name.endsWith('.jpg') || f.name.endsWith('.bmp'))
             .map((f) => f.name)
             .sort();
-        const audios = !!options?.noAudio
-            ? []
-            : audioFiles
-                  .filter((f) => f.name.endsWith('.mp3'))
-                  .map((f) => f.path)
-                  .sort();
-        // DEV_LOG && console.log('images', images);
-        // DEV_LOG && console.log('audios', audios);
+
+        let audios = [];
+        if (options?.noAudio !== true) {
+            if (options?.audioFiles) {
+                audios = options?.audioFiles;
+            } else {
+                const audioFiles = options?.audioFolder ? await Folder.fromPath(options?.audioFolder).getEntities() : files;
+                audios = audioFiles
+                    .filter((f) => f.name.endsWith('.mp3'))
+                    .map((f) => f.path)
+                    .sort();
+            }
+        }
+
+        const useCrop = this.setUsesCrop('navigation');
+        options.useCrop = useCrop;
         if (audios?.length) {
             await new Promise<void>((resolve, reject) => {
                 if (options?.delay) {
@@ -1855,6 +1916,7 @@ export class BluetoothHandler extends Observable {
     }
 
     async getMemory(force = false) {
+        console.log('getMemory', force);
         if (!this.currentGlassesMemory || force) {
             const result = await this.sendCommand({ command: CommandType.cfgFreeSpace, timestamp: Date.now() });
             DEV_LOG && console.log('getMemory result', result?.data);
@@ -1873,7 +1935,7 @@ export class BluetoothHandler extends Observable {
             }
             this.canDrawOnGlasses = false;
             const startTime = Date.now();
-            const configId = config.slice(-1);
+            const configId = config.split('/').pop();
             await new Promise<void>(async (resolve, reject) => {
                 try {
                     let size;

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 function usage() {
 	echo "usage: $0 <image-filename> [--output=output-directory]";

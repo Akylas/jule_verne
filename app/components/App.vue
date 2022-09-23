@@ -14,11 +14,11 @@
                 <StackLayout ref="page" actionBarHidden>
                     <Pager ref="pager" height="0" :items="messages" backgroundColor="blue" +alias="messageItem">
                         <v-template>
-                            <GridLayout columns="*,auto,auto" rows="auto,*" padding="5" width="100%" height="100%">
+                            <GridLayout columns="*,auto" rows="*,auto" padding="5" width="100%" height="100%">
                                 <Label :text="messageItem.title" color="white" fontSize="14" fontWeight="bold" lineBreak="end" verticalTextAlignment="center" />
                                 <Label col="1" :text="messageItem.message" color="white" fontSize="10" textAlign="right" verticalTextAlignment="center" />
-                                <GridLayout row="1" colSpan="2" orientation="horizontal" columns="*, auto">
-                                    <MDProgress v-show="messageItem.progress !== undefined" :value="messageItem.progress" verticalAlignment="center" color="white" />
+                                <GridLayout row="1" colSpan="2" orientation="horizontal" columns="*,auto" rows="auto">
+                                    <MDProgress v-show="messageItem.progress !== undefined" :value="messageItem.progress" verticalAlignment="bottom" color="white" />
                                     <MDButton
                                         fontSize="12"
                                         padding="2"
@@ -39,7 +39,7 @@
                 </StackLayout>
                 <BarAudioPlayerWidget ~bottomSheet />
             </BottomSheet>
-            <GridLayout ~leftDrawer rows="auto, *, auto" height="100%" :backgroundColor="backgroundColor" width="80%">
+            <GridLayout ~leftDrawer rows="auto,*,auto,auto" height="100%" :backgroundColor="backgroundColor" width="80%">
                 <GridLayout padding="10" height="80" rows="auto, *" columns="auto, *">
                     <Label marginLeft="15" fontSize="20" :text="$t('menu') | titlecase" :color="textColor" />
                     <GlassesIcon
@@ -59,7 +59,8 @@
                         </GridLayout>
                     </v-template>
                 </CollectionView>
-                <StackLayout row="2" padding="10">
+                <MDButton :text="$tc('stop')" row="2" v-show="sessionRunning" @tap="stopSession" />
+                <StackLayout row="3" padding="10">
                     <Label @longPress="$switchDevMode" textWrap textAlignment="center" fontSize="13">
                         <Span :text="'Glasses data version: ' + (glassesDataUpdateDate ? date(glassesDataUpdateDate, 'L LT') : $tc('missing'))" />
                         <Span :text="'\n' + 'Map data version: ' + (mapDataUpdateDate ? date(mapDataUpdateDate, 'L LT') : $tc('missing'))" />
@@ -92,6 +93,7 @@ import { date } from '~/vue.filters';
 import { ComponentIds } from '~/vue.prototype';
 import { GestureEventData } from '@nativescript/core/ui';
 import { confirm } from '@nativescript-community/ui-material-dialogs';
+import { SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
 
 interface MessageItem {
     id: number;
@@ -170,6 +172,7 @@ export default class App extends GlassesConnectionComponent {
             activated: false
         }
     ]);
+    public currentSessionState: SessionState = SessionState.STOPPED;
 
     constructor() {
         super();
@@ -226,7 +229,6 @@ export default class App extends GlassesConnectionComponent {
         }
     }
     onButtonTap(item: MessageItem) {
-        console.log('onButtonTap', item);
         item.action?.callback?.();
     }
     updateMessage(event) {
@@ -268,8 +270,16 @@ export default class App extends GlassesConnectionComponent {
     }
     onPlayerState(event) {
         const state = event.data;
-        this.stepIndex = state === 'stopped' ? 0 : 1;
-        console.log('onPlayerState', state, this.stepIndex);
+        if (PRODUCTION && state === 'play') {
+            const playingInfo = this.bluetoothHandler.playingInfo;
+            if (playingInfo.showPlayBar === true) {
+                this.stepIndex = 1;
+            }
+        } else {
+            this.stepIndex = state === 'stopped' ? 0 : 1;
+        }
+
+        DEV_LOG && console.log('onPlayerState', state, this.stepIndex);
     }
     setup(handlers: BgServiceMethodParams) {
         super.setup(handlers);
@@ -280,6 +290,7 @@ export default class App extends GlassesConnectionComponent {
         this.onPlayerState({ data: handlers.bluetoothHandler.playerState });
     }
     async onServiceStarted(handlers: BgServiceMethodParams) {
+        this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
         // console.log('onServiceStarted', this.needsImportOldSessionsOnLoaded);
         if (this.needsImportOldSessionsOnLoaded) {
             this.needsImportOldSessionsOnLoaded = false;
@@ -332,6 +343,14 @@ export default class App extends GlassesConnectionComponent {
             // this.hideLoading();
         }
     }
+    protected onSessionStateEvent(e: SessionEventData) {
+        this.currentSessionState = e.data.state;
+    }
+
+    get sessionRunning() {
+        return this.currentSessionState !== SessionState.STOPPED;
+    }
+
     onGlassesDataUpdateDate(event) {
         this.glassesDataUpdateDate = event.data;
     }
@@ -388,6 +407,17 @@ export default class App extends GlassesConnectionComponent {
                 }
                 break;
         }
+    }
+
+    @Catch()
+    async stopSession() {
+        const result = await confirm({
+            title: this.$t('stop_session'),
+            message: this.$t('stop_session_are_you_sure'),
+            okButtonText: this.$t('stop'),
+            cancelButtonText: this.$t('cancel')
+        });
+        this.geoHandler.stopSession(true);
     }
 }
 </script>

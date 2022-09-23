@@ -1,6 +1,7 @@
-import { DEFAULT_MTU, DEFAULT_WRITE_TIMEOUT, ProgressCallback, ProgressListener, timeout } from '../BluetoothHandler';
+import { DEFAULT_MTU, DEFAULT_WRITE_TIMEOUT, ProgressCallback, ProgressListener } from '../BluetoothHandler';
 import { Characteristic, TypedArray } from './Characteristic';
 import { bind } from 'helpful-decorators';
+import { timeout } from '~/utils';
 
 export abstract class SendingCharacteristic<T extends ArrayBuffer | string = TypedArray> extends Characteristic {
     toSend?: T;

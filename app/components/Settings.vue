@@ -44,21 +44,21 @@
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'config'">
-                    <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto,auto">
-                        <Label>
-                            <Span padding="5 0 5 0" fontSize="15" :text="item.name | uppercase" />
+                    <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto">
+                        <Label padding="5 0 5 0">
+                            <Span fontSize="15" :text="(item.name + '\n') | uppercase" />
                             <Span fontSize="13" :text="item.size | filesize" />
                         </Label>
-                        <MDButton col="1" rowSpan="2" v-show="!item.isSystem" variant="text" class="icon-btn" text="mdi-delete" @tap="onButtonTap('deleteCfg', item, $event)" />
+                        <MDButton col="1" v-show="!item.isSystem" variant="text" class="icon-btn" text="mdi-delete" @tap="onButtonTap('deleteCfg', item, $event)" />
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'switch'">
-                    <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto,auto">
+                    <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto">
                         <Label>
-                            <Span padding="5 0 5 0" fontSize="15" lineHeight="30" :text="item.title | uppercase" />
+                            <Span padding="5 0 5 0" fontSize="15" :text="item.title | uppercase" />
                             <Span fontSize="13" :text="item.subtitle ? '\n' + item.subtitle : ''" />
                         </Label>
-                        <Switch :ios:backgroundColor="accentColor" :checked="item.checked" @checkedChange="onCheckedChange(item, $event)" rowSpan="2" col="1" verticalAlignment="center" />
+                        <Switch :ios:backgroundColor="accentColor" :checked="item.checked" @checkedChange="onCheckedChange(item, $event)" col="1" verticalAlignment="center" />
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'header'">
@@ -68,18 +68,18 @@
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'button'">
-                    <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto,auto,auto">
+                    <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto">
                         <Label>
-                            <Span padding="5 0 5 0" fontSize="15" lineHeight="30" :text="item.title | uppercase" />
+                            <Span padding="5 0 5 0" fontSize="15" :text="item.title | uppercase" />
                             <Span fontSize="13" :text="item.subtitle ? '\n' + item.subtitle : ''" />
                         </Label>
-                        <MDButton variant="text" rowSpan="2" col="1" :text="item.buttonTitle" @tap="onButtonTap(item.id, item, $event)" :color="accentColor" :rippleColor="accentColor" />
+                        <MDButton variant="text" col="1" :text="item.buttonTitle" @tap="onButtonTap(item.id, item, $event)" :color="accentColor" :rippleColor="accentColor" />
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'slider'">
                     <GridLayout class="settings-section settings-section-holder" columns="auto,*,auto" rows="auto,auto,auto">
                         <Label colSpan="2">
-                            <Span padding="5 0 5 0" fontSize="15" lineHeight="30" :text="item.title | uppercase" />
+                            <Span padding="5 0 5 0" fontSize="15" :text="item.title | uppercase" />
                             <Span fontSize="13" :text="item.subtitle ? '\n' + item.subtitle : ''" />
                         </Label>
                         <Label row="2" :text="item.min + ''" verticalAlignment="center" />
@@ -125,7 +125,8 @@ import {
     GlassesConnectedEvent,
     GlassesDisconnectedEvent,
     GlassesSettings,
-    GlassesSettingsEvent
+    GlassesSettingsEvent,
+    hexToBytes
 } from '~/handlers/BluetoothHandler';
 import { GeoHandler } from '~/handlers/GeoHandler';
 import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
@@ -135,7 +136,6 @@ import { Catch, timeout } from '~/utils';
 import { getGlassesImagesFolder } from '~/utils/utils';
 import { textColor } from '~/variables';
 import { ComponentIds } from '~/vue.prototype';
-import FirmwareUpdate from './FirmwareUpdate';
 import OptionSelect from './OptionSelect';
 
 interface Item {
@@ -360,7 +360,8 @@ export default class Settings extends BgServiceComponent {
                 { id: 'shift', type: 'shift', title: $t('screen_offset'), description: this.shiftDescription, currentShift: this.currentShift },
                 { id: 'checkBetaFirmware', type: 'button', title: $t('beta_firmware'), buttonTitle: $t('check') },
                 { id: 'firmwareUpdate', type: 'button', title: $t('update_firmware'), buttonTitle: $t('update') },
-                { id: 'reboot', type: 'button', title: $t('reboot_glasses'), buttonTitle: $t('reboot') }
+                { id: 'reboot', type: 'button', title: $t('reboot_glasses'), buttonTitle: $t('reboot') },
+                { id: 'reset', type: 'button', title: $t('reset_glasses'), buttonTitle: $t('reset') }
             ].concat(items);
         }
 
@@ -425,6 +426,7 @@ export default class Settings extends BgServiceComponent {
 
     @Catch()
     async getMemory(refresh = true) {
+        console.log('getMemory', refresh);
         this.memory = await this.bluetoothHandler.getMemory(true);
         refresh && this.refresh();
     }
@@ -501,8 +503,10 @@ export default class Settings extends BgServiceComponent {
             return undefined;
         }
     }
+
     async onButtonTap(command, item?, event?) {
         try {
+            console.log('onButtonTap', command);
             switch (command) {
                 case 'wallpaper':
                     await this.setWallpaper();
@@ -555,13 +559,19 @@ export default class Settings extends BgServiceComponent {
                     break;
 
                 case 'refreshMemory':
-                    this.getMemory();
+                    await this.getMemory();
+                    break;
+
+                case 'reset':
+                    this.showLoading();
+                    await this.setupGlasses();
                     break;
 
                 case 'firmwareUpdate':
                     const pickedFile = await this.pickFile('.img');
                     if (pickedFile) {
-                        this.$navigateTo(FirmwareUpdate, { props: { firmwareFile: File.fromPath(pickedFile) } });
+                        const component = await import('~/components/FirmwareUpdate');
+                        this.$navigateTo(component.default, { props: { firmwareFile: File.fromPath(pickedFile) } });
                     }
                     break;
                 case 'drawTestImage':
@@ -610,6 +620,31 @@ export default class Settings extends BgServiceComponent {
             const context = Utils.ad.getApplicationContext();
             const identifier = context.getResources().getIdentifier('wallpaper', 'drawable', context.getPackageName());
             android.app.WallpaperManager.getInstance(context).setResource(identifier);
+        }
+    }
+    @Catch()
+    async setupGlasses() {
+        const result = await confirm({
+            title: $tc('are_you_sure'),
+            message: $tc('reset_glasses_confirm'),
+            okButtonText: $tc('reset'),
+            cancelButtonText: $tc('cancel')
+        });
+        if (result) {
+            const commands = [hexToBytes('FFB6000ADEADBEEF11AA')];
+            console.log('setupGlasses', commands);
+            this.bluetoothHandler.sendRawCommands(commands);
+            this.refresh();
+            const r = (await Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories')).getEntities())
+                .concat([{ path: path.join(getGlassesImagesFolder(), 'navigation'), name: 'navigation' }] as any)
+                .sort((a, b) => a.name.localeCompare(b.name));
+            console.log('r', r);
+            for (let index = 0; index < r.length; index++) {
+                const element = r[index];
+                await this.bluetoothHandler.sendConfigToGlasses(element.path, this.memory);
+            }
+            await this.getMemory(true);
+            await this.bluetoothHandler.askConfigs();
         }
     }
 }

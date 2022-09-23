@@ -104,7 +104,7 @@ export async function createBitmapData({
     }
     let imgHeight = gray.sizes[0];
     let imgWidth = gray.sizes[1];
-    console.log('createBitmapData', mat, imgWidth, imgHeight, resize);
+    // console.log('createBitmapData', mat, imgWidth, imgHeight, resize);
     if (resize && imgWidth !== width) {
         //228/192
         gray = gray.resize(Math.round(width * 0.844), width, 1, 1, cv2.INTER_AREA);
@@ -173,7 +173,7 @@ export async function createBitmapData({
             const compressedData = await compressHs(Uint8Array.from(commandToSend) as any);
             // console.log('compress done', filePath, compressedData.byteLength);
             if (compressedData.byteLength < dataSize) {
-                console.log('compressed', filePath, commandToSend.length, compressedData.byteLength, Math.round((1 - compressedData.byteLength / commandToSend.length) * 100) + '%');
+                // console.log('compressed', filePath, commandToSend.length, compressedData.byteLength, Math.round((1 - compressedData.byteLength / commandToSend.length) * 100) + '%');
                 compressed = true;
                 dataSize = compressedData.byteLength;
                 commandToSend = [...Uint8Array.from(compressedData)];
@@ -260,9 +260,9 @@ export async function buildDataSet(configId: string, crop = false, compress = fa
                     .sort()
             )
         ];
-        console.log('nms', nms.length, nms);
+        // console.log('nms', nms.length, nms);
         nms.forEach((nm) => {
-            if (fileNames.indexOf(nm + '.png') === -1) {
+            if (fileNames.indexOf(nm + '.png') === -1 && fileNames.indexOf(nm + '.jpg') === -1) {
                 console.error('composition error:', 'file missing:', nm);
             }
         });
@@ -316,7 +316,7 @@ export async function buildDataSet(configId: string, crop = false, compress = fa
             imgIndex++;
         }
     }
-    console.log('jsonOrderData', Object.keys(jsonOrderData).length, jsonOrderData);
+    // console.log('jsonOrderData', Object.keys(jsonOrderData).length, jsonOrderData);
     fs.writeFileSync(
         path.join(folder, 'info.json'),
         JSON.stringify({
