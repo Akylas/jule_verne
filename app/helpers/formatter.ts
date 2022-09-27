@@ -143,7 +143,7 @@ export function formatDuration(duration: duration.Duration, format: DURATION_FOR
     if (format === DURATION_FORMAT.SECONDS) {
         const seconds = duration.get('seconds');
         if (seconds !== 0) {
-            mintext += ' ' + seconds + 's';
+            mintext += (mintext.length ? ' ' : '') + seconds + 's';
         }
     }
     if (hours === 0) {

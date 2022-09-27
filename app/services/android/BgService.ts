@@ -112,7 +112,7 @@ export class BgService extends android.app.Service {
             bluetoothHandler.on('drawBitmap', this.onDrawImage, this);
             this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
         } catch (error) {
-            console.error(error);
+            console.error('onBounded', error, error.stack);
         }
     }
 
@@ -288,7 +288,7 @@ export class BgService extends android.app.Service {
                 })
             );
         } catch (error) {
-            console.error(error);
+            console.error('createMediaSession', error, error.stack);
         }
     }
     updateMediaSessionMetadata(image?: string) {
@@ -383,8 +383,8 @@ export class BgService extends android.app.Service {
             this.getMediaSessionCompat().setActive(true);
             this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
             this.showPlayingNotification();
-        } catch (err) {
-            console.error(err);
+        } catch (error) {
+            console.error('onPlayerStart', error, error.stack);
         }
     }
     onPlayerState(event) {

@@ -60,7 +60,7 @@ export default class StillAdventure extends BgServiceComponent {
         const stories = await Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories')).getEntities();
         this.items = stories
             .map((s) => {
-                if (PRODUCTION && s.name === '1000') {
+                if ((PRODUCTION && s.name === '1000') || !Folder.exists(s.path)) {
                     return;
                 }
 

@@ -100,6 +100,9 @@ export class NotificationHelper {
     public static hideNotification(id) {
         NotificationHelper.getNotificationManager().cancel(id);
     }
+    public static hideAllNotifications() {
+        NotificationHelper.getNotificationManager().cancelAll();
+    }
 
     public static getBuilder(context, channel) {
         return new androidx.core.app.NotificationCompat.Builder(context, channel);

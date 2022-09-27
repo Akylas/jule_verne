@@ -248,10 +248,10 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
                 }));
                 this.mCartoMap.addLayer(layer);
             }
-        } catch (err) {
-            console.error(err);
+        } catch (error) {
+            console.error('loadLocalMbtiles', error, error.stack);
             setTimeout(() => {
-                throw err;
+                throw error;
             }, 0);
         }
     }

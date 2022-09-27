@@ -147,7 +147,7 @@ export class NetworkService extends Observable {
                                 filePath
                             ).then(async (response) => {
                                 Vue.prototype.$hideLoading();
-                                const component = await import('~/components/FirmwareUpdate');
+                                const component = await import('~/components/FirmwareUpdate.vue');
                                 Vue.prototype.$navigateTo(component.default, { props: { firmwareFile: response } });
                             });
                         } else if (response.mandatory) {
@@ -236,7 +236,7 @@ export class NetworkService extends Observable {
                     message: '',
                     ongoing: true,
                     indeterminate: false,
-                    progressValue: 0,
+                    progress: 0,
                     actions: [
                         {
                             id: 'cancel',
@@ -261,7 +261,7 @@ export class NetworkService extends Observable {
                     const perc = Math.round((current / total) * 100);
                     ProgressNotification.update(progressNotification, {
                         message: `${fileSize(Math.round(current), { round: 1, pad: true })}/${fileSize(total)} (${perc}%)`,
-                        progressValue: perc
+                        progress: perc
                     });
                 }, 2000);
                 const file = await getFile(
@@ -277,7 +277,7 @@ export class NetworkService extends Observable {
                     ProgressNotification.update(progressNotification, {
                         title: $tc('uncompress_glasses_data', storyId),
                         message: '',
-                        progressValue: 0
+                        progress: 0
                     });
                     await Zip.unzip({
                         archive: file.path,
@@ -286,7 +286,7 @@ export class NetworkService extends Observable {
                         onProgress: (percent) => {
                             ProgressNotification.update(progressNotification, {
                                 message: `${Math.round(percent)}%`,
-                                progressValue: percent
+                                progress: percent
                             });
                         }
                     });
@@ -297,7 +297,7 @@ export class NetworkService extends Observable {
                 }
             }
         } catch (error) {
-            console.error(error);
+            console.error('checkForStoryUpdate', error, error.stack);
         } finally {
             ProgressNotification.dismiss(progressNotificationId);
         }
@@ -353,7 +353,7 @@ export class NetworkService extends Observable {
                     message: '',
                     ongoing: true,
                     indeterminate: false,
-                    progressValue: 0,
+                    progress: 0,
                     actions: [
                         {
                             id: 'cancel',
@@ -370,7 +370,7 @@ export class NetworkService extends Observable {
                     const perc = Math.round((current / total) * 100);
                     ProgressNotification.update(progressNotification, {
                         message: `${fileSize(Math.round(current), { round: 1, pad: true })}/${fileSize(total)} (${perc}%)`,
-                        progressValue: perc
+                        progress: perc
                     });
                 }, 2000);
                 const file = await getFile(
@@ -385,7 +385,7 @@ export class NetworkService extends Observable {
                 ProgressNotification.update(progressNotification, {
                     title: $tc('uncompress_map_data'),
                     message: '',
-                    progressValue: 0
+                    progress: 0
                 });
                 await Zip.unzip({
                     archive: file.path,
@@ -394,7 +394,7 @@ export class NetworkService extends Observable {
                     onProgress: (percent) => {
                         ProgressNotification.update(progressNotification, {
                             message: `${Math.round(percent)}%`,
-                            progressValue: percent
+                            progress: percent
                         });
                     }
                 });
@@ -404,7 +404,7 @@ export class NetworkService extends Observable {
                 ApplicationSettings.setNumber('MAP_DATA_LASTDATE', this.mapDataUpdateDate);
             }
         } catch (error) {
-            console.error(error);
+            console.error('checkFoMapDataUpdate', error, error.stack);
         } finally {
             ProgressNotification.dismiss(progressNotificationId);
         }
@@ -434,7 +434,7 @@ export class NetworkService extends Observable {
                 ApplicationSettings.setNumber('GEOJSON_DATA_LASTDATE', this.geojsonDataUpdateDate);
             }
         } catch (error) {
-            console.error(error);
+            console.error('checkForGeoJSONUpdate', error, error.stack);
         }
     }
 }

@@ -8,7 +8,7 @@ import fileSize from 'filesize';
 import { Component } from 'vue-property-decorator';
 import { BaseVueComponentRefs } from '~/components/BaseVueComponent';
 import { BgServiceMethodParams } from '~/components/BgServiceComponent';
-import MapComponent from '~/components/MapComponent';
+import MapComponent from '~/components/MapComponent.vue';
 import { AvailableConfigsEvent, GlassesMemoryChangeEvent } from '~/handlers/BluetoothHandler';
 import {
     FeatureViewedEvent,
@@ -83,7 +83,7 @@ export default class Home extends GlassesConnectionComponent {
     }
     get map() {
         const mapComp = this.$refs.mapComp as MapComponent;
-        return mapComp && mapComp.cartoMap;
+        return mapComp && mapComp['cartoMap'];
     }
     get connectedGlassesName() {
         return this.connectedGlasses?.localName || '';
@@ -158,7 +158,7 @@ export default class Home extends GlassesConnectionComponent {
         //     this.insideFeature = null;
         // }
         events.forEach((e) => {
-            this.eLog(e.feature.id, e.feature.properties.name, e.state, e.distance, index);
+            this.eLog(e.feature.id, e.feature.properties.name, e.state, e.distance,);
         });
     }
     onTrackSelected(event: EventData) {

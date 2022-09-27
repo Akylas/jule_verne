@@ -2,6 +2,7 @@
     <Page>
         <Drawer
             ref="drawer"
+            @navigatedTo="onNavigatedTo"
             @loaded="onLoaded"
             :gestureEnabled="true"
             :leftSwipeDistance="20"
@@ -12,24 +13,52 @@
         >
             <BottomSheet :stepIndex="stepIndex" :steps="[0, 70]" :gestureEnabled="false" ~mainContent>
                 <StackLayout ref="page" actionBarHidden>
-                    <Pager ref="pager" height="0" :items="messages" backgroundColor="blue" +alias="messageItem">
+                    <Pager ref="pager" height="0" :items="messages" backgroundColor="#405798" +alias="messageItem">
                         <v-template>
-                            <GridLayout columns="*,auto" rows="*,auto" padding="5" width="100%" height="100%">
-                                <Label :text="messageItem.title" color="white" fontSize="14" fontWeight="bold" lineBreak="end" verticalTextAlignment="center" />
-                                <Label col="1" :text="messageItem.message" color="white" fontSize="10" textAlign="right" verticalTextAlignment="center" />
-                                <GridLayout row="1" colSpan="2" orientation="horizontal" columns="*,auto" rows="auto">
-                                    <MDProgress v-show="messageItem.progress !== undefined" :value="messageItem.progress" verticalAlignment="bottom" color="white" />
-                                    <MDButton
-                                        fontSize="12"
-                                        padding="2"
-                                        variant="text"
-                                        v-show="messageItem.action"
-                                        :text="messageItem.action.text"
-                                        color="white"
-                                        @tap="onButtonTap(messageItem)"
-                                        col="1"
-                                    />
-                                </GridLayout>
+                            <GridLayout columns="auto,*,auto,auto" rows="auto,*,auto" width="100%" height="100%">
+                                <Label padding="4 4 0 4" colSpan="4" color="white" fontSize="14" lineBreak="end" verticalTextAlignment="center">
+                                    <Span :visibility="messageItem.smallIcon ? 'visible' : 'hidden'" :text="messageItem.smallIcon + ' '" :fontFamily="mdiFontFamily" />
+                                    <Span :text="messageItem.title" fontWeight="bold" />
+                                </Label>
+                                <Label
+                                    marginLeft="4"
+                                    row="1"
+                                    v-show="messageItem.icon"
+                                    fontWeight="bold"
+                                    color="#405798"
+                                    textAlignment="center"
+                                    width="26"
+                                    height="26"
+                                    borderRadius="13"
+                                    verticalTextAlignment="center"
+                                    backgroundColor="white"
+                                    fontSize="20"
+                                    :text="messageItem.icon"
+                                    :fontFamily="mdiFontFamily"
+                                    verticalAlignment="center"
+                                />
+                                <Label padding="0 4 0 4" row="1" col="1" :text="messageItem.message" color="white" fontSize="10" verticalTextAlignment="top" />
+                                <Label rowSpan="2" col="2" color="white" marginRight="4" verticalTextAlignment="center" textAlignment="right">
+                                    <Span :text="messageItem.rightIcon" :visibility="messageItem.rightIcon ? 'visible' : 'hidden'" fontSize="26" :fontFamily="mdiFontFamily" fontWeight="bold" />
+                                    <Span :text="'\n' + messageItem.rightMessage" :visibility="messageItem.rightMessage ? 'visible' : 'hidden'" fontSize="10" />
+                                </Label>
+                                <MDButton
+                                    rowSpan="2"
+                                    variant="text"
+                                    class="mdi"
+                                    fontSize="20"
+                                    padding="5"
+                                    width="30"
+                                    height="30"
+                                    verticalAlignment="center"
+                                    :fontFamily="mdiFontFamily"
+                                    v-show="messageItem.action"
+                                    :text="messageItem.action.text"
+                                    color="white"
+                                    @tap="onButtonTap(messageItem)"
+                                    col="3"
+                                />
+                                <MDProgress row="2" colSpan="4" v-show="messageItem.progress !== undefined" :value="messageItem.progress" verticalAlignment="bottom" color="white" />
                             </GridLayout>
                         </v-template>
                     </Pager>
@@ -88,17 +117,25 @@ import MainMenu from '~/components/MainMenu.vue';
 import { Catch, off as appOff, on as appOn, off, on } from '~/utils';
 import { bboxify } from '~/utils/geo';
 import { getWorkingDir } from '~/utils/utils';
-import { backgroundColor, textColor } from '~/variables';
+import { backgroundColor, mdiFontFamily, textColor } from '~/variables';
 import { date } from '~/vue.filters';
 import { ComponentIds } from '~/vue.prototype';
 import { GestureEventData } from '@nativescript/core/ui';
 import { confirm } from '@nativescript-community/ui-material-dialogs';
 import { SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
+import { $tc } from '~/helpers/locale';
+import fileSize from 'filesize';
+import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
+import dayjs from 'dayjs';
 
 interface MessageItem {
+    smallIcon: string;
+    rightIcon: string;
+    icon: string;
     id: number;
     title: string;
     message: string;
+    rightMessage: string;
     progress: number;
     action?: {
         text: string;
@@ -123,8 +160,27 @@ interface MenuItem {
 export default class App extends GlassesConnectionComponent {
     date = date;
     backgroundColor = backgroundColor;
+    mdiFontFamily = mdiFontFamily;
     textColor = textColor;
-    messages: ObservableArray<MessageItem> = new ObservableArray([]);
+    messages: ObservableArray<MessageItem> = new ObservableArray([
+        // {
+        //     id: 0,
+        //     icon: '1',
+        //     smallIcon: 'mdi-upload',
+        //     rightIcon: `${10}%`,
+        //     title: $tc('uploading_story'),
+        //     message: `${fileSize(123589, { round: 1, pad: true })}`,
+        //     rightMessage: `${formatDuration(dayjs.duration(120000), DURATION_FORMAT.SECONDS)}`,
+        //     ongoing: true,
+        //     indeterminate: false,
+        //     progress: 10,
+        //     action: {
+        //         id: 'cancel',
+        //         text: 'mdi-close',
+        //         callback: () => {}
+        //     }
+        // }
+    ]);
 
     stepIndex = 0;
     mShowMessages = false;
@@ -184,10 +240,17 @@ export default class App extends GlassesConnectionComponent {
     set showMessages(value) {
         if (this.mShowMessages !== value) {
             this.mShowMessages = value;
-            this.getRef('pager').animate({
-                height: value ? 60 : 0,
-                duration: 100
-            });
+            (async () => {
+                try {
+                    await this.getRef('pager').animate({
+                        height: value ? 60 : 0,
+                        duration: 100
+                    });
+                } catch (er) {
+                    console.log('error', er);
+                    this.getRef('pager').height = value ? 60 : 0;
+                }
+            })();
         }
     }
     get showMessages() {
@@ -213,9 +276,11 @@ export default class App extends GlassesConnectionComponent {
         appOff('GEOJSON_DATA_LASTDATE', this.onGeojsonDataUpdateDate, this);
     }
     onLoaded() {
-        // GC();
-        // console.log('onLoaded', this.needsImportOldSessionsOnLoaded);
         Vue.prototype.$drawer = this.drawer;
+    }
+    onNavigatedTo() {
+        // GC();
+        console.log('onNavigatedTo', this.needsImportOldSessionsOnLoaded);
         if (this.dbHandler && this.dbHandler.started) {
             this.importDevSessions();
         } else {
@@ -234,17 +299,19 @@ export default class App extends GlassesConnectionComponent {
     updateMessage(event) {
         try {
             const update = event.data;
+            // DEV_LOG && console.log('updateMessage', update);
             const currentMessageIndex = this.messages.findIndex((d) => d.id === update.id);
             if (currentMessageIndex >= 0) {
                 this.messages.setItem(currentMessageIndex, Object.assign(this.messages.getItem(currentMessageIndex), update));
             }
         } catch (error) {
-            console.error(error);
+            console.error('updateMessage', error, error.stack);
         }
     }
     setMessage(event) {
         try {
             const message = event.data;
+            // DEV_LOG && console.log('setMessage', message);
             const currentMessageIndex = this.messages.findIndex((d) => d.id === message.id);
             if (currentMessageIndex >= 0) {
                 this.messages.setItem(currentMessageIndex, message);
@@ -253,7 +320,7 @@ export default class App extends GlassesConnectionComponent {
             }
             this.showMessages = this.messages.length > 0;
         } catch (error) {
-            console.error(error);
+            console.error('setMessage', error, error.stack);
         }
     }
     removeMessage(event) {
@@ -265,7 +332,7 @@ export default class App extends GlassesConnectionComponent {
             }
             this.showMessages = this.messages.length > 0;
         } catch (error) {
-            console.error(error);
+            console.error('removeMessage', error, error.stack);
         }
     }
     onPlayerState(event) {
@@ -278,8 +345,6 @@ export default class App extends GlassesConnectionComponent {
         } else {
             this.stepIndex = state === 'stopped' ? 0 : 1;
         }
-
-        DEV_LOG && console.log('onPlayerState', state, this.stepIndex);
     }
     setup(handlers: BgServiceMethodParams) {
         super.setup(handlers);
@@ -291,7 +356,7 @@ export default class App extends GlassesConnectionComponent {
     }
     async onServiceStarted(handlers: BgServiceMethodParams) {
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
-        // console.log('onServiceStarted', this.needsImportOldSessionsOnLoaded);
+        console.log('onServiceStarted', this.needsImportOldSessionsOnLoaded);
         if (this.needsImportOldSessionsOnLoaded) {
             this.needsImportOldSessionsOnLoaded = false;
             this.importDevSessions();
@@ -376,7 +441,7 @@ export default class App extends GlassesConnectionComponent {
     async onTap(command: string, ...args) {
         switch (command) {
             case 'connectGlasses': {
-                if (!PRODUCTION && !this.connectedGlasses) {
+                if (!this.connectedGlasses) {
                     if (!this.bluetoothHandler.isEnabled()) {
                         await this.bluetoothHandler.enable();
                     }
@@ -393,7 +458,7 @@ export default class App extends GlassesConnectionComponent {
         }
         switch (command) {
             case 'disconnectGlasses':
-                if (!PRODUCTION && this.connectedGlasses) {
+                if (this.connectedGlasses) {
                     confirm({
                         title: this.$tt('disconnect_glasses'),
                         message: this.$tc('disconnect_glasses_are_you_sure'),

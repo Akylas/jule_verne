@@ -46,7 +46,7 @@ import { Catch } from '~/utils';
 import { ComponentIds } from '~/vue.prototype';
 import { BaseVueComponentRefs } from './BaseVueComponent';
 import GlassesConnectionComponent from './GlassesConnectionComponent';
-import MapComponent from './MapComponent';
+import MapComponent from './MapComponent.vue';
 
 export interface HomeRefs extends BaseVueComponentRefs {
     [key: string]: any;
@@ -168,6 +168,7 @@ export default class Map extends GlassesConnectionComponent {
     // }
     onTrackSelected(event: EventData) {
         const track = event['track'] as Track;
+        console.log('onTrackSelected', JSON.stringify(track));
         this.selectedTrack = track;
         this.selectedTracks = [track];
         const map = this.map;

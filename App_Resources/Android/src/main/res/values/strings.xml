@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="you_can_now_turn_on_phone">"vous pouvez maintenant mettre le téléphone dans votre sac et partir à la découverte des histoires Jules Verne"</string>
-  <string name="uploading_story_to_glasses">"Envoi histoire %1$s  %2$s"</string>
+  <string name="uploading_story">"Envoi histoire"</string>
+  <string name="uploading_story_to_glasses">"Envoi histoire %1$s"</string>
   <string name="uploading_glasses">"Envoie au lunettes"</string>
   <string name="upload_logs">"Envoyer les logs"</string>
   <string name="upload">"envoyer"</string>
+  <string name="updating_firmware">"mise à jour du firmware"</string>
+  <string name="update_glasses">"mettre à jour"</string>
   <string name="update_firmware">"mettre à jour le firmware avec un fichier"</string>
   <string name="update">"mise à jour"</string>
   <string name="uncompress_map_data">"décompression des données de carte"</string>
@@ -52,6 +55,8 @@
   <string name="place_audio_headphones">"placez les ecouteurs sur vos oreilles"</string>
   <string name="pick_firmware">"choisir un firmware"</string>
   <string name="pick_config_to_send">"choisissez une config a envoyer"</string>
+  <string name="perStoryMessages_desc">"Activer/Désactiver les instructions géneriques en entrée / fin d\'histoire"</string>
+  <string name="perStoryMessages">"Instructions personnalisées"</string>
   <string name="open">"ouvrir"</string>
   <string name="onboarding">"intégration"</string>
   <string name="ok">"ok"</string>
@@ -88,12 +93,15 @@
   <string name="glasses">"lunettes"</string>
   <string name="gesture_desc">"activez le capteur de gestes"</string>
   <string name="gesture">"gestes"</string>
+  <string name="genericStoryMessages_desc">"Activer/Désactiver les instructions géneriques en entrée / fin d\'histoire"</string>
+  <string name="genericStoryMessages">"messages générics"</string>
   <string name="free">"libre"</string>
   <string name="firmware_update_available_desc">"une mise à jour du firmware est disponible pour vos lunettes"</string>
   <string name="firmware_update">"mise à jour de firmware %1$s"</string>
   <string name="firmware">"firmware"</string>
   <string name="finish">"finir"</string>
   <string name="file_not_found">"fichier non trouvé: %1$s"</string>
+  <string name="file">"fichier"</string>
   <string name="entering_feature">"vous entrez dans %1$s"</string>
   <string name="enable">"activer"</string>
   <string name="downloading_update">"téléchargement de la mise à jour"</string>

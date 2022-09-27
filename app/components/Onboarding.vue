@@ -153,7 +153,7 @@ export default class Onboarding extends GlassesConnectionComponent {
 
     configImagePath = ApplicationSettings.getString('glasses_config_image', path.join(getGlassesImagesFolder(), 'navigation', 'start', 'VG1.png'));
 
-    levelLuminance: number;
+    levelLuminance: number = 0;
     lastLocation: GeoLocation = null;
     watchingLocation = false;
     playingInstructions = false;

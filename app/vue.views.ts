@@ -26,12 +26,14 @@ import ImagePlugin from '@nativescript-community/ui-image/vue';
 import ZoomImagePlugin from '@nativescript-community/ui-zoomimage/vue';
 import PersistentBottomSheetPlugin from '@nativescript-community/ui-persistent-bottomsheet/vue';
 import LottieView from '@nativescript-community/ui-lottie/vue';
+import * as imageModule from '@nativescript-community/ui-image';
 
 export const IMAGE_COLORMATRIX = [0.9647058824, 0.9647058824, 0.9647058824, 0, 0, 0.9137254902, 0.9137254902, 0.9137254902, 0, 0, 0.1803921569, 0.1803921569, 0.180392156, 0, 0, 0, 0, 0, 1, 0];
 // export const IMAGE_COLORMATRIX = [0.1, 0.4, 0, 0, 0, 0.3, 1, 0.3, 0, 0, 0, 0.4, 0.1, 0, 0, 0, 0, 0, 1, 0];
 
 const Plugin = {
     install(Vue) {
+        imageModule.initialize();
         Vue.component('CActionBar', CActionBar);
         Vue.component('ListItem', ListItem);
         Vue.use(ActivityIndicatorPlugin);

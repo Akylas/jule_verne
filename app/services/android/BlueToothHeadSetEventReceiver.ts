@@ -25,7 +25,7 @@ export class BlueToothHeadSetEventReceiver extends android.content.BroadcastRece
                 }
             }
         } catch (e) {
-            console.error(e);
+            console.error('BlueToothHeadSetEventReceiver', e, e.stack);
         }
     }
 }

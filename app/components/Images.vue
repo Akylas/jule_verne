@@ -18,7 +18,7 @@
                 </v-template>
                 <v-template if="item.type === 'image'">
                     <GridLayout>
-                        <NSImg :src="item.path" @tap="onItemTap(item)" stretch="aspectFill" :colorMatrix="colorMatrix" height="200" backgroundColor="black" />
+                        <NSImg :src="item.path" @tap="onItemTap(item)" stretch="aspectFill" :colorMatrix="colorMatrix" height="200" backgroundColor="black" decodeWidth="400" decodeHeight="400" />
                         <Label :text="item.name" verticalTextAlignment="bottom" fontSize="12" color="white" backgroundColor="#00000088" verticalAlignment="bottom" />
                     </GridLayout>
                 </v-template>
@@ -90,6 +90,7 @@ export default class ImagesView extends BgServiceComponent {
 
     @Catch()
     async onItemTap(item) {
+        DEV_LOG && console.log('onItemTap', item.type);
         switch (item.type) {
             case 'image': {
                 this.bluetoothHandler.drawImageFromPathWithMire(item.path);

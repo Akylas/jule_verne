@@ -1,14 +1,16 @@
 import { Trace } from '@nativescript/core/trace';
-import { ImageViewTraceCategory } from '@nativescript-community/ui-image';
+// import { ImageViewTraceCategory } from '@nativescript-community/ui-image';
 // import {CollectionViewTraceCategory} from '@nativescript-community/ui-collectionview';
 // import {BleTraceCategory} from '@nativescript-community/ble';
+import { PermsTraceCategory } from '@nativescript-community/perms';
 // Trace.addCategories(Trace.categories.NativeLifecycle);
 // Trace.addCategories(BleTraceCategory);
+Trace.addCategories(PermsTraceCategory);
 // Trace.addCategories(Trace.categories.Navigation);
 // Trace.addCategories(Trace.categories.Transition);
 // Trace.addCategories(ImageViewTraceCategory);
 
-// Trace.enable();
+Trace.enable();
 import { setMapPosKeys } from '@nativescript-community/ui-carto/core';
 import { themer } from '@nativescript-community/ui-material-core';
 import { time } from '@nativescript/core/profiling';

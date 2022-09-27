@@ -37,12 +37,18 @@ export abstract class BgServiceCommon extends Observable {
         }
     }
     async stop() {
+        if (!this._started) {
+            return;
+        }
         DEV_LOG && console.log(TAG, 'stop');
         this._started = false;
         await Promise.all([this.geoHandler.stop(), this.bluetoothHandler.stop()]);
         DEV_LOG && console.log(TAG, 'stopped');
     }
     async start() {
+        if (this._started) {
+            return;
+        }
         DEV_LOG && console.log(TAG, ' start');
         await Promise.all([this.geoHandler.start(), this.bluetoothHandler.start()]);
         this._started = true;

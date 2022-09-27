@@ -330,10 +330,12 @@ export class GeoHandler extends Observable {
     }
     async checkLocationPerm(always = false) {
         const r = await perms.check('location', { type: always ? 'always' : undefined });
+        console.log('checkLocationPerm', r, permResultCheck(r));
         return permResultCheck(r);
     }
     async authorizeLocation(always = false) {
         const r = await perms.request('location', { type: always ? 'always' : undefined });
+        console.log('authorizeLocation', r, permResultCheck(r));
         if (!this.permResultCheck(r)) {
             throw new Error('gps_denied');
         }
@@ -409,7 +411,7 @@ export class GeoHandler extends Observable {
                 intent.putExtra('package_label', $t('app.name'));
                 activity.startActivity(intent);
             } catch (error) {
-                console.error(error);
+                console.error('openMIUIBatterySaver', error, error.stack);
             }
         }
     }
@@ -491,7 +493,7 @@ export class GeoHandler extends Observable {
                             await this.bluetoothHandler.stopPlayingInstruction();
                             this.bluetoothHandler.playPastille(nextStoryIndex);
                         } catch (error) {
-                            console.error(error);
+                            console.error('playPastille', error, error.stack);
                         }
                     })();
                 } else if (name === 'exit') {
@@ -579,9 +581,12 @@ export class GeoHandler extends Observable {
             if (shouldPlayStart) {
                 // TODO: play per story play instruction with playAudio
                 let audioFiles;
-                const startingStoryAudio = path.join(storyFolder, 'starting.mp3');
-                if (File.exists(startingStoryAudio)) {
-                    audioFiles = [startingStoryAudio];
+
+                if (ApplicationSettings.getBoolean('perStoryMessages', true)) {
+                    const startingStoryAudio = path.join(storyFolder, 'starting.mp3');
+                    if (File.exists(startingStoryAudio)) {
+                        audioFiles = [startingStoryAudio];
+                    }
                 }
                 const promise = this.bluetoothHandler.playInstruction('starting_story', { audioFiles });
                 if (configurationAlreadyLoaded) {
@@ -648,7 +653,7 @@ export class GeoHandler extends Observable {
                 await this.bluetoothHandler.playStory(storyIndex, shouldPlayStart);
             }
         } catch (error) {
-            console.error(error);
+            console.error('loadAndPlayStory', error, error.stack);
             this.notify({ eventName: 'error', data: error });
         }
     }

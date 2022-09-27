@@ -2,6 +2,7 @@ import * as utils from '@nativescript/core/utils/utils';
 import { BgService as AndroidBgService } from '~/services/android/BgService';
 import { IBgServiceBinder } from '~/services/android/BgServiceBinder';
 import { BgServiceCommon, BgServiceLoadedEvent } from '~/services/BgService.common';
+import { NotificationHelper } from './android/NotifcationHelper';
 
 export { BgServiceLoadedEvent };
 const TAG = '[BgService]';
@@ -52,20 +53,23 @@ export class BgService extends BgServiceCommon {
 
     async stop() {
         try {
-            const bgService = this.bgService?.get();
-            DEV_LOG && console.log(TAG, 'stop', bgService);
-        await super.stop();
-            if (bgService) {
-                const context = this.context;
-                bgService.removeForeground();
-                const intent = new android.content.Intent(context, com.akylas.juleverne.BgService.class);
-                DEV_LOG && console.log(TAG, 'stopService');
-                context.stopService(intent);
-                context.unbindService(this.serviceConnection);
+            DEV_LOG && console.log(TAG, 'stop', this._loaded);
+            if (this._loaded) {
                 this._loaded = false;
+                const bgService = this.bgService?.get();
+                await super.stop();
+                if (bgService) {
+                    const context = this.context;
+                    bgService.removeForeground();
+                    NotificationHelper.hideAllNotifications();
+                    const intent = new android.content.Intent(context, com.akylas.juleverne.BgService.class);
+                    DEV_LOG && console.log(TAG, 'stopService');
+                    context.stopService(intent);
+                    context.unbindService(this.serviceConnection);
+                }
             }
         } catch (error) {
-            console.error('BgService stop failed', error);
+            console.error('BgService stop failed', error, error.stack);
         }
     }
     async handleBinder(binder: android.os.IBinder) {
@@ -84,10 +88,8 @@ export class BgService extends BgServiceCommon {
 
     get geoHandler() {
         return this.bgService?.get()?.geoHandler;
-
     }
     get bluetoothHandler() {
         return this.bgService?.get()?.bluetoothHandler;
-
     }
 }

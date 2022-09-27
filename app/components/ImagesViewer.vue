@@ -2,7 +2,7 @@
     <Page ref="page" id="history" :navigateUrl="navigateUrl" backgroundColor="black">
         <GridLayout rows="auto,*, auto">
             <CActionBar :title="$t('images')" showMenuIcon />
-            <Pager row="1" v-model="currentIndex" :items="items">
+            <Pager row="1" v-model="currentIndex" :items="items" :disableAnimation="true">
                 <v-template>
                     <GridLayout>
                         <NSZoomImg :src="item.path" stretch="aspectFit" :colorMatrix="colorMatrix" />
@@ -14,7 +14,16 @@
             <CollectionView ref="collectionView" row="2" height="70" orientation="horizontal" colWidth="83" :items="items" @loaded="onLoaded">
                 <v-template>
                     <GridLayout>
-                        <Image :src="item.path" stretch="aspectFit" :colorMatrix="colorMatrix" :borderColor="item.selected ? accentColor : 'transparent'" borderWidth="1" @tap="showImage(item)" />
+                        <NSImg
+                            :src="item.path"
+                            stretch="aspectFit"
+                            :colorMatrix="colorMatrix"
+                            :borderColor="item.selected ? accentColor : 'transparent'"
+                            borderWidth="1"
+                            @tap="showImage(item)"
+                            decodeWidth="166"
+                            decodeHeight="140"
+                        />
                     </GridLayout>
                 </v-template>
             </CollectionView>
@@ -63,7 +72,6 @@ export default class ImagesViewer extends BgServiceComponent {
         this.items = new ObservableArray(this.images.map((item, i) => ({ ...item, selected: i === this.startIndex })));
         this.currentIndex = this.startIndex;
         this.lastIndex = this.startIndex;
-        console.log('mounted', this.items.length, this.currentIndex);
     }
     @Watch('currentIndex')
     onIndexChange() {

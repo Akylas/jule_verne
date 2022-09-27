@@ -225,9 +225,17 @@ export function getAllFiles(dirPath, arrayOfFiles?) {
 
     return arrayOfFiles;
 }
-export const imagesFolder = path.resolve('../jules_verne/glasses_images');
-export const navigationFolder = path.join(imagesFolder, 'navigation');
-export const storiesFolder = path.join(imagesFolder, 'stories');
+export let imagesFolder;
+export let navigationFolder;
+export let storiesFolder;
+
+export function setImageFolder(pathStr) {
+    console.log('setImageFolder', pathStr);
+    imagesFolder = pathStr;
+    navigationFolder = path.join(imagesFolder, 'navigation');
+    storiesFolder = path.join(imagesFolder, 'stories');
+}
+setImageFolder(path.resolve('../jules_verne/glasses_images'));
 
 export function getFolder(configId: string) {
     if (configId === 'nav') {

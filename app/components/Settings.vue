@@ -61,6 +61,14 @@
                         <Switch :ios:backgroundColor="accentColor" :checked="item.checked" @checkedChange="onCheckedChange(item, $event)" col="1" verticalAlignment="center" />
                     </GridLayout>
                 </v-template>
+                <v-template if="item.type === 'text'">
+                    <GridLayout class="settings-section settings-section-holder" rows="auto">
+                        <Label>
+                            <Span padding="5 0 5 0" fontSize="15" :text="item.title | uppercase" />
+                            <Span fontSize="13" :text="item.subtitle ? '\n' + item.subtitle : ''" />
+                        </Label>
+                    </GridLayout>
+                </v-template>
                 <v-template if="item.type === 'header'">
                     <GridLayout columns="*,auto">
                         <Label class="settings-header" :text="item.title | uppercase" />
@@ -113,7 +121,7 @@ import dayjs from 'dayjs';
 import fileSize from 'filesize';
 import { debounce } from 'helpful-decorators';
 import { Component } from 'vue-property-decorator';
-import BgServiceComponent from '~/components/BgServiceComponent';
+import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
 import {
     AvailableConfigsEvent,
@@ -132,10 +140,12 @@ import { GeoHandler } from '~/handlers/GeoHandler';
 import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
 import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
 import { $t, $tc } from '~/helpers/locale';
-import { Catch, timeout } from '~/utils';
+import { Catch, timeout, versionCompare } from '~/utils';
 import { getGlassesImagesFolder } from '~/utils/utils';
 import { textColor } from '~/variables';
 import { ComponentIds } from '~/vue.prototype';
+import FirmwareUpdateComponent from './FirmwareUpdateComponent';
+import GlassesConnectionComponent from './GlassesConnectionComponent';
 import OptionSelect from './OptionSelect';
 
 interface Item {
@@ -158,23 +168,17 @@ interface Item {
 @Component({
     components: {}
 })
-export default class Settings extends BgServiceComponent {
+export default class Settings extends FirmwareUpdateComponent {
     textColor = textColor;
     navigateUrl = ComponentIds.Settings;
 
-    public connectedGlasses: GlassesDevice = null;
     public gestureEnabled: boolean = false;
     public sensorEnabled: boolean = false;
-    public glassesBattery: number = 0;
     public settings: GlassesSettings = null;
     public currentShift: { x: number; y: number } = null;
     configs: ConfigListData = [];
     memory: FreeSpaceData;
     item: Item;
-
-    get firmwareVersion() {
-        return this.connectedGlasses?.versions?.firmware;
-    }
 
     get shiftDescription() {
         if (this.currentShift) {
@@ -183,8 +187,8 @@ export default class Settings extends BgServiceComponent {
         return this.$t('shift_desc');
     }
 
-    constructor() {
-        super();
+    get firmwareVersion() {
+        return this.glassesVersions?.firmware;
     }
     mounted() {
         super.mounted();
@@ -291,23 +295,18 @@ export default class Settings extends BgServiceComponent {
         }
     }
 
-    updateGlassesBattery(value: number) {
-        if (value >= 0) {
-            this.glassesBattery = value;
-        } else {
-            this.glassesBattery = undefined;
-        }
-    }
-
-    onGlassesBattery(e: BLEBatteryEventData) {
-        this.updateGlassesBattery(e.data);
-    }
-
     refresh() {
         let items: any[] = [
             { type: 'header', title: $t('settings') },
             { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') },
             { id: 'sentry', type: 'button', title: $t('upload_logs'), subtitle: $t('internet_needed'), buttonTitle: $t('upload') },
+            {
+                id: 'perStoryMessages',
+                type: 'switch',
+                title: $t('perStoryMessages'),
+                subtitle: $t('perStoryMessages_desc'),
+                checked: ApplicationSettings.getBoolean('genericStoryMessages', false)
+            },
             {
                 id: 'instructionRepeatDuration',
                 type: 'slider',
@@ -344,21 +343,23 @@ export default class Settings extends BgServiceComponent {
         if (this.connectedGlasses) {
             items = [
                 { type: 'header', title: $t('memory') },
+                { type: 'text', title: $t('glasses') + ': ' + this.connectedGlasses.localName, subtitle: this.firmwareVersion },
                 {
                     id: 'refreshMemory',
                     type: 'button',
-                    title: $tc('free') + ': ' + fileSize(this.memory?.freeSpace || 0),
-                    subtitle: $tc('total') + ': ' + fileSize(this.memory?.totalSize || 0),
+                    title: $t('memory'),
+                    subtitle: $tc('free') + ': ' + fileSize(this.memory?.freeSpace || 0) + ', ' + $tc('total') + ': ' + fileSize(this.memory?.totalSize || 0),
                     buttonTitle: $t('refresh')
                 },
                 { id: 'addConfig', type: 'header', title: $t('configs'), buttonTitle: $t('add') },
                 ...(this.configs?.map((c) => ({ ...c, type: 'config' })) || []),
                 { type: 'header', title: $t('glasses') },
                 { id: 'gesture', type: 'switch', title: $t('gesture'), subtitle: $t('gesture_desc'), checked: this.gestureEnabled },
+                { id: 'gesture', type: 'switch', title: $t('gesture'), subtitle: $t('gesture_desc'), checked: this.gestureEnabled },
                 { id: 'sensor', type: 'switch', title: $t('auto_luminance'), subtitle: $t('sensor_desc'), checked: this.sensorEnabled },
                 { id: 'light', type: 'slider', title: $t('light'), subtitle: $t('light_desc'), value: this.bluetoothHandler.levelLuminance, min: 0, max: 15 },
                 { id: 'shift', type: 'shift', title: $t('screen_offset'), description: this.shiftDescription, currentShift: this.currentShift },
-                { id: 'checkBetaFirmware', type: 'button', title: $t('beta_firmware'), buttonTitle: $t('check') },
+                { id: 'checkFirmware', type: 'button', title: $t('firmware'), buttonTitle: $t('check') },
                 { id: 'firmwareUpdate', type: 'button', title: $t('update_firmware'), buttonTitle: $t('update') },
                 { id: 'reboot', type: 'button', title: $t('reboot_glasses'), buttonTitle: $t('reboot') },
                 { id: 'reset', type: 'button', title: $t('reset_glasses'), buttonTitle: $t('reset') }
@@ -384,33 +385,22 @@ export default class Settings extends BgServiceComponent {
         this.configs = e.data;
         this.refresh();
     }
-    sessionStopped = true;
-    async setup({ bluetoothHandler, geoHandler }: { bluetoothHandler: BluetoothHandler; geoHandler: GeoHandler }) {
+    async setup(handlers: BgServiceMethodParams) {
+        super.setup(handlers);
         this.refresh();
-        this.gestureEnabled = bluetoothHandler.isGestureOn;
-        this.sensorEnabled = bluetoothHandler.isSensorOn;
-        this.connectedGlasses = bluetoothHandler.glasses;
-        this.sessionStopped = true;
+        this.gestureEnabled = handlers.bluetoothHandler.isGestureOn;
+        this.sensorEnabled = handlers.bluetoothHandler.isSensorOn;
 
-        this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
-        this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
         this.bluetoothHandlerOn(AvailableConfigsEvent, this.onAvailableConfigs, this);
         this.bluetoothHandlerOn(GlassesSettingsEvent, this.onGlassesSettings);
-        this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
-        this.configs = bluetoothHandler.currentConfigs;
+        this.configs = handlers.bluetoothHandler.currentConfigs;
         if (this.connectedGlasses) {
-            this.updateGlassesBattery(bluetoothHandler.glassesBattery);
             this.onGlassesSettings({ data: this.connectedGlasses.settings } as any);
             this.getMemory();
         }
     }
-    onGlassesConnected(e: BLEConnectionEventData) {
-        this.connectedGlasses = e.data as GlassesDevice;
-        this.glassesBattery = -1;
-    }
     onGlassesDisconnected(e: BLEConnectionEventData) {
-        this.connectedGlasses = null;
-        this.glassesBattery = -1;
+        super.onGlassesDisconnected(e);
         this.hideLoading();
         this.refresh();
     }
@@ -554,8 +544,8 @@ export default class Settings extends BgServiceComponent {
                         await this.getMemory();
                     }
                     break;
-                case 'checkBetaFirmware':
-                    this.$networkService.checkFirmwareUpdateOnline(this.connectedGlasses.versions, true);
+                case 'checkFirmware':
+                    this.$networkService.checkFirmwareUpdateOnline(this.connectedGlasses.versions, false);
                     break;
 
                 case 'refreshMemory':
@@ -613,6 +603,9 @@ export default class Settings extends BgServiceComponent {
             return;
         }
         switch (command) {
+            case 'checkFirmware':
+                this.$networkService.checkFirmwareUpdateOnline(this.connectedGlasses.versions, true);
+                break;
         }
     }
     async setWallpaper() {
@@ -621,6 +614,13 @@ export default class Settings extends BgServiceComponent {
             const identifier = context.getResources().getIdentifier('wallpaper', 'drawable', context.getPackageName());
             android.app.WallpaperManager.getInstance(context).setResource(identifier);
         }
+    }
+
+    onFirmwareUpdateProgress(progress: number) {
+        super.onFirmwareUpdateProgress(progress);
+        this.updateLoadingProgress({
+            progress
+        });
     }
     @Catch()
     async setupGlasses() {
@@ -631,8 +631,14 @@ export default class Settings extends BgServiceComponent {
             cancelButtonText: $tc('cancel')
         });
         if (result) {
+            DEV_LOG && console.log('setupGlasses', 'firmware check', this.firmwareVersion);
+            if (versionCompare('4.6.0', this.firmwareVersion) > 0) {
+                // we need to update the firmware
+                this.updateLoadingProgress({ title: this.$tc('updating_firmware'), progress: 0 });
+                await this.updateFirmware('~/assets/data/4.6.0.img');
+            }
             const commands = [hexToBytes('FFB6000ADEADBEEF11AA')];
-            console.log('setupGlasses', commands);
+            DEV_LOG && console.log('setupGlasses', 'format', commands);
             this.bluetoothHandler.sendRawCommands(commands);
             this.refresh();
             const r = (await Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories')).getEntities())

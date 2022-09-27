@@ -9,14 +9,21 @@ import { notify } from '~/utils';
 export interface ProgressOptions {
     id: number;
     title?: string;
+    notifTitle?: string;
     message?: string;
+    notifMessage?: string;
+    smallIcon?: string;
+    rightIcon?: string;
+    icon?: string;
+    rightMessage?: string;
     indeterminate?: boolean;
-    progressValue?: number;
+    progress?: number;
     ongoing?: boolean;
     actions?: {
         icon?: number;
         id: string;
         text: string;
+        notifText?: string;
         callback?: Function;
     }[];
 }
@@ -24,46 +31,27 @@ export interface CommonNotification {
     id: number;
     builder: androidx.core.app.NotificationCompat.Builder;
 }
-export interface UpdateOptions {
-    title?: string;
-    message?: string;
-    indeterminate?: boolean;
-    progressValue?: number;
-    ongoing?: boolean;
-    hideProgressBar?: boolean;
-}
 
-export function show(_options: ProgressOptions): CommonNotification {
-    // console.log('show', _options);
-    const options: ProgressOptions = {
-        id: _options.id,
-        title: _options.title ? _options.title : ' ',
-        message: _options.message ? _options.message : ' ',
-        indeterminate: _options.indeterminate !== undefined && _options.indeterminate !== null ? _options.indeterminate : false,
-        progressValue: _options.progressValue !== undefined && _options.progressValue !== null ? _options.progressValue : 0,
-        ongoing: _options.ongoing !== undefined && _options.ongoing !== null ? _options.ongoing : true
-    };
+export function show(options: ProgressOptions): CommonNotification {
     const builder = NotificationHelper.getBuilder(getActivity(), NOTIFICATION_CHANEL_ID_DOWNLOAD_CHANNEL);
     builder
-        .setContentTitle(options.title)
-        .setContentText(options.message)
+        .setContentTitle(options.notifTitle || options.title || '')
+        .setContentText(options.notifMessage || options.message || '')
         .setSmallIcon(17301633)
         .setColor(new Color(primaryColor).android)
         .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
-        .setOngoing(true)
         .setOnlyAlertOnce(true);
-    const REQUEST_CODE = 200;
-    if (_options.actions) {
+    if (options.actions) {
         try {
             // console.log('actions', _options.actions);
             const context = Utils.ad.getApplicationContext();
-            _options.actions.forEach((action) => {
+            options.actions.forEach((action) => {
                 const intent = new android.content.Intent(context, com.akylas.juleverne.ActionReceiver.class);
                 intent.setAction(action.id);
                 intent.putExtra('notificationId', options.id);
                 const actionBuilder = new androidx.core.app.NotificationCompat.Action.Builder(
                     action.icon || 0,
-                    action.text,
+                    action.notifText || action.text,
                     android.app.PendingIntent.getBroadcast(context, FLAG_IMMUTABLE, intent, android.app.PendingIntent.FLAG_CANCEL_CURRENT)
                 ).build();
                 builder.addAction(actionBuilder);
@@ -72,55 +60,49 @@ export function show(_options: ProgressOptions): CommonNotification {
                 }
             });
         } catch (error) {
-            console.error(error);
+            console.error('ProgressNotification.show', error, error.stack);
         }
     }
     builder.setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC);
     if (options.ongoing) {
-        if (options.progressValue >= 100) {
-            options.progressValue = 100;
-        }
-        builder.setOngoing(options.ongoing).setProgress(100, options.progressValue, options.indeterminate);
+        builder.setOngoing(options.ongoing).setProgress(100, Math.min(options.progress ?? 0, 100), options.indeterminate ?? false);
     }
     NotificationHelper.showNotification(options.id, builder);
     const notification: CommonNotification = {
         id: options.id,
         builder
     };
+
+    const { actions, ...toAdd } = options;
     notify({
         eventName: 'appMessage',
         data: {
-            id: options.id,
-            title: options.title,
-            message: options.message,
-            progress: options.progressValue,
-            action: _options.actions
+            ...toAdd,
+            action: actions
                 ? {
-                      text: _options.actions[0].text,
-                      callback: _options.actions[0].callback
+                      text: actions[0].text,
+                      callback: actions[0].callback
                   }
                 : null
         }
     });
     return notification;
 }
-export function update(notification: CommonNotification, options: UpdateOptions): CommonNotification {
+export function update(notification: CommonNotification, options: Partial<ProgressOptions> & { hideProgressBar?: boolean }): CommonNotification {
     const builder = notification.builder;
-    if (options.title !== null && options.title !== undefined) {
-        builder.setContentTitle(options.title);
+    const title = options.notifTitle || options.title;
+    if (title) {
+        builder.setContentTitle(title);
     }
-    if (options.message !== null && options.message !== undefined) {
-        builder.setContentText(options.message);
+    const message = options.notifMessage || options.message;
+    if (message) {
+        builder.setContentText(message);
     }
-    if (options.progressValue !== null && options.progressValue !== undefined) {
-        if (options.progressValue >= 100) {
-            options.progressValue = 100;
+    if (options.progress !== null && options.progress !== undefined) {
+        if (options.progress >= 100) {
+            options.progress = 100;
         }
-        if (options.indeterminate !== null && options.indeterminate !== undefined) {
-            builder.setProgress(100, options.progressValue, options.indeterminate);
-        } else {
-            builder.setProgress(100, options.progressValue, false);
-        }
+        builder.setProgress(100, options.progress, options.indeterminate ?? false);
     }
     if (options.ongoing !== null && options.ongoing !== undefined) {
         builder.setOngoing(options.ongoing);
@@ -133,12 +115,7 @@ export function update(notification: CommonNotification, options: UpdateOptions)
 
     notify({
         eventName: 'appMessageUpdate',
-        data: {
-            id: notification.id,
-            title: options.title,
-            message: options.message,
-            progress: options.progressValue
-        }
+        data: options
     });
     return notification;
 }

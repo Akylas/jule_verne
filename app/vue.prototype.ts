@@ -38,9 +38,17 @@ export enum ComponentIds {
 const Plugin = {
     install(Vue: typeof VueType) {
         const networkService = new NetworkService();
-        applicationOn(exitEvent, () => networkService.stop(), this);
         networkService.start();
         const bgService = new BgService();
+
+        applicationOn(
+            exitEvent,
+            () => {
+                networkService.stop();
+                // bgService.stop();
+            },
+            this
+        );
         Vue.prototype.$bgService = bgService;
         Vue.prototype.$networkService = networkService;
 

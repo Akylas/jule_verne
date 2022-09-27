@@ -10,7 +10,7 @@ export class CustomMediaButtonReceiver extends androidx.media.session.MediaButto
             }
             getInstance().handleMediaIntent(intent);
         } catch (e) {
-            console.error(e);
+            console.error('CustomMediaButtonReceiver', e, e.stack);
         }
     }
 }

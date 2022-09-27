@@ -25,7 +25,7 @@ import {
     buildMessageData,
     concatBuffers
 } from '../app/handlers/Message';
-import { buildDataSet, createBitmapData, getAllFiles, getFolder, pictureDimensionToByteArray } from './common';
+import { buildDataSet, createBitmapData, getAllFiles, getFolder, pictureDimensionToByteArray, setImageFolder } from './common';
 let isInDemo = false;
 let connectThroughBLE = true;
 
@@ -36,11 +36,15 @@ program
     .option('--id [id]', 'config id', { default: '1' })
     .option('--serial', 'only serial', { default: false })
     .option('--command [command]', 'command', { default: null })
+    .option('--imagesFolder [imagesFolder]', 'imagesFolder', { default: null })
     .argument('<args...>', 'arguments', { default: [] })
     .action(({ logger, args, options }) => {
         cmdArguments = args;
         cmdOptions = options;
         configId = options.id + '';
+        if (options.imagesFolder) {
+            setImageFolder(options.imagesFolder);
+        }
         connectThroughBLE = !options.serial;
         log('options', JSON.stringify(options), JSON.stringify(args));
         main();
@@ -1061,8 +1065,8 @@ async function handleCommand(promptAnswers: { command: string }) {
             }
         }
         promptForAction();
-    } catch (err) {
-        console.error(err);
+    } catch (error) {
+        console.error('handleCommand', error, error.stack);
     }
 }
 async function promptForAction() {

@@ -1,4 +1,5 @@
 import { EventData, Observable, Utils } from '@nativescript/core';
+import Vue from 'vue';
 
 export function pick<T extends object, U extends keyof T>(object: T, ...props: U[]): Pick<T, U> {
     return props.reduce((o, k) => ((o[k] = object[k]), o), {} as any);
@@ -78,7 +79,7 @@ export function hashCode(s) {
 type HandlerFunction = (error: Error, ctx: any) => void;
 
 export const Catch =
-    (handler: HandlerFunction = (err, ctx) => ctx.showError(err), errorType: any = Error): any =>
+    (handler: HandlerFunction = (err, ctx) => Vue.prototype.$showError(err), errorType: any = Error): any =>
     (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
         // Save a reference to the original method
         const originalMethod = descriptor.value;
@@ -86,14 +87,13 @@ export const Catch =
         // Rewrite original method with try/catch wrapper
         descriptor.value = function (...args: any[]) {
             try {
-                const that = this;
-                const result = originalMethod.apply(that, args);
+                const result = originalMethod.apply(this, args);
 
                 // Check if method is asynchronous
                 if (result && result instanceof Promise) {
                     // Return promise
                     return result.catch((error: any) => {
-                        _handleError(that, error, handler, errorType);
+                        _handleError(this, error, handler, errorType);
                     });
                 }
 
