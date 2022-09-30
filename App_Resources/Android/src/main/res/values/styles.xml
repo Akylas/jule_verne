@@ -2,20 +2,27 @@
 <resources
     xmlns:android="http://schemas.android.com/apk/res/android">
     <style name="ThemeOverlay.App.MaterialAlertDialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorSurface">@color/colorBackground</item>
         <item name="materialAlertDialogTitleTextStyle">@style/MaterialAlertDialog.App.Title.Text</item>
         <item name="materialAlertDialogBodyTextStyle">@style/MaterialAlertDialog.App.Body.Text</item>
         <item name="alertDialogStyle">@style/MaterialAlertDialog.App</item>
         <item name="buttonBarPositiveButtonStyle">@style/Widget.App.DialogButton</item>
         <item name="buttonBarNeutralButtonStyle">@style/Widget.App.DialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.App.DialogButton</item>
     </style>
     <style name="MaterialAlertDialog.App.Title.Text" parent="MaterialAlertDialog.MaterialComponents.Title.Text">
-        <item name="android:fontFamily">@font/inter_semibold</item>
+        <item name="android:textColor">@color/colorText</item>
+        <item name="android:fontFamily">@font/neutraface_text_demi</item>
+        <item name="android:textSize">22dp</item>
     </style>
     <style name="MaterialAlertDialog.App.Body.Text" parent="MaterialAlertDialog.MaterialComponents.Body.Text">
-        <item name="android:fontFamily">@font/inter_regular</item>
+        <item name="android:textColor">@color/colorText</item>
+        <item name="android:fontFamily">@font/neutraface_text_book</item>
+        <item name="android:textSize">15dp</item>
     </style>
     <style name="Widget.App.DialogButton" parent="@style/Widget.MaterialComponents.Button.TextButton.Dialog">
-        <item name="android:fontFamily">@font/inter_semibold</item>
+        <item name="android:fontFamily">@font/neutraface_text_demi</item>
+        <item name="android:textSize">16dp</item>
     </style>
     <style name="ShapeAppearance.App.MediumComponent" parent="ShapeAppearance.MaterialComponents.LargeComponent">
         <item name="cornerFamily">rounded</item>
@@ -24,5 +31,32 @@
     <style name="MaterialAlertDialog.App" parent="MaterialAlertDialog.MaterialComponents">
         <item name="shapeAppearance">@style/ShapeAppearance.App.MediumComponent</item>
         <item name="shapeAppearanceOverlay">@null</item>
+    </style>
+    <style name="TextAppearance.MyApp.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="fontFamily">@font/neutraface_text_demi</item>
+    </style>
+    <style name="TextAppearance.MyApp.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="fontFamily">@font/neutraface_text_demi</item>
+    </style>
+    <style name="TextAppearance.MyApp.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="fontFamily">@font/neutraface_text_demi</item>
+    </style>
+    <style name="TextAppearance.MyApp.DisplaySmall" parent="TextAppearance.Material3.DisplaySmall">
+        <item name="fontFamily">@font/neutraface_text_demi</item>
+    </style>
+    <style name="TextAppearance.MyApp.DisplayMedium" parent="TextAppearance.Material3.DisplayMedium">
+        <item name="fontFamily">@font/neutraface_text_demi</item>
+    </style>
+    <style name="TextAppearance.MyApp.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge">
+        <item name="fontFamily">@font/neutraface_text_demi</item>
+    </style>
+    <style name="TextAppearance.MyApp.BodySmall" parent="TextAppearance.Material3.BodySmall">
+        <item name="fontFamily">@font/neutraface_text_demi</item>
+    </style>
+    <style name="TextAppearance.MyApp.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+        <item name="fontFamily">@font/neutraface_text_demi</item>
+    </style>
+    <style name="TextAppearance.MyApp.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+        <item name="fontFamily">@font/neutraface_text_demi</item>
     </style>
 </resources> 

@@ -3,8 +3,9 @@
 
 #items {
     line-color: [fill];
-    line-width: 2;
-    polygon-opacity: [fill-opacity];
+    line-width: linear([view::zoom], (14, 1), (16, 3));
+    line-opacity: linear([view::zoom], (14, 1), (16, 0.5));
+    polygon-opacity: linear([view::zoom], (14, 0.2), (16, 0));
     polygon-fill: [fill];
     polygon-pattern-file: [image];
     text-name: @name;
@@ -12,7 +13,7 @@
     text-placement: line;
 
     when ("[name]" =~ [nuti::viewed] ) {
-        line-opacity: 0.3;
+        line-opacity: 0.1;
         polygon-opacity: 0;
     }
 }

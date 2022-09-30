@@ -1,7 +1,7 @@
 import { Color, Device, Utils } from '@nativescript/core';
 import { ad } from '@nativescript/core/utils/utils';
 import { $tc } from '~/helpers/locale';
-import { primaryColor } from '~/variables';
+import { accentColor, primaryColor } from '~/variables';
 
 export const ACTION_START = '.action.START';
 export const ACTION_STOP = '.action.STOP';
@@ -35,7 +35,8 @@ export class NotificationHelper {
             .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_SECRET)
             .setShowWhen(false)
             .setOngoing(true)
-            .setColor(new Color(primaryColor).android)
+            .setColor(new Color(accentColor).android)
+            .setSilent(true)
             .setOnlyAlertOnce(true)
             .setSound(null)
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MIN)
@@ -75,19 +76,16 @@ export class NotificationHelper {
             // create channel
             const channel = new android.app.NotificationChannel(NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, $tc('session_state'), android.app.NotificationManager.IMPORTANCE_MIN);
             channel.setDescription($tc('notification_state_desc'));
-            channel.setLightColor(color);
 
             service.createNotificationChannel(channel);
             const channelDownloads = new android.app.NotificationChannel(NOTIFICATION_CHANEL_ID_DOWNLOAD_CHANNEL, $tc('download'), android.app.NotificationManager.IMPORTANCE_HIGH);
 
             channelDownloads.setDescription($tc('notification_download_desc'));
-            channelDownloads.setLightColor(color);
             channelDownloads.setSound(null, null);
             service.createNotificationChannel(channelDownloads);
 
             const channelMusic = new android.app.NotificationChannel(NOTIFICATION_CHANEL_ID_MUSIC_CHANNEL, $tc('music_notification'), android.app.NotificationManager.IMPORTANCE_LOW);
             channelMusic.setDescription($tc('notification_music_desc'));
-            channelMusic.setLightColor(color);
             service.createNotificationChannel(channelMusic);
             return true;
         } else {
@@ -108,18 +106,21 @@ export class NotificationHelper {
         return new androidx.core.app.NotificationCompat.Builder(context, channel);
     }
 
-    public static getMediaNotification(context, mediaSession) {
+    public static getMediaNotification(context: android.content.Context, mediaSession: android.support.v4.media.session.MediaSessionCompat) {
         const controller = mediaSession.getController();
         const mediaMetadata = controller.getMetadata();
         const description = mediaMetadata.getDescription();
 
         const NotificationCompat = androidx.core.app.NotificationCompat;
         const builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANEL_ID_MUSIC_CHANNEL);
+        console.log('getMediaNotification', primaryColor, new Color(primaryColor).android);
         builder
             .setContentTitle(description.getTitle())
             .setContentText(description.getSubtitle())
             .setSmallIcon(notificationIcon)
+            .setColor(new Color(accentColor).android)
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+
             .setSubText(description.getDescription())
             .setLargeIcon(description.getIconBitmap())
             .setContentIntent(controller.getSessionActivity())

@@ -330,12 +330,10 @@ export class GeoHandler extends Observable {
     }
     async checkLocationPerm(always = false) {
         const r = await perms.check('location', { type: always ? 'always' : undefined });
-        console.log('checkLocationPerm', r, permResultCheck(r));
         return permResultCheck(r);
     }
     async authorizeLocation(always = false) {
         const r = await perms.request('location', { type: always ? 'always' : undefined });
-        console.log('authorizeLocation', r, permResultCheck(r));
         if (!this.permResultCheck(r)) {
             throw new Error('gps_denied');
         }
@@ -655,6 +653,8 @@ export class GeoHandler extends Observable {
         } catch (error) {
             console.error('loadAndPlayStory', error, error.stack);
             this.notify({ eventName: 'error', data: error });
+        } finally {
+            this.bluetoothHandler.canStopStoryPlayback = false;
         }
     }
     async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {

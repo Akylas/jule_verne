@@ -3,23 +3,16 @@
         <GridLayout backgroundColor="white">
             <MapComponent ref="mapComp" @mapReady="onMapReady" showLocationButton :tracks="selectedTracks" :viewedFeature="viewedFeatures" />
             <GlassesIcon :glasses="connectedGlasses" :battery="glassesBattery" verticalAlignment="top" horizontalAlignment="right" />
-            <Label
-                v-show="showStartText"
-                row="1"
-                margin="40"
-                padding="40"
-                :text="$tc('you_can_now_turn_on_phone')"
-                borderRadius="30"
-                backgroundColor="#00000088"
-                @tap="showStartText = false"
-                verticalAlignment="center"
-                color="white"
-                textAlignment="center"
-            />
+            <GridLayout :backgroundColor="backgroundColor" v-show="showStartText" row="1" margin="20" padding="20" borderRadius="30" verticalAlignment="center" rows="auto,auto">
+                <Label textAlignment="center" fontSize="20">
+                    <CSPan :text="$tc('all_good_title')" fontWeight="bold" />
+                    <CSPan :text="'\n\n' + $tc('all_good_desc')" />
+                </Label>
+                <MDButton row="1" marginTop="20" :text="$tc('lets_go')" @tap="showStartText = false" horizontalAlignment="center" />
+            </GridLayout>
         </GridLayout>
     </Page>
 </template>
-
 <script lang="ts">
 import { EventData } from '@akylas/nativescript';
 import { CartoMap } from '@nativescript-community/ui-carto/ui';
@@ -43,6 +36,7 @@ import {
 } from '~/handlers/GeoHandler';
 import Track, { TrackFeature } from '~/models/Track';
 import { Catch } from '~/utils';
+import { backgroundColor } from '~/variables';
 import { ComponentIds } from '~/vue.prototype';
 import { BaseVueComponentRefs } from './BaseVueComponent';
 import GlassesConnectionComponent from './GlassesConnectionComponent';
@@ -61,6 +55,7 @@ export interface HomeRefs extends BaseVueComponentRefs {
 })
 export default class Map extends GlassesConnectionComponent {
     navigateUrl = ComponentIds.Map;
+    backgroundColor = backgroundColor;
     loading = false;
     selectedTrack: Track = null;
     selectedTracks: Track[] = null;

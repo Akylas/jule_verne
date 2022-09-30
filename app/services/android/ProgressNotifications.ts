@@ -37,6 +37,7 @@ export function show(options: ProgressOptions): CommonNotification {
     builder
         .setContentTitle(options.notifTitle || options.title || '')
         .setContentText(options.notifMessage || options.message || '')
+        .setSilent(true)
         .setSmallIcon(17301633)
         .setColor(new Color(primaryColor).android)
         .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
@@ -89,6 +90,10 @@ export function show(options: ProgressOptions): CommonNotification {
     return notification;
 }
 export function update(notification: CommonNotification, options: Partial<ProgressOptions> & { hideProgressBar?: boolean }): CommonNotification {
+    notify({
+        eventName: 'appMessageUpdate',
+        data: { id: notification.id, ...options }
+    });
     const builder = notification.builder;
     const title = options.notifTitle || options.title;
     if (title) {
@@ -113,10 +118,6 @@ export function update(notification: CommonNotification, options: Partial<Progre
     NotificationHelper.showNotification(notification.id, builder);
     notification.builder = builder;
 
-    notify({
-        eventName: 'appMessageUpdate',
-        data: options
-    });
     return notification;
 }
 export function dismiss(id: number) {

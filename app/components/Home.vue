@@ -49,8 +49,8 @@
                         <Label class="menuIcon" :text="'mdi-sunglasses'" verticalAlignment="center" />
                     </GridLayout>
                     <Label col="1" row="1" fontSize="18" :text="connectedGlassesName" verticalAlignment="center" maxLines="2" textWrap />
-                    <Label v-show="!!glassesSerialNumber" col="1" row="2" fontSize="14" class="roboto" :text="glassesSubtitle" verticalAlignment="top" maxLines="2" textWrap />
-                    <Label v-show="!!availableConfigs" col="1" row="3" fontSize="14" class="roboto" :text="availableConfigsLabel" verticalAlignment="top" maxLines="2" textWrap />
+                    <Label v-show="!!glassesSerialNumber" col="1" row="2" fontSize="14" :text="glassesSubtitle" verticalAlignment="top" maxLines="2" textWrap />
+                    <Label v-show="!!availableConfigs" col="1" row="3" fontSize="14" :text="availableConfigsLabel" verticalAlignment="top" maxLines="2" textWrap />
                     <MDButton
                         v-show="connectedGlasses && !!connectedGlasses.supportSettings"
                         col="2"

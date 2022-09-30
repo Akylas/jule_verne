@@ -34,6 +34,26 @@
     font-weight: 500;
 }
 
+.neutra {
+    font-family: $neutra-fontFamily;
+    font-weight: 400;
+}
+
+.neutraBold {
+    font-family: $neutra-fontFamily;
+    font-weight: 700;
+}
+
+.neutraSemiBold {
+    font-family: $neutra-fontFamily;
+    font-weight: 600;
+}
+
+.neutraLight {
+    font-family: $neutra-fontFamily;
+    font-weight: 300;
+}
+
 Page {
     status-bar-style: light;
     navigation-bar-color: $background-color;
@@ -44,21 +64,38 @@ Page {
 mdbutton {
     shape: round;
     padding: 18;
+    font-weight: 600;
 }
 
 mdbutton[variant='text'] {
     shape: round;
     padding: 10;
+    color: $text-color;
+    ripple-color: $text-color;
+    font-weight: 500;
+}
+
+mdbutton[variant='outline'] {
+    shape: round;
+    color: $text-color;
+    border-color: $text-color;
+    ripple-color: $text-color;
+    margin: 10;
+    font-weight: 600;
+    font-size: 22;
+    padding: 14 20 14 20;
+    text-transform: none;
 }
 
 label,
 htmllabel,
 textfield,
+mdbutton,
 mdtextfield,
 mdtextview,
 canvaslabel {
-    @extend .inter;
-    font-size: 16;
+    @extend .neutra;
+    font-size: 18;
     color: $text-color;
 }
 
@@ -80,15 +117,27 @@ TabViewItem {
     @extend .mdi;
     width: $actionbar-height;
     height: $actionbar-height;
-    color: $text-color;
     font-size: 32;
     padding: 0;
     border-radius: math.div($actionbar-height, 2);
 }
 
+.playerButton {
+    @extend .mdi;
+    width: 70;
+    height: 70;
+    color: $text-color;
+    ripple-color: $text-color;
+    font-size: 40;
+    padding: 0;
+    shape: round;
+    // border-radius: math.div(70, 2);
+}
+
 .actionBarTitle {
-    font-size: 18;
-    font-weight: 500;
+    font-size: 24;
+    padding-left: 10;
+    font-weight: 600;
     color: $text-color;
 }
 
@@ -116,13 +165,14 @@ TabViewItem {
 .menuIcon {
     @extend .mdi;
     text-align: center;
-    font-size: 24;
+    font-size: 30;
+    margin:0  15 0 15;
     color: $accent-color;
 }
 
 .menuText {
     color: $text-color;
-    font-size: 16;
+    font-size: 22;
 }
 
 .menu[active="true"] {
@@ -176,8 +226,9 @@ TabViewItem {
 
 .settings-header {
     color: $text-color;
+    font-weight: 800;
     padding: 10;
-    font-size: 20;
+    font-size: 24;
 }
 
 .settings-section-title {

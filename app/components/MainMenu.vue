@@ -2,11 +2,11 @@
     <Page ref="page" id="history" :navigateUrl="navigateUrl">
         <GridLayout rows="auto,*">
             <CActionBar showMenuIcon />
-            <StackLayout row="1" horizontalAlignment="center" verticalAlignment="center" width="70%">
-                <Image src="res://ic_logo_splash" @tap="handleDevModeTap" />
-                <MDButton horizontalAlignment="center" :text="$tc('still_adventure')" @tap="onTap('still_adventure')" />
-                <MDButton horizontalAlignment="center" :text="$tc('jules_verne_adventure')" @tap="onTap('jules_verne_adventure')" />
-                <MDButton horizontalAlignment="center" :text="$tc('dev_mode')" @tap="onTap('dev_mode')" v-show="devMode" backgroundColor="red" />
+            <StackLayout row="1" horizontalAlignment="center" verticalAlignment="center" width="100%">
+                <Image src="res://grenoble_full" @tap="handleDevModeTap" stretch="aspectFill" height="70%" />
+                <MDButton variant="outline" width="80%" :text="$tc('still_adventure')" @tap="onTap('still_adventure')" />
+                <MDButton variant="outline" width="80%" :text="$tc('jules_verne_adventure')" @tap="onTap('jules_verne_adventure')" />
+                <!-- <MDButton variant="outline" horizontalAlignment="center" :text="$tc('dev_mode')" @tap="onTap('dev_mode')" v-show="devMode" /> -->
             </StackLayout>
         </GridLayout>
     </Page>
@@ -49,6 +49,7 @@ export default class MainMenu extends BgServiceComponent {
     async onTap(command: string, ...args) {
         switch (command) {
             case 'still_adventure': {
+                await this.geoHandler.enableLocation();
                 const result = await this.$showModal((await import('~/components/Onboarding.vue')).default, { fullscreen: true, props: { forMap: false } });
                 if (result) {
                     const component = (await import('~/components/StillAdventure.vue')).default;
@@ -65,9 +66,11 @@ export default class MainMenu extends BgServiceComponent {
                     });
                     if (result) {
                         const component = (await import('~/components/Tracks.vue')).default;
-                        await this.$navigateTo(component);
-                        return;
+                        await this.$navigateTo(component, {
+                            props: { allowEdit: false }
+                        });
                     }
+                    return;
                 }
                 await this.geoHandler.askForSessionPerms();
                 // await this.$navigateTo(component);

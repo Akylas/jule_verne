@@ -1,15 +1,16 @@
 <template>
-    <GridLayout height="70" columns="70,*,auto,auto" backgroundColor="#000000dd">
-        <Image ref="imageView" stretch="aspectFill" backgroundColor="black" :colorMatrix="colorMatrix" @tap="showFullscreenPlayer" />
-        <Label margin="10" :text="playingInfo && playingInfo.name" row="1" col="1" fontSize="15" color="white" />
+    <GridLayout height="70" columns="90,*,auto,auto" backgroundColor="#000000dd">
+        <Image ref="imageView" stretch="aspectFill" backgroundColor="black" @tap="showFullscreenPlayer" />
+        <Label margin="10" :text="playingInfo && playingInfo.name" row="1" col="1" fontSize="17" color="white" />
 
-        <CanvasLabel margin="10" col="1" fontSize="10" color="lightgray">
-            <CSpan :text="formatDuration(currentTime)" verticalAlignment="bottom" />
-            <CSpan :text="playingInfo && formatDuration(playingInfo.duration)" textAlignment="right" verticalAlignment="bottom" />
+        <CanvasLabel margin="10" col="1" fontSize="12" color="lightgray">
+            <Span :text="formatDuration(currentTime)" verticalAlignment="bottom" />
+            <Span :text="playingInfo && formatDuration(playingInfo.duration)" textAlignment="right" verticalAlignment="bottom" />
         </CanvasLabel>
         <MDButton
             variant="text"
             color="white"
+            rippleColor="white"
             col="2"
             horizontalAlignment="right"
             verticalAlignment="center"
@@ -24,6 +25,7 @@
             col="3"
             horizontalAlignment="right"
             verticalAlignment="center"
+            rippleColor="white"
             class="actionBarButton"
             v-show="playingInfo && playingInfo.canStop === true"
             text="mdi-stop"
@@ -35,7 +37,6 @@
 <script lang="ts">
 import { Component } from 'vue-property-decorator';
 import { Catch } from '~/utils';
-import { IMAGE_COLORMATRIX } from '~/vue.views';
 import AudioPlayerWidget from './AudioPlayerWidget';
 
 @Component({})
@@ -47,7 +48,7 @@ export default class BarAudioPlayerWidget extends AudioPlayerWidget {
     async showFullscreenPlayer() {
         const component = (await import('~/components/FullScreenPlayer.vue')).default;
         this.$showModal(component, {
-            fullscreen: true,
+            fullscreen: true
         });
     }
 }

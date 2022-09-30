@@ -17,10 +17,20 @@
     <!-- theme to use AFTER launch screen is loaded-->
     <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorSurface">@color/colorBackground</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorOnPrimary">@color/buttonTextColor</item>
         <item name="colorSecondary">@color/colorSecondary</item>
         <item name="colorAccent">@color/colorAccent</item>
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.App.MaterialAlertDialog</item>
+        <item name="textAppearanceHeadlineSmall">@style/TextAppearance.MyApp.HeadlineSmall</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.MyApp.HeadlineMedium</item>
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.MyApp.HeadlineLarge</item>
+        <item name="textAppearanceDisplaySmall">@style/TextAppearance.MyApp.DisplaySmall</item>
+        <item name="textAppearanceDisplayMedium">@style/TextAppearance.MyApp.DisplayMedium</item>
+        <item name="textAppearanceDisplayLarge">@style/TextAppearance.MyApp.DisplayLarge</item>
+        <item name="textAppearanceBodySmall">@style/TextAppearance.MyApp.BodySmall</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.MyApp.BodyMedium</item>
+        <item name="textAppearanceBodyLarge">@style/TextAppearance.MyApp.BodyLarge</item>
     </style>
 </resources> 

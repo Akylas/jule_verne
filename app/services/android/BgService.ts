@@ -1,10 +1,14 @@
 import { Device, ImageSource, Utils } from '@nativescript/core';
+import { Canvas, ColorMatrixColorFilter, Paint } from '@nativescript-community/ui-canvas';
 import { GeoHandler, SessionChronoEventData, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
 import { BgServiceBinder } from '~/services/android/BgServiceBinder';
 import { ACTION_PAUSE, ACTION_RESUME, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, NotificationHelper } from './NotifcationHelper';
 import { $tc } from '~/helpers/locale';
 import { BluetoothHandler, GlassesConnectedEvent, GlassesDisconnectedEvent, PlayingInfo } from '~/handlers/BluetoothHandler';
 import { MediaSessionCompatCallback } from './MediaSessionCompatCallback';
+import { IMAGE_COLORMATRIX } from '~/vue.views';
+import { createColorMatrix } from '~/utils';
+import { accentColor } from '~/variables';
 
 const NOTIFICATION_ID = 3426824;
 const PLAYING_NOTIFICATION_ID = 123512;
@@ -20,6 +24,21 @@ const TAG = '[BgServiceAndroid]';
 const ic_play_id = Utils.android.resources.getId(':drawable/' + 'icon_play');
 const ic_pause_id = Utils.android.resources.getId(':drawable/' + 'icon_pause');
 const ic_stop_id = Utils.android.resources.getId(':drawable/' + 'ic_end');
+
+function modifyBitmap(original, colorMatrix: number[]) {
+    const canvas = new Canvas(original);
+    const paint = new Paint();
+    let arr = colorMatrix;
+    if (Array.isArray(colorMatrix)) {
+        arr = Array.create('float', colorMatrix.length);
+        for (let index = 0; index < colorMatrix.length; index++) {
+            arr[index] = colorMatrix[index];
+        }
+    }
+    paint.setColorFilter(new android.graphics.ColorMatrixColorFilter(arr));
+    canvas.drawBitmap(original, 0, 0, paint);
+    return canvas.getImage();
+}
 
 @NativeClass
 @JavaProxy('com.akylas.juleverne.BgService')
@@ -298,11 +317,18 @@ export class BgService extends android.app.Service {
         //lock screen icon for pre lollipop
         // metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher));
         const playingInfo = this.playingInfo;
-        metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, $tc('app.name'));
-        metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, playingInfo.name);
+        metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, playingInfo.name);
+        if (playingInfo.description) {
+            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, playingInfo.description);
+        }
+        // metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, $tc('app.name'));
+        // metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, playingInfo.name);
         if (image || playingInfo.cover) {
             // metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, image || playingInfo.cover);
-            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, ImageSource.fromFileSync(playingInfo.cover).android);
+            const originalBitmap = ImageSource.fromFileSync(playingInfo.cover).android as android.graphics.Bitmap;
+            const newBitmap = modifyBitmap(originalBitmap, createColorMatrix(accentColor));
+            originalBitmap.finalize();
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, newBitmap);
         } else {
             const context = Utils.ad.getApplicationContext();
             const resources = context.getResources();
@@ -329,14 +355,17 @@ export class BgService extends android.app.Service {
     }
     playingNotifBuilder: androidx.core.app.NotificationCompat.Builder;
     showPlayingNotification() {
+        console.log('showPlayingNotification1');
         const context = Utils.ad.getApplicationContext();
         const builder = (this.playingNotifBuilder = NotificationHelper.getMediaNotification(context, this.getMediaSessionCompat()));
         if (builder === null) {
             return;
         }
+        console.log('showPlayingNotification2');
         const MediaStyle = androidx.media.app.NotificationCompat.MediaStyle;
-        const NotificationCompat = androidx.core.app.NotificationCompat;
+        console.log('showPlayingNotification3');
         const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
+        console.log('showPlayingNotification4');
         const playingInfo = this.playingInfo;
         const actionsInCompactView = [];
         if (playingInfo.canPause) {
@@ -347,7 +376,9 @@ export class BgService extends android.app.Service {
             actionsInCompactView.push(1);
             builder.addAction(ic_stop_id, 'Stop', com.akylas.juleverne.CustomMediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_STOP));
         }
+        console.log('showPlayingNotification5');
         builder.setStyle(new MediaStyle().setShowActionsInCompactView(actionsInCompactView).setMediaSession(this.getMediaSessionCompat().getSessionToken()));
+        console.log('showPlayingNotification6');
         NotificationHelper.showNotification(PLAYING_NOTIFICATION_ID, builder);
     }
     showPausedNotification() {
@@ -357,7 +388,6 @@ export class BgService extends android.app.Service {
             return;
         }
         const MediaStyle = androidx.media.app.NotificationCompat.MediaStyle;
-        const NotificationCompat = androidx.core.app.NotificationCompat;
         const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
 
         const playingInfo = this.playingInfo;
@@ -413,11 +443,17 @@ export class BgService extends android.app.Service {
         const event = intent.getParcelableExtra(android.content.Intent.EXTRA_KEY_EVENT) as android.view.KeyEvent;
 
         switch (event.getKeyCode()) {
-            case android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: {
                 if (this.playingState === 'play') {
                     this.bluetoothHandler.pauseStory();
                 } else {
                     this.bluetoothHandler.resumeStory();
+                }
+                break;
+            }
+            case android.view.KeyEvent.KEYCODE_MEDIA_STOP:
+                if (this.playingState !== 'stopped') {
+                    this.bluetoothHandler.stopPlayingLoop({ fade: true });
                 }
         }
     }

@@ -39,3 +39,5 @@ pnpm-lock.yaml
 /jules_verne
 *.zip
 /.vscode/settings.json
+.yarn
+/times.html

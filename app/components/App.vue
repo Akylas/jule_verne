@@ -1,9 +1,8 @@
 <template>
-    <Page>
+    <Page @loaded="onLoaded">
         <Drawer
             ref="drawer"
-            @navigatedTo="onNavigatedTo"
-            @loaded="onLoaded"
+            @loaded="onDrawerLoaded"
             :gestureEnabled="true"
             :leftSwipeDistance="20"
             :gestureHandlerOptions="{
@@ -11,7 +10,7 @@
                 failOffsetYEnd: 10
             }"
         >
-            <BottomSheet :stepIndex="stepIndex" :steps="[0, 70]" :gestureEnabled="false" ~mainContent>
+            <BottomSheet :stepIndex="stepIndex" :steps="[0, 80]" :gestureEnabled="false" ~mainContent>
                 <StackLayout ref="page" actionBarHidden>
                     <Pager ref="pager" height="0" :items="messages" backgroundColor="#405798" +alias="messageItem">
                         <v-template>
@@ -82,7 +81,7 @@
                 </GridLayout>
                 <CollectionView :items="menuItems" row="1" paddingTop="10" rowHeight="50" @tap="noop" +alias="menuItem">
                     <v-template>
-                        <GridLayout columns="50, *" class="menu" :active="menuItem.activated" :rippleColor="accentColor" @tap="onNavItemTap(menuItem)">
+                        <GridLayout columns="auto, *" class="menu" :active="menuItem.activated" :rippleColor="accentColor" @tap="onNavItemTap(menuItem)">
                             <Label col="0" class="menuIcon" :text="menuItem.icon" verticalAlignment="center" />
                             <Label col="1" class="menuText" :text="menuItem.title | titlecase" verticalAlignment="center" :active="menuItem.activated" />
                         </GridLayout>
@@ -90,7 +89,7 @@
                 </CollectionView>
                 <MDButton :text="$tc('stop')" row="2" v-show="sessionRunning" @tap="stopSession" />
                 <StackLayout row="3" padding="10">
-                    <Label @longPress="$switchDevMode" textWrap textAlignment="center" fontSize="13">
+                    <Label @longPress="$switchDevMode" textWrap textAlignment="center" fontSize="15">
                         <Span :text="'Glasses data version: ' + (glassesDataUpdateDate ? date(glassesDataUpdateDate, 'L LT') : $tc('missing'))" />
                         <Span :text="'\n' + 'Map data version: ' + (mapDataUpdateDate ? date(mapDataUpdateDate, 'L LT') : $tc('missing'))" />
                         <Span :text="'\n' + 'GeoJSON version: ' + (geojsonDataUpdateDate ? date(geojsonDataUpdateDate, 'L LT') : $tc('missing'))" />
@@ -146,6 +145,8 @@ interface MenuItem {
     activated: boolean;
 }
 
+const TAG = '[App]';
+
 @Component({
     components: {
         BarAudioPlayerWidget,
@@ -199,7 +200,7 @@ export default class App extends GlassesConnectionComponent {
         {
             title: this.$t('tracks'),
             icon: 'mdi-map-marker-path',
-            component: async () => (await import('~/components/Tracks')).default,
+            component: async () => (await import('~/components/Tracks.vue')).default,
             url: ComponentIds.Tracks,
             activated: false
         },
@@ -271,20 +272,17 @@ export default class App extends GlassesConnectionComponent {
         appOff('MAP_DATA_LASTDATE', this.onMapDataUpdateDate, this);
         appOff('GEOJSON_DATA_LASTDATE', this.onGeojsonDataUpdateDate, this);
     }
-    onLoaded() {
+    onDrawerLoaded() {
         Vue.prototype.$drawer = this.drawer;
     }
-    onNavigatedTo() {
-        // GC();
-        console.log('onNavigatedTo', this.needsImportOldSessionsOnLoaded);
+    onLoaded() {
+        DEV_LOG && console.log(TAG, 'onLoaded', this.needsImportOldSessionsOnLoaded);
         if (this.dbHandler && this.dbHandler.started) {
             this.importDevSessions();
         } else {
             this.needsImportOldSessionsOnLoaded = true;
         }
-        if (PRODUCTION || !isSimulator()) {
-            this.$networkService.checkForMapDataUpdate();
-        }
+        this.$networkService.checkForMapDataUpdate();
         if (!DISABLE_UPDATES && (PRODUCTION || !isSimulator())) {
             this.$networkService.checkForGlassesDataUpdate();
         }
@@ -295,8 +293,8 @@ export default class App extends GlassesConnectionComponent {
     updateMessage(event) {
         try {
             const update = event.data;
-            // DEV_LOG && console.log('updateMessage', update);
             const currentMessageIndex = this.messages.findIndex((d) => d.id === update.id);
+            // DEV_LOG && console.log('updateMessage', currentMessageIndex, update);
             if (currentMessageIndex >= 0) {
                 this.messages.setItem(currentMessageIndex, Object.assign(this.messages.getItem(currentMessageIndex), update));
             }
@@ -351,8 +349,9 @@ export default class App extends GlassesConnectionComponent {
         this.onPlayerState({ data: handlers.bluetoothHandler.playerState });
     }
     async onServiceStarted(handlers: BgServiceMethodParams) {
+        super.onServiceStarted(handlers);
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
-        console.log('onServiceStarted', this.needsImportOldSessionsOnLoaded);
+        DEV_LOG && console.log(TAG, 'onServiceStarted', this.needsImportOldSessionsOnLoaded);
         if (this.needsImportOldSessionsOnLoaded) {
             this.needsImportOldSessionsOnLoaded = false;
             this.importDevSessions();
@@ -361,6 +360,7 @@ export default class App extends GlassesConnectionComponent {
     async importDevSessions() {
         try {
             let geojsonPath = path.join(getWorkingDir(false), 'map.geojson');
+            DEV_LOG && console.log(TAG, 'importDevSessions', geojsonPath);
             if (PRODUCTION || !isSimulator()) {
                 await this.$networkService.checkForGeoJSONUpdate(geojsonPath);
             }

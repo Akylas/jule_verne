@@ -1,6 +1,6 @@
 <template>
     <CanvasView height="10" :width="count * spacing + spacing" v-show="count > 1" ref="canvas">
-        <Circle v-for="(n, index) in count" :key="index" fillColor="white" :radius="radius" top="5" :left="spacing * index + spacing" />
+        <Circle v-for="(n, index) in count" :key="index" :fillColor="textColor" :radius="radius" top="5" :left="spacing * index + spacing" />
         <Circle :fillColor="selectedColor" :radius="radius" top="5" :left="spacing * actualIndex + spacing" />
     </CanvasView>
 </template>
@@ -9,7 +9,7 @@ import { AdditiveTweening } from 'additween';
 import Vue, { NativeScriptVue } from 'nativescript-vue';
 import { CanvasView } from '@nativescript-community/ui-canvas';
 import { Component, Prop, Watch } from 'vue-property-decorator';
-import { accentColor } from '../variables';
+import { accentColor, textColor } from '../variables';
 import { CoreTypes } from '@nativescript/core/core-types';
 
 @Component({
@@ -17,6 +17,7 @@ import { CoreTypes } from '@nativescript/core/core-types';
 })
 export default class PageIndicator extends Vue {
     accentColor = accentColor;
+    textColor = textColor;
     @Prop({ default: () => accentColor }) selectedColor: number;
     @Prop({ type: Number }) count: number;
     @Prop({ type: Number, default: 5 }) radius: number;

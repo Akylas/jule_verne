@@ -1,7 +1,7 @@
 import { TNSPlayer } from '@akylas/nativescript-audio';
 import { Bluetooth, StartScanningOptions as IStartScanningOptions, Peripheral, ReadResult, StartNotifyingOptions } from '@nativescript-community/ble';
 import { isSimulator } from '@nativescript-community/extendedinfo';
-import { request } from '@nativescript-community/perms';
+import { check, request } from '@nativescript-community/perms';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { ApplicationSettings, File } from '@nativescript/core';
 import * as appSettings from '@nativescript/core/application-settings';
@@ -20,7 +20,7 @@ import * as ProgressNotification from '~/services/android/ProgressNotifications'
 import { GlassesError, MessageError } from '~/services/CrashReportService';
 import { hashCode, permResultCheck, timeout, versionCompare } from '~/utils';
 import { alert, confirm } from '~/utils/dialogs';
-import { getGlassesImagesFolder } from '~/utils/utils';
+import { getGlassesImagesFolder, throttle } from '~/utils/utils';
 import { Characteristic } from './bluetooth/Characteristic';
 import { GlassesDevice } from './bluetooth/GlassesDevice';
 import Lyric from './Lyric';
@@ -252,6 +252,7 @@ export interface PlayingInfo {
     showPlayBar?: boolean;
     duration: number;
     name: any;
+    description?: any;
     cover?: string;
 }
 
@@ -326,6 +327,7 @@ export class BluetoothHandler extends Observable {
                 showPlayBar: true,
                 duration: this.mPlayer?.duration || 0,
                 name: this.isPlayingStory ? storyInfo.title : `Pastille: ${this.isPlayingPastille}`,
+                description: this.isPlayingStory ? storyInfo.description : undefined,
                 cover: this.isPlayingStory ? path.join(getGlassesImagesFolder(), 'stories', this.isPlayingStory + '', storyInfo.cover) : path.join(getGlassesImagesFolder(), 'pastilles', 'cover.png')
             };
         } else if (this.isPlaying) {
@@ -371,14 +373,10 @@ export class BluetoothHandler extends Observable {
         DEV_LOG && console.log(TAG, 'stop done');
     }
     async start() {
-        // if (!PRODUCTION) {
         await request('storage');
-        // }
         DEV_LOG && console.log(TAG, 'start');
         this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
-        if (PRODUCTION || !isSimulator()) {
-            this.bluetoothEnabled = await bluetooth.isBluetoothEnabled();
-        }
+        this.bluetoothEnabled = await this.isEnabled();
         bluetooth.on(Bluetooth.bluetooth_status_event, this.onBLEStatusChange, this);
         bluetooth.on(Bluetooth.device_connected_event, this.onDeviceConnected, this);
         bluetooth.on(Bluetooth.device_disconnected_event, this.onDeviceDisconnected, this);
@@ -677,7 +675,7 @@ export class BluetoothHandler extends Observable {
             this.glasses = null;
             this.currentGlassesMemory = null;
             this.currentConfigs = null;
-            bluetooth.isBluetoothEnabled().then((enabled) => {
+            this.isEnabled().then((enabled) => {
                 const manualDisconnect = !!this.manualDisconnect[data.UUID] || !enabled;
                 this.notify({
                     eventName: GlassesDisconnectedEvent,
@@ -906,7 +904,6 @@ export class BluetoothHandler extends Observable {
     async changeLuminance(level: number) {
         this.levelLuminance = level;
         // appSettings.setNumber('levelLuminance', level);
-        console.log('changeLuminance', level);
         return this.sendCommand({ command: CommandType.Luma, params: [level] });
     }
     shiftImage(x: number, y: number) {
@@ -1705,25 +1702,36 @@ export class BluetoothHandler extends Observable {
         return this.playStory(storyIndex);
     }
 
-    currentLyricsTime = 0;
+    pausedStoryPlayTime = 0;
     async pauseStory() {
         if (this.isPlayingStory || this.isPlayingPastille) {
             this.mPlayer.pause();
-            if (this.lyric) {
-                this.currentLyricsTime = this.lyric.pause();
-            }
+            this.lyric?.pause();
             this.isPlayingPaused = true;
+            this.pausedStoryPlayTime = this.mPlayer.currentTime;
+            DEV_LOG && console.log(TAG, 'pauseStory', this.pausedStoryPlayTime);
             this.notify({ eventName: 'playback', data: 'pause' });
         }
     }
     async resumeStory() {
         if (this.isPlayingStory && this.isPlayingPaused) {
             this.mPlayer.resume();
-            if (this.lyric) {
-                this.lyric.play(this.currentLyricsTime);
-            }
+            this.lyric?.play(this.pausedStoryPlayTime);
             this.isPlayingPaused = false;
+            DEV_LOG && console.log(TAG, 'resumeStory', this.pausedStoryPlayTime);
+            this.pausedStoryPlayTime = 0;
             this.notify({ eventName: 'playback', data: 'play' });
+        }
+    }
+    async setPlayerTimestamp(playTime: number) {
+        DEV_LOG && console.log(TAG, 'setStoryTimestamp', playTime, this.isPlayingStory, this.isPlayingPaused);
+        if (this.isPlayingStory) {
+            this.mPlayer.seekTo(playTime / 1000);
+            if (this.isPlayingPaused) {
+                this.pausedStoryPlayTime = playTime;
+            } else {
+                this.lyric?.play(playTime);
+            }
         }
     }
     async playStory(index = 1, shouldPlayStop = true) {
@@ -1808,7 +1816,7 @@ export class BluetoothHandler extends Observable {
                             this.sendCommands(commands);
                             const instFolder = path.join(getGlassesImagesFolder(), `navigation/${data[5]}`);
                             //TODO: upgrade images res and use jpg
-                            this.sendImageToDraw(path.join(instFolder, cleaned + '.png'));
+                            this.sendImageToDraw(path.join(instFolder, cleaned + '.jpg'));
                         } else if (imagesMap[cleaned]) {
                             if (lastImageWasNav) {
                                 commands.push({
@@ -1880,7 +1888,7 @@ export class BluetoothHandler extends Observable {
         } catch (err) {
             throw err;
         } finally {
-            this.currentLyricsTime = 0;
+            this.pausedStoryPlayTime = 0;
             DEV_LOG && console.log('finished playing story');
             this.stopPlayingLoop();
         }
@@ -1923,8 +1931,9 @@ export class BluetoothHandler extends Observable {
             this.clearFadeout();
             this.playInstructionImages('eye', { iterations: 2, frameDuration: 200, loopReverse: true });
             await this.playAudio({ fileName: path.join(storyFolder, `pastille_${index}.mp3`), notify: true });
-            DEV_LOG && console.log('playPastille done ', index, this.isPlaying);
+            DEV_LOG && console.log('playPastille done', index, this.isPlaying);
             this.geoHandler.playedPastille(index + '');
+            this.notify({ eventName: 'playback', data: 'stopped' });
         } catch (error) {
             console.error('playPastille error', error, error.stack);
         } finally {
@@ -1965,6 +1974,7 @@ export class BluetoothHandler extends Observable {
             const startTime = Date.now();
             const configId = config.split('/').pop();
             await new Promise<void>(async (resolve, reject) => {
+                let onGlassesDisconnected: (data: EventData) => void;
                 try {
                     let size;
                     try {
@@ -2008,17 +2018,21 @@ export class BluetoothHandler extends Observable {
                             }
                         ]
                     });
-                    this.sendConfigPromise = this.sendLayoutConfig(path.join(config, 'images.txt'), (progress, current, total) => {
-                        onProgress?.(progress, current, total);
+                    onGlassesDisconnected = () => {
+                        DEV_LOG && console.log(TAG, 'sendConfigToGlasses', 'onGlassesDisconnected');
+                        this.sendConfigPromise?.cancel();
+                    };
+                    this.on(GlassesDisconnectedEvent, onGlassesDisconnected);
+                    const onInnerProgress = throttle((progress, current, total) => {
                         const perc = Math.round((current / total) * 100);
-                        const allTimeForDownloading = ((Date.now() - startTime) * total) / current;
-
                         ProgressNotification.update(progressNotification, {
-                            id: progressNotificationId,
                             rightIcon: `${perc}%`,
-                            rightMessage: `${formatDuration(dayjs.duration(allTimeForDownloading), DURATION_FORMAT.SECONDS)}`,
                             progress: perc
                         });
+                    }, 2000);
+                    this.sendConfigPromise = this.sendLayoutConfig(path.join(config, 'images.txt'), (progress, current, total) => {
+                        onProgress?.(progress, current, total);
+                        onInnerProgress(progress, current, total);
                         if (progress === 1) {
                             resolve();
                         }
@@ -2027,6 +2041,8 @@ export class BluetoothHandler extends Observable {
                     await this.sendConfigPromise;
                 } catch (error) {
                     reject(error);
+                } finally {
+                    this.off(GlassesDisconnectedEvent, onGlassesDisconnected);
                 }
             });
             const duration = formatDuration(dayjs.duration(Date.now() - startTime), DURATION_FORMAT.SECONDS);

@@ -183,7 +183,8 @@ module.exports = (env, params = {}) => {
     //     });
 
     const scssPrepend = `$mdi-fontFamily: ${isAndroid ? 'materialdesignicons-webfont' : 'Material Design Icons'};
-    $inter-fontFamily: ${isAndroid ? 'res/inter' : 'Inter'};`;
+    $inter-fontFamily: ${isAndroid ? 'res/inter' : 'Inter'};
+    $neutra-fontFamily: ${isAndroid ? 'res/neutra' : 'Neutra'};`;
 
     const scssLoaderRuleIndex = config.module.rules.findIndex((r) => r.test && r.test.toString().indexOf('scss') !== -1);
     config.module.rules.splice(

@@ -15,7 +15,7 @@ import ProgressPlugin from '@nativescript-community/ui-material-progress/vue';
 import TextFieldPlugin from '@nativescript-community/ui-material-textfield/vue';
 import SliderPlugin from '@nativescript-community/ui-material-slider/vue';
 import CActionBar from '~/components/CActionBar.vue';
-import ListItem from '~/components/ListItem';
+import ListItem from '~/components/ListItem.vue';
 import CanvasPlugin from '@nativescript-community/ui-canvas/vue';
 import CanvasLabelPlugin from '@nativescript-community/ui-canvaslabel/vue';
 import CollectionViewPlugin from '@nativescript-community/ui-collectionview/vue';
@@ -27,8 +27,11 @@ import ZoomImagePlugin from '@nativescript-community/ui-zoomimage/vue';
 import PersistentBottomSheetPlugin from '@nativescript-community/ui-persistent-bottomsheet/vue';
 import LottieView from '@nativescript-community/ui-lottie/vue';
 import * as imageModule from '@nativescript-community/ui-image';
+import { createColorMatrix } from './utils';
 
-export const IMAGE_COLORMATRIX = [0.9647058824, 0.9647058824, 0.9647058824, 0, 0, 0.9137254902, 0.9137254902, 0.9137254902, 0, 0, 0.1803921569, 0.1803921569, 0.180392156, 0, 0, 0, 0, 0, 1, 0];
+// export const IMAGE_COLORMATRIX = [0.9647058824, 0.9647058824, 0.9647058824, 0, 0, 0.9137254902, 0.9137254902, 0.9137254902, 0, 0, 0.1803921569, 0.1803921569, 0.180392156, 0, 0, 0, 0, 0, 1, 0];
+export const IMAGE_COLORMATRIX = createColorMatrix('#E8F220');
+console.log('IMAGE_COLORMATRIX', IMAGE_COLORMATRIX);
 // export const IMAGE_COLORMATRIX = [0.1, 0.4, 0, 0, 0, 0.3, 1, 0.3, 0, 0, 0, 0.4, 0.1, 0, 0, 0, 0, 0, 1, 0];
 
 const Plugin = {

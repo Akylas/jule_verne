@@ -6,6 +6,7 @@
         <MDButton
             variant="text"
             color="white"
+            rippleColor="white"
             col="1"
             horizontalAlignment="right"
             verticalAlignment="top"
@@ -15,8 +16,8 @@
             @tap="stopPlayback"
         />
         <CanvasLabel margin="5" col="1" row="2" fontSize="10" color="white" height="14">
-            <CSpan :text="formatDuration(currentTime)" verticalAlignment="bottom" />
-            <CSpan :text="playingInfo && formatDuration(playingInfo.duration)" textAlignment="right" verticalAlignment="bottom" />
+            <Span :text="formatDuration(currentTime)" verticalAlignment="bottom" />
+            <Span :text="playingInfo && formatDuration(playingInfo.duration)" textAlignment="right" verticalAlignment="bottom" />
         </CanvasLabel>
     </GridLayout>
 </template>

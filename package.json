@@ -97,6 +97,7 @@
         "eslint-config-prettier": "^8.5.0",
         "eslint-plugin-prettier": "^4.2.1",
         "eslint-plugin-vue": "^9.4.0",
+        "merge-options": "^3.0.4",
         "nativescript-vue-template-compiler": "2.9.3",
         "prettier": "^2.7.1",
         "rimraf": "3.0.2",

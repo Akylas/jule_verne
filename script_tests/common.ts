@@ -4,6 +4,7 @@ import cv2 from '@u4/opencv4nodejs';
 import { CommandType, buildMessageData } from '../app/handlers/Message';
 import { Encoder } from '@fsiot/heatshrink';
 import fileSize from 'filesize';
+import { getAudioDurationInSeconds } from 'get-audio-duration';
 
 function uint16ToByteArray(value) {
     const result = [];
@@ -97,6 +98,7 @@ export async function createBitmapData({
     chunkSize?: number;
     width?: number;
 }): Promise<[number[][], number, number, number, number, number, number]> {
+    console.log('createBitmapData', id, filePath, mat, crop, resize, compress, stream, chunkSize, width);
     let gray = mat;
     if (!mat && filePath) {
         gray = cv2.imread(filePath);
@@ -152,8 +154,9 @@ export async function createBitmapData({
         if (minx > 0 || miny > 0 || maxx < imgWidth || maxy < imgHeight) {
             gray = gray.getRegion(new cv2.Rect(minx, miny, maxx - minx, maxy - miny));
             gray = gray.rotate(cv2.ROTATE_180);
-            x = (imgWidth - gray.sizes[1]) / 2;
-            y = (imgHeight - gray.sizes[0]) / 2;
+            x = Math.round((imgWidth - maxx) / (imgWidth / gray.sizes[1]));
+            y = Math.round((imgHeight - maxy) / (imgHeight / gray.sizes[0]));
+            // y = (imgHeight - gray.sizes[0]) / 2;
             imgHeight = gray.sizes[0];
             imgWidth = gray.sizes[1];
         } else {
@@ -251,7 +254,7 @@ export async function buildDataSet(configId: string, crop = false, compress = fa
     // const filePath = path.resolve(path.join(__dirname, storyFolder));
     // const filePath = '/Volumes/data/mguillon/Downloads/Illustrations Flore';
     console.log('buildDataSet', configId, folder, crop, compress);
-    const files: string[] = getAllFiles(folder)
+    const files: string[] = getAllFiles(path.join(folder, 'images'))
         .filter((s) => s.endsWith('.jpg') || s.endsWith('.bmp') || s.endsWith('.png'))
         .filter((s) => s !== 'cover.png');
     // const files = ['/Volumes/dev/nativescript/jule_verne/jules_verne/glasses_images/navigation/right/30_pieds_droite_3.png'];
@@ -346,6 +349,10 @@ export async function buildDataSet(configId: string, crop = false, compress = fa
             '\n',
         ''
     );
+
+    const audioDuration = Math.round((await getAudioDurationInSeconds(path.join(folder, 'audio.mp3'))) * 1000);
+    const metadataPath = path.join(folder, 'metadata.json');
+    fs.writeFileSync(metadataPath, JSON.stringify({ ...JSON.parse(fs.readFileSync(metadataPath, 'utf-8')), audioDuration }));
 
     // const fileDataStr = data.reduce((accumulator, currentValue) => accumulator + '0x' + Array.from(currentValue, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('') + '\n', '');
 

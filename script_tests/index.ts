@@ -36,6 +36,9 @@ program
     .option('--id [id]', 'config id', { default: '1' })
     .option('--serial', 'only serial', { default: false })
     .option('--command [command]', 'command', { default: null })
+    .option('--crop', 'crop images?', { default: true, validator: program.BOOLEAN })
+    .option('--width', 'image width', { default: 228, validator: program.NUMBER })
+    .option('--compress', 'compress images?', { default: true, validator: program.BOOLEAN })
     .option('--imagesFolder [imagesFolder]', 'imagesFolder', { default: null })
     .argument('<args...>', 'arguments', { default: [] })
     .action(({ logger, args, options }) => {
@@ -1134,7 +1137,15 @@ async function streamFolder(folderPath: string, compress?) {
     streamImage(files[index], compress);
 }
 async function streamImage(filePath: string, compress?) {
-    let [commandsToSend, x, y, imgWidth, imgHeight, nb] = await createBitmapData({ id: 0, filePath, resize: false, crop: false, compress: true, stream: true });
+    const [command, x, y, imgWidth, imgHeight, nb] = await createBitmapData({
+        id: 0,
+        filePath,
+        resize: true,
+        crop: cmdOptions.crop,
+        compress: cmdOptions.compress,
+        stream: true,
+        width: cmdOptions.width
+    });
     log('streamImage', filePath, x, y, imgWidth, imgHeight, nb);
     // const fileDataStr = commandsToSend.reduce(
     //     (accumulator, currentValue) =>
@@ -1146,7 +1157,7 @@ async function streamImage(filePath: string, compress?) {
     //     ''
     // );
     // log('fileDataStr', fileDataStr)
-    commandsToSend = [
+    const commandsToSend = [
         {
             commandType: CommandType.HoldFlushw,
             params: [0]
@@ -1161,7 +1172,7 @@ async function streamImage(filePath: string, compress?) {
         }
     ]
         .map((current) => buildMessageData(current.commandType, { params: current.params }))
-        .concat(commandsToSend)
+        .concat(command)
         .concat(buildMessageData(CommandType.HoldFlushw, { params: [1] }));
     return sendRawCommands(commandsToSend, `streaming bitmap: ${filePath}`);
 }

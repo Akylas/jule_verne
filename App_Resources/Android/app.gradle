@@ -2,12 +2,12 @@ project.ext.abiCodes = ['armeabi-v7a': 1, 'arm64-v8a': 2, 'x86_64': 3]
 def BUILD_TOOLS_PATH = "$rootDir/build-tools"
 
 android { 
-  compileSdkVersion 31
+  compileSdkVersion 33
   defaultConfig {
     applicationId "com.akylas.juleverne"
     minSdkVersion 19 
-    targetSdkVersion 31
-    versionCode 26
+    targetSdkVersion 33
+    versionCode 27
     versionName "1.1.0"
     
     ndk {

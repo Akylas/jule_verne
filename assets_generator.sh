@@ -6,6 +6,7 @@ function usage() {
 }
 
 image=""
+name=""
 output="."
 width="-1"
 height="-1"
@@ -33,6 +34,9 @@ while [ $# -gt 0 ]; do
     -p|--platform=*)
       platform="$2"
       ;;
+    -n|--name=*)
+      name="$2"
+      ;;
     *)
 	  image="$1"
   esac
@@ -41,7 +45,9 @@ done
 [ "$image" ] || usage
 
 nameWithExt=${image##*/}
-name=${nameWithExt%.*}
+if [ "$name" = "" ]; then
+	name=${nameWithExt%.*}
+fi
 extension="${nameWithExt##*.}"
 
 devices=iOS,Android #,windows-phone,bada,bada-wac,blackberry,webos
@@ -73,6 +79,7 @@ if [ "$extension" = "svg" ]; then
 	echo "svgGeneratedImage $image"
 fi
 echo "image $image"
+echo "name $name"
 imageSize=$(convert "$image" -format "%wx%h" info:)
 read -ra sizes <<< "$imageSize"
 

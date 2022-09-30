@@ -34,6 +34,7 @@
 <script lang="ts">
 import { CollectionView } from '@nativescript-community/ui-collectionview';
 import { ObservableArray } from '@nativescript/core/data/observable-array';
+import { throttle } from 'helpful-decorators';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { backgroundColor, textColor } from '~/variables';
 import { ComponentIds } from '~/vue.prototype';
@@ -78,14 +79,21 @@ export default class ImagesViewer extends BgServiceComponent {
         if (this.lastIndex === this.currentIndex) {
             return;
         }
-        if (this.lastIndex !== -1) {
-            this.items.setItem(this.lastIndex, { ...this.items.getItem(this.lastIndex), selected: false });
-        }
+
         const item = this.items.getItem(this.currentIndex);
-        this.items.setItem(this.currentIndex, { ...item, selected: true });
+        this.updateCollectionView(this.lastIndex, this.currentIndex, item);
         this.lastIndex = this.currentIndex;
         this.bluetoothHandler.drawImageFromPathWithMire(item.path);
-        this.getRef<CollectionView>('collectionView').scrollToIndex(this.currentIndex, true);
+    }
+
+    // @throttle(500)
+    updateCollectionView(lastIndex, currentIndex, item: Item) {
+        //TODO: for some reason doing this fast hangs the app on android
+        // if (lastIndex !== -1) {
+        //     this.items.setItem(lastIndex, { ...this.items.getItem(lastIndex), selected: false });
+        // }
+        // this.items.setItem(currentIndex, { ...item, selected: true });
+        this.getRef<CollectionView>('collectionView').scrollToIndex(currentIndex, true);
     }
 
     mounted() {

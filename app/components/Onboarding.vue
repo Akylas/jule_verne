@@ -1,40 +1,71 @@
 <template>
     <Page :actionBarHidden="true" ref="page" @navigatingFrom="onNavigatingFrom">
         <GridLayout rows="auto,*,auto">
-            <CActionBar :title="$tc('onboarding')" modal />
+            <CActionBar :title="$tc('onboarding')" textAlignment="center" modal />
             <Pager row="1" ref="pager" v-model="selectedPageIndex" disableAnimation disableSwipe @swipe="onPagerSwipeEnd">
                 <PagerItem>
-                    <GridLayout v-show="showPage(0)" padding="10">
-                        <StackLayout v-if="!bluetoothEnabled" verticalAlignment="center" horizontalAlignment="center">
-                            <Label text="mdi-bluetooth-off" class="mdi" fontSize="40" horizontalAlignment="center" />
-                            <Label :text="$tc('bluetooth_not_enabled')" fontSize="16" horizontalAlignment="center" />
-                            <Label :text="$tc('bluetooth_not_enabled_desc')" fontSize="14" :color="subtitleColor" horizontalAlignment="center" textAlignment="center" />
-                            <MDButton :text="$tc('enable')" @tap="() => enableBluetooth()" horizontalAlignment="center" />
-                        </StackLayout>
-                        <StackLayout v-if="!gpsEnabled && bluetoothEnabled" verticalAlignment="center" horizontalAlignment="center">
-                            <Label text="mdi-map-marker-off" class="mdi" fontSize="40" horizontalAlignment="center" />
-                            <Label :text="$tc('gps_not_enabled')" fontSize="16" horizontalAlignment="center" />
-                            <Label :text="$tc('gps_not_enabled_desc')" fontSize="14" :color="subtitleColor" horizontalAlignment="center" textAlignment="center" />
-                            <MDButton :text="$tc('enable')" @tap="() => enableGPS()" horizontalAlignment="center" />
-                        </StackLayout>
-                        <StackLayout v-if="gpsEnabled && bluetoothEnabled && !connectingToGlasses" verticalAlignment="center" horizontalAlignment="center">
-                            <Image src="res://ic_logo_splash" width="50%" />
-                            <Label :text="$tc('connect_glasses_desc')" fontSize="14" :color="subtitleColor" horizontalAlignment="center" />
-                            <MDButton :text="$tc('connect_glasses')" @tap="() => pickGlasses()" horizontalAlignment="center" textAlignment="center" />
-                        </StackLayout>
-                        <StackLayout v-if="gpsEnabled && connectingToGlasses" verticalAlignment="center" horizontalAlignment="center">
-                            <GridLayout width="200" height="200" verticalAlignment="center" horizontalAlignment="center">
-                                <Image src="res://ic_logo_splash" width="50%" />
-                                <MDActivityIndicator busy width="200" height="200" />
-                            </GridLayout>
-                            <Label :text="connectingGlassesText" fontSize="16" horizontalAlignment="center" textAlignment="center" />
-                        </StackLayout>
+                    <GridLayout v-show="showPage(0)" padding="10 10 10 10">
+                        <GridLayout v-if="!bluetoothEnabled" rows="*,*,auto">
+                            <Label text="mdi-bluetooth-off" class="mdi" fontSize="140" textAlignment="center" verticalAlignment="bottom" marginBottom="40" />
+                            <Label row="1" textAlignment="center" width="70%" fontSize="19">
+                                <Span :text="$tc('bluetooth_not_enabled')" fontSize="24" />
+                                <Span :text="'\n\n' + $tc('bluetooth_not_enabled_desc')" fontSize="20" />
+                            </Label>
+                            <MDButton row="2" variant="outline" :text="$tc('enable')" @tap="() => enableBluetooth()" horizontalAlignment="center" marginBottom="40" />
+                        </GridLayout>
+                        <GridLayout v-if="!gpsEnabled && bluetoothEnabled" rows="*,*,auto">
+                            <Label text="mdi-map-marker-off" class="mdi" fontSize="140" textAlignment="center" verticalAlignment="bottom" marginBottom="40" />
+                            <Label row="1" textAlignment="center" width="70%" fontSize="19">
+                                <Span :text="$tc('gps_not_enabled')" fontSize="24" />
+                                <Span :text="'\n\n' + $tc('gps_not_enabled_desc')" fontSize="20" />
+                            </Label>
+                            <MDButton row="2" variant="outline" :text="$tc('enable')" @tap="() => enableGPS()" horizontalAlignment="center" marginBottom="40" />
+                        </GridLayout>
+
+                        <GridLayout v-if="gpsEnabled && bluetoothEnabled" rows="*,*,auto">
+                            <Image :src="connectingToGlasses ? 'res://glasses' : 'res://glasses_2'" width="80%" verticalAlignment="bottom" />
+                            <Label
+                                row="1"
+                                :html="connectingToGlasses ? connectingGlassesText : $tc('connect_glasses_desc')"
+                                fontSize="19"
+                                textAlignment="center"
+                                verticalAlignment="center"
+                                width="70%"
+                            />
+                            <Label row="1" textAlignment="center" verticalAlignment="center">
+                                <Span text="" fontSize="24" />
+                                <Span text="" fontSize="20" />
+                            </Label>
+                            <MDButton
+                                :visibilty="connectingToGlasses ? 'hidden' : 'visible'"
+                                row="2"
+                                variant="outline"
+                                :text="$tc('connect_glasses')"
+                                @tap="() => pickGlasses()"
+                                horizontalAlignment="center"
+                                textAlignment="center"
+                            />
+                        </GridLayout>
                     </GridLayout>
                 </PagerItem>
                 <PagerItem>
-                    <GridLayout v-show="showPage(1)" padding="10">
-                        <GridLayout verticalAlignment="center" horizontalAlignment="center" rows="auto,auto,auto,auto,auto">
-                            <Label :text="$tc('test_image_see_glasses')" fontSize="20" fontWeight="bold" textAlignment="center" />
+                    <GridLayout v-show="showPage(1)" padding="10" rows="*,*,auto">
+                        <Image src="res://head_glasses" width="80%" verticalAlignment="bottom" />
+                        <Label row="1" :text="$tc('install_glasses_desc')" fontSize="19" textAlignment="center" verticalAlignment="center" width="70%" />
+                        <MDButton row="2" variant="outline" :text="$tc('glasses_installed')" @tap="selectedPageIndex += 1" horizontalAlignment="center" textAlignment="center" />
+                    </GridLayout>
+                </PagerItem>
+                <PagerItem>
+                    <GridLayout v-show="showPage(2)" padding="10" rows="*,*,auto">
+                        <Image src="res://head_headphones" width="80%" verticalAlignment="bottom" />
+                        <Label row="1" :text="$tc('install_headphones_desc')" fontSize="19" textAlignment="center" verticalAlignment="center" width="70%" />
+                        <MDButton row="2" variant="outline" :text="$tc('headphones_installed')" @tap="selectedPageIndex += 1" horizontalAlignment="center" textAlignment="center" />
+                    </GridLayout>
+                </PagerItem>
+                <PagerItem>
+                    <GridLayout v-show="showPage(3)" padding="10">
+                        <GridLayout verticalAlignment="center" horizontalAlignment="center" rows="auto,auto,auto,auto,*,auto">
+                            <Label :text="$tc('test_image_see_glasses')" fontSize="22" fontWeight="bold" textAlignment="center" width="90%" />
 
                             <Image
                                 row="1"
@@ -43,9 +74,9 @@
                                 backgroundColor="black"
                                 :colorMatrix="colorMatrix"
                                 :src="configImagePath"
-                                width="200"
                                 height="200"
-                                borderRadius="100"
+                                borderRadius="20"
+                                margin="20"
                                 horizontalAlignment="center"
                             />
                             <!-- <MDSlider row="3" :color="accentColor" :value="levelLuminance" @valueChange="onSliderChange('luminance', $event)" :minValue="0" :maxValue="15" verticalAlignment="center" /> -->
@@ -59,27 +90,25 @@
                                 @valueChange="onSliderChange('luminance', $event)"
                                 icon="mdi-lightbulb-on"
                             />
-                            <Label row="3" :text="$tc('adjust_glasses_luminosity')" :color="subtitleColor" fontSize="16" textAlignment="center" />
-                            <MDButton row="4" :text="$tc('next')" @tap="selectedPageIndex += 1" horizontalAlignment="center" marginTop="40" />
+                            <Label row="3" :text="$tc('adjust_glasses_luminosity')" fontSize="19" textAlignment="center" width="70%" />
+                            <MDButton variant="outline" row="5" :text="$tc('luminance_ok')" @tap="selectedPageIndex += 1" horizontalAlignment="center" />
                         </GridLayout>
                     </GridLayout>
                 </PagerItem>
                 <PagerItem>
-                    <GridLayout v-show="showPage(2)" padding="10">
-                        <GridLayout verticalAlignment="center" horizontalAlignment="center" rows="auto,auto,auto,auto,auto,auto,auto">
-                            <Label :text="$tc('place_audio_headphones')" fontSize="20" fontWeight="bold" textAlignment="center" />
+                    <GridLayout v-show="showPage(4)" padding="10" rows="auto,auto,auto,auto,auto,auto,*,auto">
+                        <Label :text="$tc('place_audio_headphones')" fontSize="20" fontWeight="bold" textAlignment="center" />
 
-                            <Label row="1" text="mdi-music" class="mdi" fontSize="40" horizontalAlignment="center" />
-                            <Label row="2" :text="$tc('play_test_desc')" fontSize="14" :color="subtitleColor" textAlignment="center" />
-                            <MDButton row="3" :text="$tc('play_test')" @tap="() => playAudioTest()" horizontalAlignment="center" />
-                            <Slider id="volume" row="4" margin="10 20 10 20" :value="volume" @valueChange="onSliderChange('volume', $event)" icon="mdi-volume-high" />
-                            <Label row="5" :text="$tc('adjust_volume')" :color="subtitleColor" fontSize="16" textAlignment="center" />
-                            <MDButton row="6" :text="forMap ? $tc('next') : $tc('finish')" @tap="onAudioDone" horizontalAlignment="center" marginTop="40" />
-                        </GridLayout>
+                        <Label row="1" text="mdi-music" class="mdi" fontSize="140" textAlignment="center" marginTop="20" marginBottom="40" />
+                        <Label row="2" :text="$tc('play_test_desc')" fontSize="19" textAlignment="center" width="70%" />
+                        <MDButton variant="outline" row="3" :text="$tc('play_test')" @tap="() => playAudioTest()" horizontalAlignment="center" />
+                        <Slider id="volume" row="4" margin="10 20 10 20" :value="volume" @valueChange="onSliderChange('volume', $event)" icon="mdi-volume-high" />
+                        <Label row="5" :text="$tc('adjust_volume')" fontSize="16" textAlignment="center" width="70%" />
+                        <MDButton variant="outline" row="7" :text="forMap ? $tc('volume_ok') : $tc('finish')" @tap="onAudioDone" horizontalAlignment="center" marginTop="40" />
                     </GridLayout>
                 </PagerItem>
                 <PagerItem>
-                    <GridLayout v-show="showPage(3)" padding="10">
+                    <GridLayout v-show="showPage(5)" padding="10" rows="*,*,auto">
                         <LottieView
                             v-show="watchingLocation"
                             row="1"
@@ -93,14 +122,31 @@
                             width="60"
                             height="60"
                         />
-                        <Label v-show="playingInstructions" :text="$tc('playing_instructions_story')" fontSize="20" fontWeight="bold" textAlignment="center" verticalTextAlignment="center" />
-                        <Label v-show="!playingInstructions" :text="$tc('searching_location_before_start')" fontSize="20" fontWeight="bold" textAlignment="center" verticalTextAlignment="center" />
-                        <MDButton v-show="lastLocation" :text="$tc('start')" @tap="selectedPageIndex += 1" verticalAlignment="bottom" horizontalAlignment="center" marginTop="40" />
+                        <Label row="1" v-show="playingInstructions" :text="$tc('playing_instructions_story')" fontSize="20" fontWeight="bold" textAlignment="center" verticalTextAlignment="center" />
+                        <Label
+                            row="1"
+                            v-show="!playingInstructions"
+                            :text="$tc('searching_location_before_start')"
+                            fontSize="20"
+                            fontWeight="bold"
+                            textAlignment="center"
+                            verticalTextAlignment="center"
+                        />
+                        <MDButton
+                            row="2"
+                            variant="outline"
+                            v-show="lastLocation"
+                            :text="$tc('start')"
+                            @tap="selectedPageIndex += 1"
+                            verticalAlignment="bottom"
+                            horizontalAlignment="center"
+                            marginTop="40"
+                        />
                     </GridLayout>
                 </PagerItem>
             </Pager>
-            <PageIndicator row="2" horizontalAlignment="center" :count="forMap ? 4 : 3" :selectedIndex="selectedPageIndex" marginTop="10" marginBottom="20" />
-            <MDButton variant="text" v-show="!forMap || canSkip" :text="$tc('skip')" row="2" horizontalAlignment="right" verticalAlignment="bottom" @tap="onSkip" />
+            <PageIndicator row="2" horizontalAlignment="center" :count="forMap ? 6 : 5" :selectedIndex="selectedPageIndex" marginTop="10" marginBottom="20" />
+            <MDButton variant="text" v-show="!forMap || canSkip" :text="$tc('skip')" row="2" horizontalAlignment="right" verticalAlignment="bottom" @tap="onSkip" margin="5" :color="textColor" />
         </GridLayout>
     </Page>
 </template>
@@ -114,7 +160,7 @@ import { GeoLocation, UserLocationdEventData, UserRawLocationEvent } from '~/han
 import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
 import { Catch, getVolumeLevel, setVolumeLevel } from '~/utils';
 import { getGlassesImagesFolder } from '~/utils/utils';
-import { borderColor, mdiFontFamily, subtitleColor } from '~/variables';
+import { borderColor, mdiFontFamily, subtitleColor, textColor } from '~/variables';
 import { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import GlassesConnectionComponent from '~/components/GlassesConnectionComponent';
 import PageIndicator from './PageIndicator.vue';
@@ -124,10 +170,12 @@ import { debounce } from 'helpful-decorators';
 
 export enum Pages {
     BLE_GPS_GLASSES_STATE = 0,
-    IMAGE_TEST = 1,
-    SOUND_TEST = 2,
-    FIND_LOCATION_STORY = 3,
-    READY = 4
+    PUT_GLASSES = 1,
+    PUT_HEADPHONES = 2,
+    IMAGE_TEST = 3,
+    SOUND_TEST = 4,
+    FIND_LOCATION_STORY = 5,
+    READY = 6
 }
 
 const TAG = '[Onboarding]';
@@ -144,6 +192,7 @@ export default class Onboarding extends GlassesConnectionComponent {
 
     mdiFontFamily = mdiFontFamily;
     borderColor = borderColor;
+    textColor = textColor;
     subtitleColor = subtitleColor;
     glassesMemory: FreeSpaceData = null;
     glassesDataUpdateDate = ApplicationSettings.getNumber('GLASSES_DATA_LASTDATE', null);
@@ -151,7 +200,7 @@ export default class Onboarding extends GlassesConnectionComponent {
     geojsonDataUpdateDate = ApplicationSettings.getNumber('GEOJSON_DATA_LASTDATE', null);
     availableConfigs: ConfigListData = null;
 
-    configImagePath = ApplicationSettings.getString('glasses_config_image', path.join(getGlassesImagesFolder(), 'navigation', 'start', 'VG1.png'));
+    configImagePath = ApplicationSettings.getString('glasses_config_image', path.join(getGlassesImagesFolder(), 'navigation', 'start', 'VG1.jpg'));
 
     levelLuminance: number = 0;
     lastLocation: GeoLocation = null;
@@ -188,6 +237,7 @@ export default class Onboarding extends GlassesConnectionComponent {
     }
 
     get connectingGlassesText() {
+        console.log('connectingGlassesText', this.savedGlassesName);
         return this.$tc('connecting_glasses', this.savedGlassesName);
     }
     get showPage() {
@@ -273,7 +323,7 @@ export default class Onboarding extends GlassesConnectionComponent {
         if (this.connectedGlasses) {
             this.selectedPageIndex = 1;
         }
-        if (!this.lastLocation) {
+        if (this.forMap && !this.lastLocation) {
             this.startWatchLocation();
         }
     }
@@ -287,7 +337,7 @@ export default class Onboarding extends GlassesConnectionComponent {
         if (this.selectedPageIndex === 0) {
             this.selectedPageIndex = 1;
         }
-        if (!this.lastLocation) {
+        if (this.forMap && !this.lastLocation) {
             this.startWatchLocation();
         }
     }
@@ -345,7 +395,7 @@ export default class Onboarding extends GlassesConnectionComponent {
         if (this.forMap) {
             this.selectedPageIndex++;
         } else {
-            this.$modal.close();
+            this.$modal.close(true);
         }
     }
 

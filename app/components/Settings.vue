@@ -5,9 +5,9 @@
             <CollectionView :items="items">
                 <v-template if="item.type === 'shift'">
                     <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto,auto,auto">
-                        <Label>
-                            <Span padding="5 0 5 0" fontSize="15" lineHeight="30" :text="item.title | uppercase" />
-                            <Span fontSize="13" :text="item.description ? '\n' + item.description : ''" />
+                        <Label verticalAlignment="center">
+                            <Span padding="5 0 5 0" fontSize="17" fontWeight="600" lineHeight="20" :text="item.title | uppercase" />
+                            <Span fontSize="15" :text="item.description ? '\n' + item.description : ''" />
                         </Label>
                         <GridLayout padding="20" row="2" horizontalAlignment="center" verticalAlignment="center" rows="45,120,45" columns="45,150,45">
                             <MDButton row="1" class="settings-shift-button" :text="'mdi-arrow-left-bold-circle'" @tap="shift(1, 0)" @touch="onShiftTouch($event, 1, 0)" />
@@ -45,54 +45,54 @@
                 </v-template>
                 <v-template if="item.type === 'config'">
                     <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto">
-                        <Label padding="5 0 5 0">
-                            <Span fontSize="15" :text="(item.name + '\n') | uppercase" />
-                            <Span fontSize="13" :text="item.size | filesize" />
+                        <Label padding="5 0 5 0" verticalAlignment="center">
+                            <Span fontSize="17" fontWeight="600" lineHeight="20" :text="(item.name + '\n') | uppercase" />
+                            <Span fontSize="15" :text="item.size | filesize" />
                         </Label>
                         <MDButton col="1" v-show="!item.isSystem" variant="text" class="icon-btn" text="mdi-delete" @tap="onButtonTap('deleteCfg', item, $event)" />
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'switch'">
                     <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto">
-                        <Label>
-                            <Span padding="5 0 5 0" fontSize="15" :text="item.title | uppercase" />
-                            <Span fontSize="13" :text="item.subtitle ? '\n' + item.subtitle : ''" />
+                        <Label verticalAlignment="center">
+                            <Span padding="5 0 5 0" fontSize="17" fontWeight="600" lineHeight="20" :text="item.title | uppercase" />
+                            <Span fontSize="15" :text="item.subtitle ? '\n' + item.subtitle : ''" />
                         </Label>
                         <Switch :ios:backgroundColor="accentColor" :checked="item.checked" @checkedChange="onCheckedChange(item, $event)" col="1" verticalAlignment="center" />
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'text'">
                     <GridLayout class="settings-section settings-section-holder" rows="auto">
-                        <Label>
-                            <Span padding="5 0 5 0" fontSize="15" :text="item.title | uppercase" />
-                            <Span fontSize="13" :text="item.subtitle ? '\n' + item.subtitle : ''" />
+                        <Label verticalAlignment="center">
+                            <Span padding="5 0 5 0" fontSize="17" fontWeight="600" lineHeight="20" :text="item.title | uppercase" />
+                            <Span fontSize="15" :text="item.subtitle ? '\n' + item.subtitle : ''" />
                         </Label>
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'header'">
                     <GridLayout columns="*,auto">
-                        <Label class="settings-header" :text="item.title | uppercase" />
+                        <Label class="settings-header" :text="item.title | uppercase" verticalAlignment="center" />
                         <MDButton variant="text" col="1" v-show="item.buttonTitle" :text="item.buttonTitle" @tap="onButtonTap(item.id, item, $event)" :color="accentColor" :rippleColor="accentColor" />
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'button'">
                     <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto">
-                        <Label>
-                            <Span padding="5 0 5 0" fontSize="15" :text="item.title | uppercase" />
-                            <Span fontSize="13" :text="item.subtitle ? '\n' + item.subtitle : ''" />
+                        <Label verticalAlignment="center">
+                            <Span padding="5 0 5 0" fontSize="17" fontWeight="600" lineHeight="20" :text="item.title | uppercase" />
+                            <Span fontSize="15" :text="item.subtitle ? '\n' + item.subtitle : ''" />
                         </Label>
-                        <MDButton variant="text" col="1" :text="item.buttonTitle" @tap="onButtonTap(item.id, item, $event)" :color="accentColor" :rippleColor="accentColor" />
+                        <MDButton variant="text" col="1" :text="item.buttonTitle" @tap="onButtonTap(item.id, item, $event)" verticalAlignment="center" />
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'slider'">
                     <GridLayout class="settings-section settings-section-holder" columns="auto,*,auto" rows="auto,auto,auto">
-                        <Label colSpan="2">
-                            <Span padding="5 0 5 0" fontSize="15" :text="item.title | uppercase" />
-                            <Span fontSize="13" :text="item.subtitle ? '\n' + item.subtitle : ''" />
+                        <Label colSpan="2" verticalAlignment="center">
+                            <Span padding="5 0 5 0" fontSize="17" fontWeight="600" lineHeight="20" :text="item.title | uppercase" />
+                            <Span fontSize="15" :text="item.subtitle ? '\n' + item.subtitle : ''" />
                         </Label>
                         <Label row="2" :text="item.min + ''" verticalAlignment="center" />
                         <Label row="2" col="2" :text="item.max + ''" verticalAlignment="center" />
-                        <Label col="2" :text="item.valueFormatter ? item.valueFormatter(item.value) : item.value + ''" textAlignment="right" />
+                        <Label col="2" :text="item.valueFormatter ? item.valueFormatter(item.value) : item.value + ''" textAlignment="right" fontSize="22" />
                         <MDSlider
                             :id="item.id"
                             :color="accentColor"
@@ -115,28 +115,14 @@
 import { openFilePicker } from '@nativescript-community/ui-document-picker';
 import { confirm, prompt } from '@nativescript-community/ui-material-dialogs';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
-import { Application, ApplicationSettings, File, Folder, ObservableArray, Utils, knownFolders, path } from '@nativescript/core';
+import { ApplicationSettings, File, Folder, ObservableArray, Utils, knownFolders, path } from '@nativescript/core';
 import { TouchGestureEventData } from '@nativescript/core/ui';
 import dayjs from 'dayjs';
 import fileSize from 'filesize';
 import { debounce } from 'helpful-decorators';
 import { Component } from 'vue-property-decorator';
-import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
-import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
-import {
-    AvailableConfigsEvent,
-    BLEBatteryEventData,
-    BLEConnectionEventData,
-    BLEEventData,
-    BluetoothHandler,
-    GlassesBatteryEvent,
-    GlassesConnectedEvent,
-    GlassesDisconnectedEvent,
-    GlassesSettings,
-    GlassesSettingsEvent,
-    hexToBytes
-} from '~/handlers/BluetoothHandler';
-import { GeoHandler } from '~/handlers/GeoHandler';
+import { BgServiceMethodParams } from '~/components/BgServiceComponent';
+import { AvailableConfigsEvent, BLEConnectionEventData, BLEEventData, GlassesSettings, GlassesSettingsEvent, hexToBytes } from '~/handlers/BluetoothHandler';
 import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
 import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
 import { $t, $tc } from '~/helpers/locale';
@@ -145,7 +131,6 @@ import { getGlassesImagesFolder } from '~/utils/utils';
 import { textColor } from '~/variables';
 import { ComponentIds } from '~/vue.prototype';
 import FirmwareUpdateComponent from './FirmwareUpdateComponent';
-import GlassesConnectionComponent from './GlassesConnectionComponent';
 import OptionSelect from './OptionSelect';
 
 interface Item {
@@ -297,9 +282,10 @@ export default class Settings extends FirmwareUpdateComponent {
 
     refresh() {
         let items: any[] = [
-            { type: 'header', title: $t('settings') },
+            { type: 'header', title: $t('app_settings') },
             { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') },
             { id: 'sentry', type: 'button', title: $t('upload_logs'), subtitle: $t('internet_needed'), buttonTitle: $t('upload') },
+            { type: 'header', title: $t('geo_settings') },
             {
                 id: 'perStoryMessages',
                 type: 'switch',
@@ -466,12 +452,13 @@ export default class Settings extends FirmwareUpdateComponent {
     showingTestImage = false;
     showTestImage() {
         this.showingTestImage = true;
-        const filePath = ApplicationSettings.getString('glasses_config_image', path.join(getGlassesImagesFolder(), 'navigation', 'start', 'VG1.png'));
+        const filePath = ApplicationSettings.getString('glasses_config_image', path.join(getGlassesImagesFolder(), 'navigation', 'start', 'VG1.jpg'));
         this.bluetoothHandler.drawImageFromPathWithMire(filePath);
     }
 
     async pickConfig() {
         const r = (await Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories')).getEntities())
+            .filter((f) => Folder.exists(f.path))
             .concat([{ path: path.join(getGlassesImagesFolder(), 'navigation'), name: 'navigation' }] as any)
             .sort((a, b) => a.name.localeCompare(b.name));
         if (r && r.length > 0) {
@@ -560,7 +547,7 @@ export default class Settings extends FirmwareUpdateComponent {
                 case 'firmwareUpdate':
                     const pickedFile = await this.pickFile('.img');
                     if (pickedFile) {
-                        const component = await import('~/components/FirmwareUpdate');
+                        const component = await import('~/components/FirmwareUpdate.vue');
                         this.$navigateTo(component.default, { props: { firmwareFile: File.fromPath(pickedFile) } });
                     }
                     break;

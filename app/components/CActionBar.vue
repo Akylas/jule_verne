@@ -1,13 +1,13 @@
 <template>
     <GridLayout class="actionBar" columns="auto,*, auto" paddingLeft="5" paddingRight="5">
-        <StackLayout col="1" colSpan="3" verticalAlignment="center">
-            <Label class="actionBarTitle" :visibility="!!title ? 'visible' : 'hidden'" textAlignment="left" :text="title || '' | uppercase" />
-            <Label :visibility="!!subtitle ? 'visible' : 'collapse'" textAlignment="left" class="actionBarSubtitle" :text="subtitle" />
+        <StackLayout :col="textAlignment === 'center' ? 0 : 1" colSpan="3" verticalAlignment="center">
+            <Label class="actionBarTitle" :visibility="!!title ? 'visible' : 'hidden'" :textAlignment="textAlignment" :text="title || '' | titlecase" />
+            <Label :visibility="!!subtitle ? 'visible' : 'collapse'" :textAlignment="textAlignment" class="actionBarSubtitle" :text="subtitle" />
         </StackLayout>
         <Label col="1" v-if="!!showLogo && !title" fontSize="28" color="white" verticalAlignment="center" marginLeft="6" />
         <StackLayout col="0" orientation="horizontal">
             <slot name="left" />
-            <MDButton variant="text" :visibility="menuIconVisibility" class="icon-btn" :text="menuIcon" @tap="onMenuIcon" />
+            <MDButton variant="text" :visibility="menuIconVisibility" class="actionBarButton" :text="menuIcon" @tap="onMenuIcon" />
         </StackLayout>
         <StackLayout col="2" orientation="horizontal">
             <slot />
@@ -31,6 +31,9 @@ export default class ActionBar extends BaseVueComponent {
 
     @Prop({ default: false, type: Boolean })
     public showMenuIcon: boolean;
+
+    @Prop({ default: 'left', type: String })
+    public textAlignment: string;
 
     @Prop({ default: false, type: Boolean })
     public disableBackButton: boolean;

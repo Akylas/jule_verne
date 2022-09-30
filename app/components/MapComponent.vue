@@ -33,52 +33,30 @@
 </template>
 
 <script lang="ts">
-import { request } from '@nativescript-community/perms';
-import { GenericMapPos, MapPosVector } from '@nativescript-community/ui-carto/core';
+import { MapPosVector } from '@nativescript-community/ui-carto/core';
 import { GeoJSONVectorTileDataSource, MergedMBVTTileDataSource } from '@nativescript-community/ui-carto/datasources';
 import { PersistentCacheTileDataSource } from '@nativescript-community/ui-carto/datasources/cache';
 import { HTTPTileDataSource } from '@nativescript-community/ui-carto/datasources/http';
 import { MBTilesTileDataSource } from '@nativescript-community/ui-carto/datasources/mbtiles';
 import { LocalVectorDataSource } from '@nativescript-community/ui-carto/datasources/vector';
-import { LineGeometry } from '@nativescript-community/ui-carto/geometry';
-import { GeoJSONGeometryReader } from '@nativescript-community/ui-carto/geometry/reader';
 import { RasterTileLayer } from '@nativescript-community/ui-carto/layers/raster';
 import { VectorElementEventData, VectorLayer, VectorTileLayer, VectorTileRenderOrder } from '@nativescript-community/ui-carto/layers/vector';
 import { Projection } from '@nativescript-community/ui-carto/projections';
 import { CartoMap } from '@nativescript-community/ui-carto/ui';
-import { VectorElement } from '@nativescript-community/ui-carto/vectorelements';
-import { Group } from '@nativescript-community/ui-carto/vectorelements/group';
-import { Line, LineEndType, LineJointType } from '@nativescript-community/ui-carto/vectorelements/line';
-import { Marker } from '@nativescript-community/ui-carto/vectorelements/marker';
+import { setShowDebug, setShowError, setShowInfo, setShowWarn } from '@nativescript-community/ui-carto/utils';
+import { Line } from '@nativescript-community/ui-carto/vectorelements/line';
 import { Point } from '@nativescript-community/ui-carto/vectorelements/point';
 import { Polygon } from '@nativescript-community/ui-carto/vectorelements/polygon';
-import { Text } from '@nativescript-community/ui-carto/vectorelements/text';
 import { MBVectorTileDecoder } from '@nativescript-community/ui-carto/vectortiles';
-import { Tween } from '@nativescript-community/ui-chart/animation/Tween';
-import {
-    Application,
-    ApplicationSettings,
-    ChangedData,
-    Color,
-    EventData,
-    Folder,
-    Observable,
-    ObservableArray,
-    addWeakEventListener,
-    knownFolders,
-    path,
-    removeWeakEventListener
-} from '@nativescript/core';
+import { ApplicationSettings, ChangedData, Color, Folder, Observable, ObservableArray, addWeakEventListener, knownFolders, path, removeWeakEventListener } from '@nativescript/core';
 import dayjs from 'dayjs';
 import { BBox } from 'geojson';
 import { Component, Prop, Watch } from 'vue-property-decorator';
-import { GeoLocation, PositionStateEvent, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
-import Track, { TrackFeature } from '~/models/Track';
-import { getDataFolder, getGlassesImagesFolder, getWorkingDir } from '~/utils/utils';
-import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
-import { setShowDebug, setShowError, setShowInfo, setShowWarn } from '@nativescript-community/ui-carto/utils';
-import { AdditiveTweening } from 'additween';
+import { GeoLocation, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
+import Track from '~/models/Track';
 import { Catch } from '~/utils';
+import { getWorkingDir } from '~/utils/utils';
+import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 
 const LOCATION_ANIMATION_DURATION = 300;
 const production = TNS_ENV === 'production';
@@ -327,7 +305,7 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
                 }),
                 dataSource: this.geoJSONVectorDataSource
             });
-            this.mCartoMap.addLayer(this.mGeoJSONLayer);
+            this.mCartoMap.addLayer(this.mGeoJSONLayer, 1);
             this.onViewedFeature();
         }
         return this.mGeoJSONLayer;

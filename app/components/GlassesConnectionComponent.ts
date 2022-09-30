@@ -16,7 +16,7 @@ import { Catch } from '~/utils';
 import { ComponentIds } from '~/vue.prototype';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 
-const TAG = 'GlassesConnectionComponent';
+const TAG = '[GlassesConnectionComponent]';
 export default class GlassesConnectionComponent extends BgServiceComponent {
     navigateUrl = ComponentIds.Map;
     loading = false;
@@ -64,15 +64,13 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
             this.onGlassesVersion({
                 data: handlers.bluetoothHandler.glasses.versions
             } as any);
-        } else if (this.autoConnect) {
-            this.tryToAutoConnect();
         }
         this.bluetoothEnabled = this.bluetoothHandler.bluetoothEnabled;
         this.gpsEnabled = this.geoHandler.gpsEnabled;
         if (handlers.bluetoothHandler.glasses) {
             this.onGlassesConnected({ data: handlers.bluetoothHandler.glasses } as any);
         }
-        // DEV_LOG && console.log(TAG, 'setup', !!handlers.bluetoothHandler.glasses, this.bluetoothEnabled, this.gpsEnabled, this.autoConnect);
+        DEV_LOG && console.log(TAG, 'setup', !!handlers.bluetoothHandler.glasses, this.bluetoothEnabled, this.gpsEnabled, this.autoConnect);
     }
     onServiceStarted(handlers: BgServiceMethodParams) {
         if (!handlers.bluetoothHandler.glasses && this.autoConnect) {
@@ -157,8 +155,9 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         const device: Peripheral = await this.$showModal(DeviceSelect, options);
         // console.log(TAG, 'connecting to picked device', device);
         if (device) {
+            const promise = this.bluetoothHandler.connect(device.UUID, device.localName);
             this.connectingToGlasses = true;
-            return this.bluetoothHandler.connect(device.UUID, device.localName);
+            return promise;
         }
     }
     @Catch()

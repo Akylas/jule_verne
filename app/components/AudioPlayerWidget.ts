@@ -25,6 +25,10 @@ export default class AudioPlayerWidget extends BgServiceComponent {
     get progress() {
         return this.playingInfo ? (this.currentTime / (this.playingInfo.duration || 1)) * 100 : 0;
     }
+
+    getTimeFromProgress(progress: number) {
+        return this.playingInfo ? (this.playingInfo.duration || 1) * progress : 0;
+    }
     setup(handlers: BgServiceMethodParams) {
         if (!handlers.geoHandler) {
             return;

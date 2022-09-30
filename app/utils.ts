@@ -1,4 +1,5 @@
 import { EventData, Observable, Utils } from '@nativescript/core';
+import { Color } from '@nativescript/core/color';
 import Vue from 'vue';
 
 export function pick<T extends object, U extends keyof T>(object: T, ...props: U[]): Pick<T, U> {
@@ -168,4 +169,12 @@ export function getVolumeLevel() {
             }
         }
     }
+}
+
+export function createColorMatrix(colorStr: string) {
+    const color = new Color(colorStr);
+    const r = color.r / 255;
+    const g = color.g / 255;
+    const b = color.b / 255;
+    return [r, r, r, 0, 0, g, g, g, 0, 0, b, b, b, 0, 0, 0, 0, 0, 1, 0];
 }

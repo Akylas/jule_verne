@@ -232,15 +232,18 @@ export class NetworkService extends Observable {
 
                 const progressNotification = ProgressNotification.show({
                     id: progressNotificationId, //required
+                    icon: 'mdi-map',
+                    smallIcon: 'mdi-glasses',
                     title: $tc('downloading_glasses_update', storyId),
-                    message: '',
+                    message: fileSize(parseInt(headers['content-length'], 10)),
                     ongoing: true,
                     indeterminate: false,
                     progress: 0,
                     actions: [
                         {
                             id: 'cancel',
-                            text: $tc('cancel'),
+                            text: 'mdi-close',
+                            notifText: $tc('cancel'),
                             callback: () => {
                                 DEV_LOG && console.log('cancelling downloading request', url, requestTag);
                                 cancelRequest(requestTag);
@@ -260,10 +263,10 @@ export class NetworkService extends Observable {
                 const onProgress = throttle((current, total) => {
                     const perc = Math.round((current / total) * 100);
                     ProgressNotification.update(progressNotification, {
-                        message: `${fileSize(Math.round(current), { round: 1, pad: true })}/${fileSize(total)} (${perc}%)`,
+                        rightIcon: `${perc}%`,
                         progress: perc
                     });
-                }, 2000);
+                }, 1000);
                 const file = await getFile(
                     {
                         url,
@@ -276,7 +279,7 @@ export class NetworkService extends Observable {
                 if (File.exists(file.path) && file.size > 0) {
                     ProgressNotification.update(progressNotification, {
                         title: $tc('uncompress_glasses_data', storyId),
-                        message: '',
+                        rightIcon: '0%',
                         progress: 0
                     });
                     await Zip.unzip({
@@ -285,7 +288,7 @@ export class NetworkService extends Observable {
                         overwrite: true,
                         onProgress: (percent) => {
                             ProgressNotification.update(progressNotification, {
-                                message: `${Math.round(percent)}%`,
+                                rightIcon: `${Math.round(percent)}%`,
                                 progress: percent
                             });
                         }
@@ -335,12 +338,14 @@ export class NetworkService extends Observable {
         // }
         this.updatingStories = false;
     }
+    updatingMapData = false;
     async checkForMapDataUpdate() {
         const progressNotificationId = 12305;
-        if (!this.connected) {
+        if (this.updatingMapData || !this.connected) {
             return;
         }
         try {
+            this.updatingMapData = true;
             const url = ApplicationSettings.getString('UPDATE_DATA_DEFAULT_URL', UPDATE_DATA_DEFAULT_URL) + '?path=/&files=tiles.zip';
             const headers = await getHEAD(url);
             const lastSize = ApplicationSettings.getString('MAP_DATA_SIZE', '');
@@ -349,15 +354,18 @@ export class NetworkService extends Observable {
                 const requestTag = Date.now() + '';
                 const progressNotification = ProgressNotification.show({
                     id: progressNotificationId, //required
+                    icon: 'mdi-map',
+                    smallIcon: 'mdi-download',
                     title: $tc('downloading_map_update'),
-                    message: '',
+                    message: fileSize(parseInt(headers['content-length'], 10)),
                     ongoing: true,
                     indeterminate: false,
                     progress: 0,
                     actions: [
                         {
                             id: 'cancel',
-                            text: $tc('cancel'),
+                            text: 'mdi-close',
+                            notifText: $tc('cancel'),
                             callback: () => {
                                 DEV_LOG && console.log('cancelling downloading request', url, requestTag);
                                 cancelRequest(requestTag);
@@ -369,10 +377,10 @@ export class NetworkService extends Observable {
                 const onProgress = throttle((current, total) => {
                     const perc = Math.round((current / total) * 100);
                     ProgressNotification.update(progressNotification, {
-                        message: `${fileSize(Math.round(current), { round: 1, pad: true })}/${fileSize(total)} (${perc}%)`,
+                        rightIcon: `${perc}%`,
                         progress: perc
                     });
-                }, 2000);
+                }, 1000);
                 const file = await getFile(
                     {
                         url,
@@ -384,7 +392,7 @@ export class NetworkService extends Observable {
                 );
                 ProgressNotification.update(progressNotification, {
                     title: $tc('uncompress_map_data'),
-                    message: '',
+                    rightIcon: '0%',
                     progress: 0
                 });
                 await Zip.unzip({
@@ -393,7 +401,7 @@ export class NetworkService extends Observable {
                     overwrite: true,
                     onProgress: (percent) => {
                         ProgressNotification.update(progressNotification, {
-                            message: `${Math.round(percent)}%`,
+                            rightIcon: `${Math.round(percent)}%`,
                             progress: percent
                         });
                     }
@@ -406,15 +414,18 @@ export class NetworkService extends Observable {
         } catch (error) {
             console.error('checkFoMapDataUpdate', error, error.stack);
         } finally {
+            this.updatingMapData = false;
             ProgressNotification.dismiss(progressNotificationId);
         }
     }
 
+    updatingGeoJSON = false;
     async checkForGeoJSONUpdate(geojsonPath: string) {
-        if (!this.connected) {
+        if (this.updatingGeoJSON || !this.connected) {
             return;
         }
         try {
+            this.updatingGeoJSON = true;
             const url = ApplicationSettings.getString('UPDATE_DATA_DEFAULT_URL', UPDATE_DATA_DEFAULT_URL) + '?path=/&files=map.geojson';
             const headers = await getHEAD(url);
             const lastSize = ApplicationSettings.getString('GEOJSON_DATA_SIZE', '');
@@ -435,6 +446,8 @@ export class NetworkService extends Observable {
             }
         } catch (error) {
             console.error('checkForGeoJSONUpdate', error, error.stack);
+        } finally {
+            this.updatingGeoJSON = false;
         }
     }
 }

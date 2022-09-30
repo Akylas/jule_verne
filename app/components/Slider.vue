@@ -32,12 +32,10 @@ export default class Slider extends Vue {
     @Prop({ type: String }) id: string;
 
     mounted() {
-        console.log('Slider', this.id, this.value);
         this.mValue = this.value;
     }
     @Watch('value')
     onValueChanged() {
-        console.log('onValueChanged', this.id, this.value);
         this.mValue = this.value;
         this.nativeView.invalidate();
     }
