@@ -1,5 +1,5 @@
 <template>
-    <Page @loaded="onLoaded">
+    <Page ref="page" @loaded="onLoaded">
         <Drawer
             ref="drawer"
             @loaded="onDrawerLoaded"
@@ -106,6 +106,7 @@ import { isSimulator } from '@nativescript-community/extendedinfo';
 import { MapBounds } from '@nativescript-community/ui-carto/core';
 import { Drawer } from '@nativescript-community/ui-drawer';
 import { confirm } from '@nativescript-community/ui-material-dialogs';
+import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { File, knownFolders, path } from '@nativescript/core/file-system';
 import { GestureEventData } from '@nativescript/core/ui';
 import Vue from 'nativescript-vue';
@@ -115,7 +116,9 @@ import { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import GlassesConnectionComponent from '~/components/GlassesConnectionComponent';
 import GlassesIcon from '~/components/GlassesIcon.vue';
 import MainMenu from '~/components/MainMenu.vue';
+import { BLEConnectionEventData, GlassesReconnectingEvent, GlassesReconnectingFailedEvent } from '~/handlers/BluetoothHandler';
 import { SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
+import { $tc } from '~/helpers/locale';
 import { Catch, off as appOff, on as appOn, off, on } from '~/utils';
 import { bboxify } from '~/utils/geo';
 import { getWorkingDir } from '~/utils/utils';
@@ -188,7 +191,6 @@ export default class App extends GlassesConnectionComponent {
     glassesDataUpdateDate = ApplicationSettings.getNumber('GLASSES_DATA_LASTDATE', null);
     mapDataUpdateDate = ApplicationSettings.getNumber('MAP_DATA_LASTDATE', null);
     geojsonDataUpdateDate = ApplicationSettings.getNumber('GEOJSON_DATA_LASTDATE', null);
-    needsImportOldSessionsOnLoaded = false;
     menuItems = new ObservableArray([
         // {
         //     title: this.$t('map'),
@@ -255,7 +257,7 @@ export default class App extends GlassesConnectionComponent {
     }
     mounted() {
         super.mounted();
-        this.$onAppMounted();
+        this.$onAppMounted(this);
         on('appMessage', this.setMessage, this);
         on('appMessageUpdate', this.updateMessage, this);
         on('appMessageRemove', this.removeMessage, this);
@@ -275,12 +277,12 @@ export default class App extends GlassesConnectionComponent {
     onDrawerLoaded() {
         Vue.prototype.$drawer = this.drawer;
     }
+
+    sessionsImported = false;
     onLoaded() {
-        DEV_LOG && console.log(TAG, 'onLoaded', this.needsImportOldSessionsOnLoaded);
+        DEV_LOG && console.log(TAG, 'onLoaded', this.sessionsImported);
         if (this.dbHandler && this.dbHandler.started) {
             this.importDevSessions();
-        } else {
-            this.needsImportOldSessionsOnLoaded = true;
         }
         this.$networkService.checkForMapDataUpdate();
         if (!DISABLE_UPDATES && (PRODUCTION || !isSimulator())) {
@@ -345,20 +347,22 @@ export default class App extends GlassesConnectionComponent {
         if (!handlers.geoHandler) {
             return;
         }
+        this.bluetoothHandlerOn(GlassesReconnectingEvent, this.onGlassesReconnecting);
+        this.bluetoothHandlerOn(GlassesReconnectingFailedEvent, this.onGlassesReconnectingFailed);
         this.bluetoothHandlerOn('playback', this.onPlayerState);
         this.onPlayerState({ data: handlers.bluetoothHandler.playerState });
     }
     async onServiceStarted(handlers: BgServiceMethodParams) {
         super.onServiceStarted(handlers);
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
-        DEV_LOG && console.log(TAG, 'onServiceStarted', this.needsImportOldSessionsOnLoaded);
-        if (this.needsImportOldSessionsOnLoaded) {
-            this.needsImportOldSessionsOnLoaded = false;
-            this.importDevSessions();
-        }
+        this.importDevSessions();
     }
-    async importDevSessions() {
+    async importDevSessions(force = false) {
+        if (!force && this.sessionsImported) {
+            return;
+        }
         try {
+            this.sessionsImported = true;
             let geojsonPath = path.join(getWorkingDir(false), 'map.geojson');
             DEV_LOG && console.log(TAG, 'importDevSessions', geojsonPath);
             if (PRODUCTION || !isSimulator()) {
@@ -420,6 +424,39 @@ export default class App extends GlassesConnectionComponent {
     }
     onGeojsonDataUpdateDate(event) {
         this.geojsonDataUpdateDate = event.data;
+    }
+
+    onGlassesDisconnected(e: BLEConnectionEventData) {
+        const oldGlasses = this.connectedGlasses;
+        const changed = this.connectedGlasses !== e.data;
+        super.onGlassesDisconnected(e);
+        DEV_LOG && console.log(TAG, 'onGlassesDisconnected', changed, !!oldGlasses);
+        if (changed && oldGlasses) {
+            showSnack({ message: $tc('disconnected_glasses', oldGlasses.localName), view: this.page });
+        }
+    }
+    onGlassesConnected(e: BLEConnectionEventData) {
+        const changed = this.connectedGlasses !== e.data;
+        super.onGlassesConnected(e);
+        DEV_LOG && console.log(TAG, 'onGlassesConnected', changed);
+
+        if (changed) {
+            showSnack({ message: $tc('connected_glasses', this.connectedGlasses.localName), view: this.page });
+        }
+    }
+
+    onGlassesReconnecting(e: BLEConnectionEventData) {
+        // TODO: show cancel button!!
+        this.showLoading({
+            text: this.$t('connection_lost_reconnecting', e.data?.localName),
+            onButtonTap: () => {
+                this.bluetoothHandler.cancelConnectToSave();
+                this.hideLoading();
+            }
+        });
+    }
+    onGlassesReconnectingFailed(e: BLEConnectionEventData) {
+        this.hideLoading();
     }
 
     openDrawer() {

@@ -879,13 +879,13 @@ async function sendBinaryCommands(commands: { commandType: CommandType; params?:
     }, new Uint8Array());
     sendRawCommands([messageData], '');
 }
-async function sendRawCommands(commandsToSend: number[][], message) {
+async function sendRawCommands(commandsToSend: number[][], message?) {
     // const spinner = ora(`${message}`).start();
     try {
         const datalength = commandsToSend.reduce((accumulator, currentValue) => accumulator + currentValue.length, 0);
         let dataSent = 0;
         // spinner.text = `${message}(0%)`;
-        ui.updateBottomBar(`${message}(0%)`);
+        // ui.updateBottomBar(`${message}(0%)`);
         const startTime = Date.now();
         // bluetoothDevice.rxCharacteristic.writeWithoutResponse = true;
 
@@ -895,7 +895,7 @@ async function sendRawCommands(commandsToSend: number[][], message) {
             }
             const p = (progress * total + dataSent) / datalength;
             // spinner.text = `${message}(${Math.round(p * 100)}%, ${datalength},  ${Date.now() - startTime} ms)`;
-            ui.updateBottomBar(`${message}(${Math.round(p * 100)}%, ${datalength},  ${Date.now() - startTime} ms)`);
+            // ui.updateBottomBar(`${message}(${Math.round(p * 100)}%, ${datalength},  ${Date.now() - startTime} ms)`);
             if (progress === 1) {
                 dataSent += total;
                 resolve();
@@ -919,7 +919,7 @@ async function sendRawCommands(commandsToSend: number[][], message) {
         // log('finished sendRawCommands');
         // bluetoothDevice.clearFullScreen();
         // spinner.succeed(`sendRawCommands sent,  ${Date.now() - startTime} ms`);
-        ui.updateBottomBar(`sendRawCommands sent,  ${Date.now() - startTime} ms`);
+        message && ui.updateBottomBar(`${message}:  ${Date.now() - startTime} ms`);
     } catch (err) {
         log('catched sendRawCommands error', err);
         // spinner.fail(err);
@@ -1146,7 +1146,7 @@ async function streamImage(filePath: string, compress?) {
         stream: true,
         width: cmdOptions.width
     });
-    log('streamImage', filePath, x, y, imgWidth, imgHeight, nb);
+    // log('streamImage', filePath, x, y, imgWidth, imgHeight, nb);
     // const fileDataStr = commandsToSend.reduce(
     //     (accumulator, currentValue) =>
     //         accumulator +
@@ -1171,10 +1171,38 @@ async function streamImage(filePath: string, compress?) {
             params: [0, 0, 303, 255]
         }
     ]
-        .map((current) => buildMessageData(current.commandType, { params: current.params }))
+        .map((c) => buildMessageData(c.commandType, { params: c.params }))
         .concat(command)
-        .concat(buildMessageData(CommandType.HoldFlushw, { params: [1] }));
-    return sendRawCommands(commandsToSend, `streaming bitmap: ${filePath}`);
+        .concat(
+            [
+                {
+                    commandType: CommandType.Color,
+                    params: [15]
+                },
+                {
+                    commandType: CommandType.Point,
+                    params: [1, 1]
+                },
+                {
+                    commandType: CommandType.Point,
+                    params: [243, 1]
+                },
+                {
+                    commandType: CommandType.Point,
+                    params: [243, 205]
+                },
+                {
+                    commandType: CommandType.Point,
+                    params: [1, 205]
+                },
+                {
+                    commandType: CommandType.HoldFlushw,
+                    params: [1]
+                }
+            ].map((c) => buildMessageData(c.commandType, { params: c.params }))
+        );
+    // return sendRawCommands(commandsToSend, `streaming bitmap: ${filePath}`);
+    return sendRawCommands(commandsToSend);
 }
 
 // function cropAndResize(filePath: string, negate = false) {

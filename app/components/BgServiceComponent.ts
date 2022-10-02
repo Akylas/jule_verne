@@ -13,6 +13,8 @@ export interface BgServiceMethodParams {
     dbHandler: DBHandler;
 }
 
+const TAG = '[BgServiceComponent]';
+
 export default abstract class BgServiceComponent extends BaseVueComponent {
     backgrounded = false;
     mounted() {
@@ -41,6 +43,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
 
     inSetup = false;
     onAppForgrounded(args: ApplicationEventData) {
+        // DEV_LOG && console.log(TAG, this.constructor.name, 'onAppForgrounded', this.backgrounded);
         if (!this.backgrounded) {
             return;
         }
@@ -54,6 +57,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         }
     }
     onAppBackgrounded(args: ApplicationEventData) {
+        // DEV_LOG && console.log(TAG, this.constructor.name, 'onAppBackgrounded', this.backgrounded);
         if (this.backgrounded) {
             return;
         }
@@ -88,7 +92,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     }
     callOnServiceStarted() {
         const params = this.getParams();
-
+        DEV_LOG && console.log(TAG, this.constructor.name, 'callOnServiceStarted', this.backgrounded);
         if (this.setup && !this.backgrounded) {
             this.inSetup = true;
             this.setup.call(this, params);
@@ -102,6 +106,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     unregisterSetupEvents() {
         const bluetoothHandler = this.$bgService.bluetoothHandler;
         const geoHandler = this.$bgService.geoHandler;
+        DEV_LOG && console.log(TAG, this.constructor.name, 'unregisterSetupEvents');
         if (bluetoothHandler) {
             this.bluetoothHandlerSetupListeners.forEach((r) => {
                 bluetoothHandler.off(r[0], r[1], r[2] || this);

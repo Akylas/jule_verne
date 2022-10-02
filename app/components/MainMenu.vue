@@ -3,7 +3,7 @@
         <GridLayout rows="auto,*">
             <CActionBar showMenuIcon />
             <StackLayout row="1" horizontalAlignment="center" verticalAlignment="center" width="100%">
-                <Image src="res://grenoble_full" @tap="handleDevModeTap" stretch="aspectFill" height="70%" />
+                <Image src="res://grenoble_full" stretch="aspectFill" height="70%" />
                 <MDButton variant="outline" width="80%" :text="$tc('still_adventure')" @tap="onTap('still_adventure')" />
                 <MDButton variant="outline" width="80%" :text="$tc('jules_verne_adventure')" @tap="onTap('jules_verne_adventure')" />
                 <!-- <MDButton variant="outline" horizontalAlignment="center" :text="$tc('dev_mode')" @tap="onTap('dev_mode')" v-show="devMode" /> -->
@@ -13,12 +13,14 @@
 </template>
 
 <script lang="ts">
+import { knownFolders } from '@akylas/nativescript';
 import { confirm } from '@nativescript-community/ui-material-dialogs';
+import { path } from '@nativescript/core/file-system';
 import { Component } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
 import { BLEBatteryEventData, BLEConnectionEventData, GlassesBatteryEvent, GlassesConnectedEvent, GlassesDisconnectedEvent } from '~/handlers/BluetoothHandler';
-import { Catch } from '~/utils';
+import { Catch, versionCompare } from '~/utils';
 import { backgroundColor, mdiFontFamily, textColor } from '~/variables';
 import { date } from '~/vue.filters';
 import { ComponentIds } from '~/vue.prototype';
@@ -36,7 +38,6 @@ export default class MainMenu extends BgServiceComponent {
     devModeClearTimer;
     public connectedGlasses: GlassesDevice = null;
     public glassesBattery: number = 0;
-    devMode = this.$getDevMode();
 
     mounted() {
         super.mounted();
@@ -129,22 +130,22 @@ export default class MainMenu extends BgServiceComponent {
         const glasses = (this.connectedGlasses = e.data as GlassesDevice);
     }
 
-    handleDevModeTap() {
-        this.nbDevModeTap += 1;
-        if (this.devModeClearTimer) {
-            clearTimeout(this.devModeClearTimer);
-            this.devModeClearTimer = null;
-        }
-        if (this.nbDevModeTap === 6) {
-            this.$switchDevMode();
-            this.devMode = this.$getDevMode();
-            this.nbDevModeTap = 0;
-            return;
-        }
-        this.devModeClearTimer = setTimeout(() => {
-            this.devModeClearTimer = null;
-            this.nbDevModeTap = 0;
-        }, 500);
-    }
+    // handleDevModeTap() {
+    //     this.nbDevModeTap += 1;
+    //     if (this.devModeClearTimer) {
+    //         clearTimeout(this.devModeClearTimer);
+    //         this.devModeClearTimer = null;
+    //     }
+    //     if (this.nbDevModeTap === 6) {
+    //         this.$switchDevMode();
+    //         this.devMode = this.$getDevMode();
+    //         this.nbDevModeTap = 0;
+    //         return;
+    //     }
+    //     this.devModeClearTimer = setTimeout(() => {
+    //         this.devModeClearTimer = null;
+    //         this.nbDevModeTap = 0;
+    //     }, 500);
+    // }
 }
 </script>

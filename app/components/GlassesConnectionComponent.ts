@@ -1,3 +1,4 @@
+import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { GlassesDevice, GlassesVersions } from '~/handlers/bluetooth/GlassesDevice';
 import {
     BLEBatteryEventData,
@@ -18,7 +19,6 @@ import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent'
 
 const TAG = '[GlassesConnectionComponent]';
 export default class GlassesConnectionComponent extends BgServiceComponent {
-    navigateUrl = ComponentIds.Map;
     loading = false;
 
     public connectedGlasses: GlassesDevice = null;
@@ -51,8 +51,6 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
         this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
         this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
-        this.bluetoothHandlerOn(GlassesReconnectingEvent, this.onGlassesReconnecting);
-        this.bluetoothHandlerOn(GlassesReconnectingFailedEvent, this.onGlassesReconnectingFailed);
         this.connectingToGlasses = handlers.bluetoothHandler.connectingToGlasses;
         if (handlers.bluetoothHandler.glasses) {
             this.onGlassesBattery({
@@ -69,8 +67,10 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         this.gpsEnabled = this.geoHandler.gpsEnabled;
         if (handlers.bluetoothHandler.glasses) {
             this.onGlassesConnected({ data: handlers.bluetoothHandler.glasses } as any);
+        } else if (this.connectedGlasses) {
+            this.onGlassesDisconnected({ data: this.connectedGlasses } as any);
         }
-        DEV_LOG && console.log(TAG, 'setup', !!handlers.bluetoothHandler.glasses, this.bluetoothEnabled, this.gpsEnabled, this.autoConnect);
+        // DEV_LOG && console.log(TAG, this.constructor.name, 'setup', !!handlers.bluetoothHandler.glasses, this.bluetoothEnabled, this.gpsEnabled, this.autoConnect);
     }
     onServiceStarted(handlers: BgServiceMethodParams) {
         if (!handlers.bluetoothHandler.glasses && this.autoConnect) {
@@ -96,6 +96,7 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         this.showError(event.data);
     }
     onGlassesDisconnected(e: BLEConnectionEventData) {
+        // console.log(TAG, this.constructor.name, 'onGlassesDisconnected');
         this.connectedGlasses = null;
         this.connectingToGlasses = false;
         this.glassesBattery = -1;
@@ -124,12 +125,6 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
     }
     onGlassesSerialNumber(e) {
         this.glassesSerialNumber = e.data;
-    }
-    onGlassesReconnecting() {
-        this.showLoading(this.$t('connection_lost_reconnecting'));
-    }
-    onGlassesReconnectingFailed() {
-        this.hideLoading();
     }
 
     @Catch()

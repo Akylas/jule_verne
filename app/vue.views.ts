@@ -30,8 +30,9 @@ import * as imageModule from '@nativescript-community/ui-image';
 import { createColorMatrix } from './utils';
 
 // export const IMAGE_COLORMATRIX = [0.9647058824, 0.9647058824, 0.9647058824, 0, 0, 0.9137254902, 0.9137254902, 0.9137254902, 0, 0, 0.1803921569, 0.1803921569, 0.180392156, 0, 0, 0, 0, 0, 1, 0];
-export const IMAGE_COLORMATRIX = createColorMatrix('#E8F220');
-console.log('IMAGE_COLORMATRIX', IMAGE_COLORMATRIX);
+
+export const GLASSES_COLOR = '#E8F220';
+export const IMAGE_COLORMATRIX = createColorMatrix(GLASSES_COLOR);
 // export const IMAGE_COLORMATRIX = [0.1, 0.4, 0, 0, 0, 0.3, 1, 0.3, 0, 0, 0, 0.4, 0.1, 0, 0, 0, 0, 0, 1, 0];
 
 const Plugin = {

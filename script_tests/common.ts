@@ -98,7 +98,7 @@ export async function createBitmapData({
     chunkSize?: number;
     width?: number;
 }): Promise<[number[][], number, number, number, number, number, number]> {
-    console.log('createBitmapData', id, filePath, mat, crop, resize, compress, stream, chunkSize, width);
+    // console.log('createBitmapData', id, filePath, mat, crop, resize, compress, stream, chunkSize, width);
     let gray = mat;
     if (!mat && filePath) {
         gray = cv2.imread(filePath);
@@ -106,15 +106,19 @@ export async function createBitmapData({
     }
     let imgHeight = gray.sizes[0];
     let imgWidth = gray.sizes[1];
+    const height = Math.round(width * 0.844);
     // console.log('createBitmapData', mat, imgWidth, imgHeight, resize);
     if (resize && imgWidth !== width) {
         //228/192
-        gray = gray.resize(Math.round(width * 0.844), width, 1, 1, cv2.INTER_AREA);
+        gray = gray.resize(height, width, 1, 1, cv2.INTER_AREA);
         imgHeight = gray.sizes[0];
         imgWidth = gray.sizes[1];
     }
+    const deltaX = Math.floor((244 - imgWidth) / 2);
+    const deltaY = Math.floor((206 - imgHeight) / 2);
     let x = 0;
     let y = 0;
+    gray = gray.rotate(cv2.ROTATE_180);
     if (crop) {
         const match = gray.findNonZero();
         let minx = imgWidth;
@@ -153,17 +157,15 @@ export async function createBitmapData({
         }
         if (minx > 0 || miny > 0 || maxx < imgWidth || maxy < imgHeight) {
             gray = gray.getRegion(new cv2.Rect(minx, miny, maxx - minx, maxy - miny));
-            gray = gray.rotate(cv2.ROTATE_180);
-            x = Math.round((imgWidth - maxx) / (imgWidth / gray.sizes[1]));
-            y = Math.round((imgHeight - maxy) / (imgHeight / gray.sizes[0]));
-            // y = (imgHeight - gray.sizes[0]) / 2;
+            const indexx = filePath.lastIndexOf('.');
+            // const testPath = filePath.slice(0, indexx) + '_test' + filePath.slice(indexx);
+            // cv2.imwrite(testPath, gray);
+            x = minx;
+            y = miny;
+            // console.log(filePath, id, imgWidth, imgHeight, minx, miny, maxx, maxy, deltaX, deltaY, x, y);
             imgHeight = gray.sizes[0];
             imgWidth = gray.sizes[1];
-        } else {
-            gray = gray.rotate(cv2.ROTATE_180);
         }
-    } else {
-        gray = gray.rotate(cv2.ROTATE_180);
     }
     let commandToSend: Buffer | number[] = compress4bpp(gray);
 
@@ -209,11 +211,11 @@ export async function createBitmapData({
         const header = lenNbByte === 2 ? [0xff, commandType, 0x10, ...uint16ToByteArray(framelength)] : [0xff, commandType, 0x00, framelength];
         commandsToSend.push(header.concat(temporary).concat([0xaa]));
     }
-    return [commandsToSend, x, y, imgWidth, imgHeight, commandToSend.length, dataSize];
+    return [commandsToSend, deltaX + x, deltaY + y, imgWidth, imgHeight, commandToSend.length, dataSize];
 }
 
 export function getAllFiles(dirPath, arrayOfFiles?) {
-    console.log('getAllFiles', dirPath);
+    // console.log('getAllFiles', dirPath);
     const files = fs.readdirSync(dirPath);
 
     arrayOfFiles = arrayOfFiles || [];
@@ -241,6 +243,7 @@ export function setImageFolder(pathStr) {
 setImageFolder(path.resolve('../jules_verne/glasses_images'));
 
 export function getFolder(configId: string) {
+    console.log('getFolder', configId);
     if (configId === 'nav') {
         return navigationFolder;
     } else {
@@ -254,7 +257,7 @@ export async function buildDataSet(configId: string, crop = false, compress = fa
     // const filePath = path.resolve(path.join(__dirname, storyFolder));
     // const filePath = '/Volumes/data/mguillon/Downloads/Illustrations Flore';
     console.log('buildDataSet', configId, folder, crop, compress);
-    const files: string[] = getAllFiles(path.join(folder, 'images'))
+    const files: string[] = getAllFiles(folder)
         .filter((s) => s.endsWith('.jpg') || s.endsWith('.bmp') || s.endsWith('.png'))
         .filter((s) => s !== 'cover.png');
     // const files = ['/Volumes/dev/nativescript/jule_verne/jules_verne/glasses_images/navigation/right/30_pieds_droite_3.png'];
@@ -350,9 +353,11 @@ export async function buildDataSet(configId: string, crop = false, compress = fa
         ''
     );
 
-    const audioDuration = Math.round((await getAudioDurationInSeconds(path.join(folder, 'audio.mp3'))) * 1000);
-    const metadataPath = path.join(folder, 'metadata.json');
-    fs.writeFileSync(metadataPath, JSON.stringify({ ...JSON.parse(fs.readFileSync(metadataPath, 'utf-8')), audioDuration }));
+    if (fs.existsSync(path.join(folder, 'audio.mp3'))) {
+        const audioDuration = Math.round((await getAudioDurationInSeconds(path.join(folder, 'audio.mp3'))) * 1000);
+        const metadataPath = path.join(folder, 'metadata.json');
+        fs.writeFileSync(metadataPath, JSON.stringify({ ...JSON.parse(fs.readFileSync(metadataPath, 'utf-8')), audioDuration }));
+    }
 
     // const fileDataStr = data.reduce((accumulator, currentValue) => accumulator + '0x' + Array.from(currentValue, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('') + '\n', '');
 

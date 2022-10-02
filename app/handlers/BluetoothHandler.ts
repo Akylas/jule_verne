@@ -360,7 +360,7 @@ export class BluetoothHandler extends Observable {
     async stop() {
         DEV_LOG && console.log(TAG, 'stop');
         this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
-        this.stopScanning();
+        this.cancelConnections();
         this.connectingToSavedGlasses = false;
         await this.disconnectGlasses(true);
 
@@ -446,26 +446,29 @@ export class BluetoothHandler extends Observable {
     }
 
     cancelConnections() {
-        console.log(TAG, 'cancelConnections');
+        DEV_LOG && console.log(TAG, 'cancelConnections');
         if (this.connectingToGlasses) {
             this.stopScanning();
         }
         Object.keys(this.connectingDevicesUUIDs).forEach((k) => this.disconnect(k, true));
     }
+
+    async cancelConnectToSave() {
+        DEV_LOG && console.log(TAG, 'cancelConnectToSave', this.connectingToGlasses);
+        // if (this.connectingToGlasses) {
+        this.stopScanning();
+        // }
+    }
     async connectToSaved(seconds = 10) {
         if (!this.connectingToGlasses && !this.glasses && !!this.savedGlassesUUID) {
             DEV_LOG && console.log(TAG, 'connectToSaved', 'start', this.savedGlassesUUID);
-            try {
-                if (__ANDROID__) {
-                    await this.geoHandler.enableLocation();
-                }
-                if (!this.glasses && !!this.savedGlassesUUID) {
-                    const found = await this.connectToSavedGlasses(seconds);
-                }
-                return this.connectingToGlasses || !!this.glasses;
-            } catch (err) {
-                return Promise.reject(err);
+            if (__ANDROID__) {
+                await this.geoHandler.enableLocation();
             }
+            if (!this.glasses && !!this.savedGlassesUUID) {
+                const found = await this.connectToSavedGlasses(seconds);
+            }
+            return this.connectingToGlasses || !!this.glasses;
         } else {
             return this.connectingToGlasses || !!this.glasses;
         }
@@ -535,8 +538,8 @@ export class BluetoothHandler extends Observable {
         }
     }
     async enableForScan() {
-        let enabled = await this.isEnabled();
         await this.authorizeBluetooth();
+        let enabled = await this.isEnabled();
         if (!enabled) {
             const r = await confirm({
                 message: $tc('bluetooth_not_enabled'),
@@ -555,7 +558,7 @@ export class BluetoothHandler extends Observable {
                 enabled = await this.isEnabled();
             }
         }
-        await this.geoHandler.checkAndAuthorize();
+        await this.geoHandler.checkAuthorizedAndEnabled();
         if (!this.geoHandler.gpsEnabled || !enabled) {
             return Promise.reject(undefined);
         }
@@ -664,48 +667,58 @@ export class BluetoothHandler extends Observable {
     }
 
     onDeviceDisconnected(e: BluetoothDeviceEvent) {
-        const data = e.data;
-        DEV_LOG && console.log(TAG, 'onDeviceDisconnected', !!this.glasses, this.glasses && data.UUID === this.glasses.UUID);
+        let data = e.data;
+        const UUID = data.UUID;
+        DEV_LOG && console.log(TAG, 'onDeviceDisconnected', !!this.glasses, this.glasses && UUID === this.glasses.UUID);
         this.removeConnectingDeviceUUID(data.UUID);
 
-        if (this.glasses && data.UUID === this.glasses.UUID) {
+        if (this.glasses && UUID === this.glasses.UUID) {
+            data = this.glasses;
             this.geoHandler.setReadableStories(null);
             this.notify({ eventName: AvailableConfigsEvent, data: null });
             this.glasses.onDisconnected();
             this.glasses = null;
             this.currentGlassesMemory = null;
             this.currentConfigs = null;
-            this.isEnabled().then((enabled) => {
-                const manualDisconnect = !!this.manualDisconnect[data.UUID] || !enabled;
+            // this.isEnabled().then((enabled) => {
+            const manualDisconnect = !!this.manualDisconnect[UUID] || !this.bluetoothEnabled;
+            DEV_LOG && console.log(TAG, 'GlassesDisconnectedEvent', manualDisconnect);
+            this.notify({
+                eventName: GlassesDisconnectedEvent,
+                object: this,
+                manualDisconnect,
+                data
+            } as BLEConnectionEventData);
+            DEV_LOG && console.log(TAG, 'GlassesDisconnectedEvent done', manualDisconnect);
+            if (this.devMode) {
+                const vibrator = new Vibrate();
+                vibrator.vibrate(2000);
+            }
+            if (!manualDisconnect && !this.connectingToGlasses && !this.glasses && !!this.savedGlassesUUID) {
+                DEV_LOG && console.log(TAG, 'glasses disconnected after error, trying to reconnect');
                 this.notify({
-                    eventName: GlassesDisconnectedEvent,
+                    eventName: GlassesReconnectingEvent,
                     object: this,
-                    manualDisconnect,
                     data
-                } as BLEConnectionEventData);
-                if (this.devMode) {
-                    const vibrator = new Vibrate();
-                    vibrator.vibrate(2000);
-                }
-                if (!manualDisconnect) {
-                    this.notify({
-                        eventName: GlassesReconnectingEvent,
-                        object: this
-                    });
-                    DEV_LOG && console.log(TAG, 'glasses disconnected after error, trying to reconnect');
-                    this.connectToSaved(30).then((result) => {
+                });
+                // we need 30s because if the deconnection was after a firmware update
+                // the glasses can take quite some time to reboot
+                this.connectToSaved(30)
+                    .catch((err) => console.error(err))
+                    .then((result) => {
                         DEV_LOG && console.log(TAG, 'glasses reconnection done', result);
                         if (!result) {
                             this.notify({
                                 eventName: GlassesReconnectingFailedEvent,
-                                object: this
+                                object: this,
+                                data
                             });
                         }
                     });
-                } else {
-                    delete this.manualDisconnect[data.UUID];
-                }
-            });
+            } else {
+                delete this.manualDisconnect[UUID];
+            }
+            // });
         }
 
         this.notify({
@@ -902,6 +915,7 @@ export class BluetoothHandler extends Observable {
     }
 
     async changeLuminance(level: number) {
+        level = Math.min(15, Math.max(0, level));
         this.levelLuminance = level;
         // appSettings.setNumber('levelLuminance', level);
         return this.sendCommand({ command: CommandType.Luma, params: [level] });
@@ -1109,6 +1123,7 @@ export class BluetoothHandler extends Observable {
                 hardware: hardwareVersion,
                 software: softwareVersion
             });
+            DEV_LOG && console.log('glasses versions', JSON.stringify(versions));
 
             this.notify({
                 eventName: VersionEvent,

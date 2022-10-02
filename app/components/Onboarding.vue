@@ -65,20 +65,12 @@
                 <PagerItem>
                     <GridLayout v-show="showPage(3)" padding="10">
                         <GridLayout verticalAlignment="center" horizontalAlignment="center" rows="auto,auto,auto,auto,*,auto">
-                            <Label :text="$tc('test_image_see_glasses')" fontSize="22" fontWeight="bold" textAlignment="center" width="90%" />
+                            <GridLayout row="0" horizontalAlignment="center" rows="auto" columns="auto"  backgroundColor="black" borderRadius="20" margin="20">
+                                <Image stretch="aspectFit" :colorMatrix="colorMatrix" :src="configImagePath" height="200" borderRadius="20" margin="20"/>
+                                <CanvasView @draw="onDraw" />
+                            </GridLayout>
 
-                            <Image
-                                row="1"
-                                ref="imageView"
-                                stretch="aspectFit"
-                                backgroundColor="black"
-                                :colorMatrix="colorMatrix"
-                                :src="configImagePath"
-                                height="200"
-                                borderRadius="20"
-                                margin="20"
-                                horizontalAlignment="center"
-                            />
+                            <Label row="1" :html="$tc('test_image_see_glasses')" fontSize="22" textAlignment="center" width="90%" />
                             <!-- <MDSlider row="3" :color="accentColor" :value="levelLuminance" @valueChange="onSliderChange('luminance', $event)" :minValue="0" :maxValue="15" verticalAlignment="center" /> -->
                             <Slider
                                 id="luminance"
@@ -153,20 +145,22 @@
 <script lang="ts">
 import { ApplicationSettings } from '@akylas/nativescript';
 import { EventData } from '@nativescript-community/observable';
-import { path } from '@nativescript/core/file-system';
+import { knownFolders, path } from '@nativescript/core/file-system';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { AvailableConfigsEvent, GlassesMemoryChangeEvent } from '~/handlers/BluetoothHandler';
 import { GeoLocation, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
 import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
-import { Catch, getVolumeLevel, setVolumeLevel } from '~/utils';
+import { Catch, getVolumeLevel, setVolumeLevel, versionCompare } from '~/utils';
 import { getGlassesImagesFolder } from '~/utils/utils';
 import { borderColor, mdiFontFamily, subtitleColor, textColor } from '~/variables';
 import { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import GlassesConnectionComponent from '~/components/GlassesConnectionComponent';
 import PageIndicator from './PageIndicator.vue';
 import Slider from './Slider.vue';
-import { IMAGE_COLORMATRIX } from '~/vue.views';
-import { debounce } from 'helpful-decorators';
+import { GLASSES_COLOR, IMAGE_COLORMATRIX } from '~/vue.views';
+import { debounce, throttle } from 'helpful-decorators';
+import FirmwareUpdateComponent from './FirmwareUpdateComponent';
+import { Canvas, Paint } from '@nativescript-community/ui-canvas';
 
 export enum Pages {
     BLE_GPS_GLASSES_STATE = 0,
@@ -179,11 +173,13 @@ export enum Pages {
 }
 
 const TAG = '[Onboarding]';
+const glassesPaint = new Paint();
+glassesPaint.setColor(GLASSES_COLOR);
 
 @Component({
     components: { PageIndicator, Slider }
 })
-export default class Onboarding extends GlassesConnectionComponent {
+export default class Onboarding extends FirmwareUpdateComponent {
     @Prop({ type: Number }) startPage: Pages;
     @Prop({ type: Boolean, default: true }) forMap: boolean;
     @Prop({ type: Boolean, default: false }) canSkip: boolean;
@@ -331,11 +327,18 @@ export default class Onboarding extends GlassesConnectionComponent {
         this.glassesMemory = e.data;
     }
 
-    onGlassesConnected(data) {
-        super.onGlassesConnected(data);
+    onGlassesConnected(e) {
+        const changed = this.connectedGlasses !== e.data;
+        super.onGlassesConnected(e);
         this.savedGlassesName = this.bluetoothHandler.savedGlassesName;
         if (this.selectedPageIndex === 0) {
             this.selectedPageIndex = 1;
+        }
+        if (changed) {
+            setTimeout(() => {
+                // the timeout is to ensure we are visible before showing the loading progress dialog
+                this.checkAndUpdateFirmware();
+            }, 1000);
         }
         if (this.forMap && !this.lastLocation) {
             this.startWatchLocation();
@@ -345,6 +348,12 @@ export default class Onboarding extends GlassesConnectionComponent {
     onGlassesDisconnected(data) {
         super.onGlassesDisconnected(data);
         this.selectedPageIndex = 0;
+    }
+    onFirmwareUpdateProgress(progress: number) {
+        this.currentProgress = progress;
+        this.updateLoadingProgress({
+            progress
+        });
     }
 
     async onNewLocation(data: UserLocationdEventData) {
@@ -374,6 +383,16 @@ export default class Onboarding extends GlassesConnectionComponent {
     }
 
     @Catch()
+    async checkAndUpdateFirmware() {
+        DEV_LOG && console.log('checkAndUpdateFirmware', this.connectedGlasses?.versions, versionCompare('4.6.0', this.connectedGlasses?.versions?.firmware));
+        if (this.connectedGlasses?.versions && versionCompare('4.6.0', this.connectedGlasses?.versions?.firmware) > 0) {
+            // we need to update the firmware
+            this.showLoading({ title: this.$tc('updating_firmware'), progress: 0 } as any);
+            await this.updateFirmware(path.join(knownFolders.currentApp().path, 'assets/data/4.6.0.img'));
+        }
+    }
+
+    @Catch()
     async enableBluetooth() {
         await this.bluetoothHandler.enable();
     }
@@ -386,7 +405,7 @@ export default class Onboarding extends GlassesConnectionComponent {
     showConfigImage() {
         this.bluetoothHandler.drawImageFromPathWithMire(this.configImagePath);
     }
-    @debounce(300)
+    @throttle(50)
     updateLuminance(value) {
         this.bluetoothHandler.changeLuminance(value);
     }
@@ -427,6 +446,19 @@ export default class Onboarding extends GlassesConnectionComponent {
         // console.log('stopWatchLocation');
         this.geoHandler.stopWatch();
         this.watchingLocation = false;
+    }
+
+    onDraw(event) {
+        const canvas = event.canvas as Canvas;
+        const w = canvas.getWidth();
+        const h = canvas.getHeight();
+        glassesPaint.setColor(GLASSES_COLOR);
+        const radius = 2;
+        const offset = 14;
+        canvas.drawCircle(offset, offset, radius, glassesPaint);
+        canvas.drawCircle(w - offset, offset, radius, glassesPaint);
+        canvas.drawCircle(w - offset, h - offset, radius, glassesPaint);
+        canvas.drawCircle(offset, h - offset, radius, glassesPaint);
     }
 }
 </script>

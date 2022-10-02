@@ -81,7 +81,15 @@
                             <Span padding="5 0 5 0" fontSize="17" fontWeight="600" lineHeight="20" :text="item.title | uppercase" />
                             <Span fontSize="15" :text="item.subtitle ? '\n' + item.subtitle : ''" />
                         </Label>
-                        <MDButton variant="text" col="1" :text="item.buttonTitle" @tap="onButtonTap(item.id, item, $event)" verticalAlignment="center" />
+                        <MDButton
+                            variant="text"
+                            :color="accentColor"
+                            :rippleColor="accentColor"
+                            col="1"
+                            :text="item.buttonTitle"
+                            @tap="onButtonTap(item.id, item, $event)"
+                            verticalAlignment="center"
+                        />
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'slider'">
@@ -149,6 +157,8 @@ interface Item {
     valueFormatter?;
     currentShift?;
 }
+
+const TAG = '[Settings]';
 
 @Component({
     components: {}
@@ -284,6 +294,7 @@ export default class Settings extends FirmwareUpdateComponent {
         let items: any[] = [
             { type: 'header', title: $t('app_settings') },
             { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') },
+            { id: 'update_data', type: 'button', title: $t('update_app_data'), buttonTitle: $t('check') },
             { id: 'sentry', type: 'button', title: $t('upload_logs'), subtitle: $t('internet_needed'), buttonTitle: $t('upload') },
             { type: 'header', title: $t('geo_settings') },
             {
@@ -324,7 +335,7 @@ export default class Settings extends FirmwareUpdateComponent {
         ];
 
         if (this.geoHandler.isMiui()) {
-            items.push({ id: 'miui', type: 'button', title: $t('battery_saver'), subtitle: $t('battery_saver_desc'), buttonTitle: $t('open') });
+            items.splice(1, 0, { id: 'miui', type: 'button', title: $t('battery_saver'), subtitle: $t('battery_saver_desc'), buttonTitle: $t('open') });
         }
         if (this.connectedGlasses) {
             items = [
@@ -341,12 +352,11 @@ export default class Settings extends FirmwareUpdateComponent {
                 ...(this.configs?.map((c) => ({ ...c, type: 'config' })) || []),
                 { type: 'header', title: $t('glasses') },
                 { id: 'gesture', type: 'switch', title: $t('gesture'), subtitle: $t('gesture_desc'), checked: this.gestureEnabled },
-                { id: 'gesture', type: 'switch', title: $t('gesture'), subtitle: $t('gesture_desc'), checked: this.gestureEnabled },
                 { id: 'sensor', type: 'switch', title: $t('auto_luminance'), subtitle: $t('sensor_desc'), checked: this.sensorEnabled },
                 { id: 'light', type: 'slider', title: $t('light'), subtitle: $t('light_desc'), value: this.bluetoothHandler.levelLuminance, min: 0, max: 15 },
                 { id: 'shift', type: 'shift', title: $t('screen_offset'), description: this.shiftDescription, currentShift: this.currentShift },
                 { id: 'checkFirmware', type: 'button', title: $t('firmware'), buttonTitle: $t('check') },
-                { id: 'firmwareUpdate', type: 'button', title: $t('update_firmware'), buttonTitle: $t('update') },
+                { id: 'firmwareUpdate', type: 'button', title: $t('update_firmware'), buttonTitle: $t('select') },
                 { id: 'reboot', type: 'button', title: $t('reboot_glasses'), buttonTitle: $t('reboot') },
                 { id: 'reset', type: 'button', title: $t('reset_glasses'), buttonTitle: $t('reset') }
             ].concat(items);
@@ -386,9 +396,16 @@ export default class Settings extends FirmwareUpdateComponent {
         }
     }
     onGlassesDisconnected(e: BLEConnectionEventData) {
+        console.log(TAG, 'onGlassesDisconnected');
         super.onGlassesDisconnected(e);
         this.hideLoading();
         this.refresh();
+    }
+
+    async checkForDataUpdates() {
+        await this.$getAppComponent().importDevSessions(true);
+        await this.$networkService.checkForMapDataUpdate();
+        await this.$networkService.checkForGlassesDataUpdate();
     }
     // async getConfigs(refresh = true) {
     //     try {
@@ -538,6 +555,9 @@ export default class Settings extends FirmwareUpdateComponent {
                 case 'refreshMemory':
                     await this.getMemory();
                     break;
+                case 'update_data':
+                    await this.checkForDataUpdates();
+                    break;
 
                 case 'reset':
                     this.showLoading();
@@ -621,8 +641,8 @@ export default class Settings extends FirmwareUpdateComponent {
             DEV_LOG && console.log('setupGlasses', 'firmware check', this.firmwareVersion);
             if (versionCompare('4.6.0', this.firmwareVersion) > 0) {
                 // we need to update the firmware
-                this.updateLoadingProgress({ title: this.$tc('updating_firmware'), progress: 0 });
-                await this.updateFirmware('~/assets/data/4.6.0.img');
+                this.showLoading({ title: this.$tc('updating_firmware'), progress: 0 } as any);
+                await this.updateFirmware(path.join(knownFolders.currentApp().path, 'assets/data/4.6.0.img'));
             }
             const commands = [hexToBytes('FFB6000ADEADBEEF11AA')];
             DEV_LOG && console.log('setupGlasses', 'format', commands);

@@ -5,6 +5,7 @@ import { on as applicationOn, exitEvent } from '@nativescript/core/application';
 import { setBoolean } from '@nativescript/core/application-settings';
 import VueType, { VueConstructor } from 'vue';
 import LoadingIndicator from '~/components/LoadingIndicator.vue';
+import App from '~/components/App.vue';
 import { $t, $tc, $tt, $tu } from '~/helpers/locale';
 import { BgService } from '~/services/BgService';
 import { NetworkService } from '~/services/NetworkService';
@@ -51,6 +52,11 @@ const Plugin = {
         );
         Vue.prototype.$bgService = bgService;
         Vue.prototype.$networkService = networkService;
+
+        let appComponent: App;
+        Vue.prototype.$getAppComponent = function () {
+            return appComponent;
+        };
 
         Vue.prototype.$t = $t;
         Vue.prototype.$tc = $tc;
@@ -99,7 +105,8 @@ const Plugin = {
             // }
         }
 
-        Vue.prototype.$onAppMounted = function () {
+        Vue.prototype.$onAppMounted = function (app: App) {
+            appComponent = app;
             Frame.topmost().on(Page.navigatedToEvent, onPageNavigation);
         };
         function onPageNavigation(event) {
@@ -236,14 +243,14 @@ const Plugin = {
             }
         };
         Vue.prototype.$showLoading = function (msg?: string | ShowLoadingOptions) {
-            const text = (msg as any)?.text || msg || $tc('loading');
+            const text = (msg as any)?.text || (typeof msg === 'string' && msg) || $tc('loading');
             const loadingIndicator = getLoadingIndicator();
             if (!!msg?.['onButtonTap']) {
                 loadingIndicator.instance.$on('tap', msg['onButtonTap']);
             } else {
                 loadingIndicator.instance.$off('tap');
-                loadingIndicator.instance['showButton'] = !!msg?.['onButtonTap'];
             }
+            loadingIndicator.instance['showButton'] = !!msg?.['onButtonTap'];
             // if (DEV_LOG) {
             //     log('showLoading', msg, !!loadingIndicator, showLoadingStartTime);
             // }

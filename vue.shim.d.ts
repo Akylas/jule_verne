@@ -1,5 +1,5 @@
 import { BgService } from '~/services/BgService';
-import App from '~/components/App';
+import App from '~/components/App.vue';
 import CrashReportService from '~/services/CrashReportService';
 import { Drawer } from '@nativescript-community/ui-drawer';
 import { NetworkService } from '~/services/NetworkService';
@@ -24,7 +24,8 @@ declare module 'vue/types/vue' {
         $alert(message: string);
         $showError(err: Error | string);
 
-        $onAppMounted();
+        $onAppMounted(app: App);
+        $getAppComponent(): App;
         $navigateBack();
         $openDrawer();
         $closeDrawer();

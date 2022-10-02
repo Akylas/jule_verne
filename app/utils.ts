@@ -28,10 +28,12 @@ export function permResultCheck(r) {
     }
 }
 
-const verRegex = /^v?(\d+)\.(\d+)\.(\d+)([a-z])?$/;
+const verRegex = /^(?:v?)(\d+)\.(\d+)\.(\d+)([a-z])?$/;
 export function versionCompare(v1: string, v2: string) {
+    DEV_LOG && console.log('versionCompare', v1, v2);
     const match1 = v1.match(verRegex);
     const match2 = v2.match(verRegex);
+    DEV_LOG && console.log('versionCompare', v1, v2, match1.length, match2.length, match1, match2);
     if (!match1 || !match2) {
         return NaN;
     }
@@ -44,11 +46,19 @@ export function versionCompare(v1: string, v2: string) {
         }
         let num1 = parseInt(match1[i], 10);
         if (isNaN(num1)) {
-            num1 = match1[i].charCodeAt(0);
+            // if (match1[i] === 'b' && i === l1 - 1) {
+            //     num1 = -1;
+            // } else {
+            num1 = match1[i] ? match1[i].charCodeAt(0) : 0;
+            // }
         }
         let num2 = parseInt(match2[i], 10);
         if (isNaN(num2)) {
-            num2 = match2[i].charCodeAt(0);
+            // if (match2[i] === 'b' && i === l2 - 1) {
+            //     num2 = -1;
+            // } else {
+            num2 = match2[i] ? match2[i].charCodeAt(0) : 0;
+            // }
         }
         if (num1 === num2) {
             continue;

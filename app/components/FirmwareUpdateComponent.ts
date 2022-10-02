@@ -23,7 +23,6 @@ import GlassesConnectionComponent from './GlassesConnectionComponent';
 
 const TAG = '[FirmwareUpdate]';
 
-@Component({})
 export default class FirmwareUpdateComponent extends GlassesConnectionComponent {
     inFront = true;
     public currentProgress: number = 0;
@@ -34,18 +33,11 @@ export default class FirmwareUpdateComponent extends GlassesConnectionComponent 
     get devMode() {
         return this.$getDevMode();
     }
-
-    onNavigatingTo() {
-        this.inFront = true;
-        if (__ANDROID__) {
-            Application.android.on(AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
-        }
+    mounted() {
+        super.mounted();
     }
-    onNavigatingFrom() {
-        this.inFront = false;
-        if (__ANDROID__) {
-            Application.android.off(AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
-        }
+    destroyed() {
+        super.destroyed();
     }
 
     rebootGlasses() {
@@ -73,11 +65,15 @@ export default class FirmwareUpdateComponent extends GlassesConnectionComponent 
         });
     }
     async updateFirmware(file: string | File) {
+        DEV_LOG && console.log('updateFirmware', file);
         let theFile: File;
         if (typeof file === 'string') {
             theFile = File.fromPath(file);
         } else {
             theFile = file;
+        }
+        if (!File.exists(theFile.path)) {
+            throw new Error('firmware file missing:' + theFile.path);
         }
         this.updatingFirmware = true;
         const glasses = this.connectedGlasses;
@@ -295,16 +291,5 @@ export default class FirmwareUpdateComponent extends GlassesConnectionComponent 
 
     onFirmwareUpdateProgress(progress: number) {
         this.currentProgress = progress;
-    }
-    onAndroidBackButton(data: AndroidActivityBackPressedEventData) {
-        if (__ANDROID__) {
-            if (!this.inFront) {
-                return;
-            }
-            if (this.updatingFirmware) {
-                data.cancel = true;
-                showSnack({ message: this.$t('cant_leave_during_firmware_update') });
-            }
-        }
     }
 }

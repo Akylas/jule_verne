@@ -10,6 +10,7 @@
   <string name="updating_firmware">"mise à jour du firmware"</string>
   <string name="update_glasses">"mettre à jour"</string>
   <string name="update_firmware">"mettre à jour le firmware avec un fichier"</string>
+  <string name="update_app_data">"rechercher des mises à jour des données"</string>
   <string name="update">"mise à jour"</string>
   <string name="uncompress_map_data">"décompression des données de carte"</string>
   <string name="uncompress_glasses_data">"décompression de l\'histoire \"%1$s\""</string>
@@ -43,6 +44,7 @@
   <string name="searching_location_before_start">"L\'application Jules Verne recherche votre position GPS, l\'aventure démarrera dès que possible"</string>
   <string name="screen_offset">"décalage écran"</string>
   <string name="reset_glasses_confirm">"réinitialiser et préparer les lunettes Jules Verne"</string>
+  <string name="reset_glasses">"réinitialiser et préparer les lunettes"</string>
   <string name="reset">"réinitialiser"</string>
   <string name="report">"rapport"</string>
   <string name="refresh">"rafraichir"</string>
@@ -118,6 +120,7 @@
   <string name="downloading_glasses_update">"D/L histoire %1$s"</string>
   <string name="downloading">"téléchargement"</string>
   <string name="download">"téléchargement"</string>
+  <string name="disconnected_glasses">"déconnexion des lunettes %1$s !"</string>
   <string name="disconnect_glasses_are_you_sure">"êtes-vous sur de vouloir vous déconneter des lunettes?"</string>
   <string name="disconnect">"déconnexion"</string>
   <string name="dev_mode">"dev mode"</string>
@@ -126,6 +129,7 @@
   <string name="create_track">"créer un tracé"</string>
   <string name="connection_lost_reconnecting">"la connexion à été perdue, reconnexion en cours"</string>
   <string name="connecting_glasses">"connexion aux lunettes &lt;b>%1$s&lt;/b> en cours..."</string>
+  <string name="connected_glasses">"connexion aux lunettes %1$s !"</string>
   <string name="connect_glasses_desc">"Je n\'ai pas trouvé vos lunettes Jules Verne, pouvez-vous les connecter?"</string>
   <string name="connect_glasses">"connecter les lunettes"</string>
   <string name="configs">"configurations"</string>

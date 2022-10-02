@@ -39,7 +39,7 @@ import { profile } from '@nativescript/core/profiling';
 import { Component, Prop } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import OptionSelect from '~/components/OptionSelect';
-import TrackDetails from '~/components/TrackDetails';
+import TrackDetails from '~/components/TrackDetails.vue';
 import Track from '~/models/Track';
 import { Catch } from '~/utils';
 import { ComponentIds } from '~/vue.prototype';

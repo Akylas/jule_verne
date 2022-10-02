@@ -11,7 +11,7 @@
                     <GridLayout :rippleColor="accentColor" columns="60,*">
                         <Image src="res://glasses_small" marginLeft="20" />
                         <CanvasLabel @tap="onItemTap(item, $event)" col="1" paddingLeft="16">
-                            <Span fontSize="20" verticalAlignment="center" :text="item.localName || $tc('unknown_device')" fontWeight="600" />
+                            <CSpan fontSize="20" verticalAlignment="center" :text="item.localName || $tc('unknown_device')" fontWeight="600" />
                             <Line :fillColor="borderColor" strokeWidth="2" verticalAlignment="bottom" startX="0" stopX="80%" />
                         </CanvasLabel>
                     </GridLayout>

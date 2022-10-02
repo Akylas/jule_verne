@@ -2,7 +2,7 @@
     <Page ref="page" :navigateUrl="navigateUrl" :enableSwipeBackNavigation="!updatingFirmware" @navigatingTo="onNavigatingTo" @navigatingFrom="onNavigatingFrom">
         <StackLayout>
             <CActionBar :title="$t('update')" :disableBackButton="updatingFirmware" :glasses="connectedGlasses" :battery="glassesBattery" />
-            <GridLayout rows="auto, *, auto, auto" height="100%" backgroundColor="#EDEDED">
+            <GridLayout rows="auto, *, auto, auto" height="100%">
                 <StackLayout row="0">
                     <StackLayout class="settings-section">
                         <GridLayout class="settings-section-holder" columns="*,auto" rows="30,20">
@@ -23,7 +23,7 @@
                         <MDProgress marginTop="10" :value="currentProgress" maxValue="100" :color="accentColor" />
                     </StackLayout>
                 </StackLayout>
-                <TextView row="1" :text="firmwareRunLog" fontSize="10" editable="false" backgroundColor="#EDEDED" v-if="devMode" />
+                <TextView row="1" :text="firmwareRunLog" fontSize="10" editable="false" v-if="devMode" />
                 <MDButton :isEnabled="!updatingFirmware" marginBottom="20" row="2" :text="$t('update_glasses')" @tap="onTap('sendUpdate')" />
                 <MDButton v-if="devMode" marginBottom="20" row="3" :text="$t('reboot_glasses')" @tap="onTap('reboot')" />
             </GridLayout>
@@ -31,38 +31,18 @@
     </Page>
 </template>
 <script lang="ts">
-import { ReadResult } from '@nativescript-community/ble';
-import * as application from '@nativescript/core/application';
+import { Application } from '@nativescript/core';
+import { AndroidActivityBackPressedEventData } from '@nativescript/core/application/application-interfaces';
+import { showSnack } from '@nativescript-community/ui-material-snackbar';
+import { AndroidApplication } from '@nativescript/core/application';
 import { File } from '@nativescript/core/file-system';
-import { Component, Prop } from 'vue-property-decorator';
-import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
-import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
-import {
-    BLEBatteryEventData,
-    BLEConnectionEventData,
-    BluetoothHandler,
-    GlassesBatteryEvent,
-    GlassesConnectedEvent,
-    GlassesDisconnectedEvent,
-    SPOTA_GPIO_MAP_UUID,
-    SPOTA_MEM_DEV_UUID,
-    SPOTA_PATCH_DATA_UUID,
-    SPOTA_SERVICE_UUID,
-    SPOTA_SERV_STATUS_UUID,
-    SUOTA_L2CAP_PSM_UUID,
-    SUOTA_MTU_UUID,
-    SUOTA_PATCH_DATA_CHAR_SIZE_UUID,
-    SUOTA_VERSION_UUID,
-    bluetooth
-} from '~/handlers/BluetoothHandler';
-import { GeoHandler } from '~/handlers/GeoHandler';
-import { confirm } from '~/utils/dialogs';
-import { SuotaCharacteristic, getUint32 } from '../handlers/bluetooth/SuotaCharacteristic';
 import filesize from 'filesize';
-import { ComponentIds } from '~/vue.prototype';
-import { concatBuffers } from '~/handlers/Message';
+import { Component, Prop } from 'vue-property-decorator';
+import { BLEConnectionEventData } from '~/handlers/BluetoothHandler';
 import { Catch } from '~/utils';
+import { ComponentIds } from '~/vue.prototype';
 import FirmwareUpdateComponent from './FirmwareUpdateComponent';
+import { BgServiceMethodParams } from './BgServiceComponent';
 
 const TAG = '[FirmwareUpdate]';
 
@@ -88,17 +68,40 @@ export default class FirmwareUpdate extends FirmwareUpdateComponent {
     }
     setup(handlers: BgServiceMethodParams) {
         super.setup(handlers);
-        if (!handlers.geoHandler || !handlers.bluetoothHandler) {
-            return;
+    }
+
+    onNavigatingTo() {
+        this.inFront = true;
+        DEV_LOG && console.log(TAG, this.constructor.name, 'onNavigatingTo');
+        if (__ANDROID__) {
+            Application.android.on(AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
         }
-        this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
-        this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
+    }
+    onNavigatingFrom() {
+        this.inFront = false;
+        DEV_LOG && console.log(TAG, this.constructor.name, 'onNavigatingFrom');
+        if (__ANDROID__) {
+            Application.android.off(AndroidApplication.activityBackPressedEvent, this.onAndroidBackButton);
+        }
+    }
+    onAndroidBackButton(data: AndroidActivityBackPressedEventData) {
+        if (__ANDROID__) {
+            if (!this.inFront) {
+                return;
+            }
+            if (this.updatingFirmware) {
+                data.cancel = true;
+                showSnack({ message: this.$t('cant_leave_during_firmware_update') });
+            }
+        }
     }
     onGlassesConnected(e: BLEConnectionEventData) {
+        DEV_LOG && console.log(TAG, 'onGlassesConnected');
         super.onGlassesConnected(e);
         this.close();
     }
     onGlassesDisconnected(e: BLEConnectionEventData) {
+        DEV_LOG && console.log(TAG, 'onGlassesDisconnected');
         super.onGlassesDisconnected(e);
         this.close();
     }
