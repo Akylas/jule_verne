@@ -622,7 +622,7 @@ export default class Settings extends FirmwareUpdateComponent {
         if (__ANDROID__) {
             const context = Utils.ad.getApplicationContext();
             const identifier = context.getResources().getIdentifier('wallpaper', 'drawable', context.getPackageName());
-            android.app.WallpaperManager.getInstance(context).setResource(identifier);
+            android.app.WallpaperManager.getInstance(context).setResource(identifier, android.app.WallpaperManager.FLAG_LOCK | android.app.WallpaperManager.FLAG_SYSTEM);
         }
     }
 
