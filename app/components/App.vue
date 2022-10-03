@@ -68,11 +68,12 @@
                 <BarAudioPlayerWidget ~bottomSheet />
             </BottomSheet>
             <GridLayout ~leftDrawer rows="auto,*,auto,auto" height="100%" :backgroundColor="backgroundColor" width="80%">
-                <GridLayout padding="10" height="80" rows="auto, *" columns="auto, *">
-                    <Label marginLeft="15" fontSize="20" :text="$t('menu') | titlecase" :color="textColor" />
+                <GridLayout padding="10" rows="auto" columns="*">
+                    <Image horizontalAlignment="center" src="res://logo" height="100" />
                     <GlassesIcon
                         horizontalAlignment="right"
-                        col="1"
+                        verticalAlignment="top"
+                        showImage
                         :glasses="connectedGlasses"
                         :battery="glassesBattery"
                         @longPress="onLongPress('disconnectGlasses', $event)"
@@ -81,9 +82,11 @@
                 </GridLayout>
                 <CollectionView :items="menuItems" row="1" paddingTop="10" rowHeight="50" @tap="noop" +alias="menuItem">
                     <v-template>
-                        <GridLayout columns="auto, *" class="menu" :active="menuItem.activated" :rippleColor="accentColor" @tap="onNavItemTap(menuItem)">
-                            <Label col="0" class="menuIcon" :text="menuItem.icon" verticalAlignment="center" />
-                            <Label col="1" class="menuText" :text="menuItem.title | titlecase" verticalAlignment="center" :active="menuItem.activated" />
+                        <GridLayout>
+                            <GridLayout columns="auto, *" class="menu" :active="menuItem.activated" :rippleColor="accentColor" @tap="onNavItemTap(menuItem)">
+                                <Label col="0" class="menuIcon" :text="menuItem.icon" verticalAlignment="center" />
+                                <Label col="1" class="menuText" :text="menuItem.title | titlecase" verticalAlignment="center" :active="menuItem.activated" />
+                            </GridLayout>
                         </GridLayout>
                     </v-template>
                 </CollectionView>
@@ -284,7 +287,9 @@ export default class App extends GlassesConnectionComponent {
         if (this.dbHandler && this.dbHandler.started) {
             this.importDevSessions();
         }
-        this.$networkService.checkForMapDataUpdate();
+        if (PRODUCTION || !isSimulator()) {
+            this.$networkService.checkForMapDataUpdate();
+        }
         if (!DISABLE_UPDATES && (PRODUCTION || !isSimulator())) {
             this.$networkService.checkForGlassesDataUpdate();
         }

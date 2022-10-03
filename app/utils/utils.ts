@@ -65,7 +65,7 @@ function simplify_path(main_path) {
 }
 
 export function getWorkingDir(allowDev = true) {
-    if (allowDev) {
+    if (!PRODUCTION && allowDev) {
         if (__ANDROID__) {
             const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
             const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();

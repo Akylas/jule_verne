@@ -7,7 +7,7 @@ android {
     applicationId "com.akylas.juleverne"
     minSdkVersion 19 
     targetSdkVersion 33
-    versionCode 28
+    versionCode 30
     versionName "1.1.0"
     
     ndk {
@@ -28,6 +28,13 @@ android {
           include  'armeabi-v7a'
           universalApk false
       }
+    //   density {
+    //     enable gradle.startParameter.taskNames.contains("assembleRelease")
+    //     // Specify a list of screen densities which Gradle won't create multiple APKs for
+    //     exclude 'ldpi', 'mdpi'
+    //     // Specify a list of compatible screen size for the manifest
+    //     compatibleScreens 'small', 'normal', 'large', 'xlarge'
+    //   }
   }
   aaptOptions {
     additionalParameters "--no-version-vectors"  
@@ -43,7 +50,8 @@ android {
       // Android Gradle plugin.
       shrinkResources true
 
-      // resConfigs "en", "fr", "es"
+    //   resConfigs "fr"
+    //   resConfigs "en", "fr", "es"
 
       // Includes the default ProGuard rules files that are packaged with
       // the Android Gradle plugin. To learn more, go to the section about

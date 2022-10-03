@@ -65,8 +65,8 @@
                 <PagerItem>
                     <GridLayout v-show="showPage(3)" padding="10">
                         <GridLayout verticalAlignment="center" horizontalAlignment="center" rows="auto,auto,auto,auto,*,auto">
-                            <GridLayout row="0" horizontalAlignment="center" rows="auto" columns="auto"  backgroundColor="black" borderRadius="20" margin="20">
-                                <Image stretch="aspectFit" :colorMatrix="colorMatrix" :src="configImagePath" height="200" borderRadius="20" margin="20"/>
+                            <GridLayout row="0" horizontalAlignment="center" rows="auto" columns="auto" backgroundColor="black" borderRadius="20" margin="20">
+                                <Image stretch="aspectFit" :colorMatrix="colorMatrix" :src="configImagePath" height="200" borderRadius="20" margin="20" />
                                 <CanvasView @draw="onDraw" />
                             </GridLayout>
 
@@ -145,22 +145,21 @@
 <script lang="ts">
 import { ApplicationSettings } from '@akylas/nativescript';
 import { EventData } from '@nativescript-community/observable';
+import { Canvas, Paint } from '@nativescript-community/ui-canvas';
 import { knownFolders, path } from '@nativescript/core/file-system';
+import { throttle } from 'helpful-decorators';
 import { Component, Prop, Watch } from 'vue-property-decorator';
+import { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { AvailableConfigsEvent, GlassesMemoryChangeEvent } from '~/handlers/BluetoothHandler';
 import { GeoLocation, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
 import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
 import { Catch, getVolumeLevel, setVolumeLevel, versionCompare } from '~/utils';
 import { getGlassesImagesFolder } from '~/utils/utils';
 import { borderColor, mdiFontFamily, subtitleColor, textColor } from '~/variables';
-import { BgServiceMethodParams } from '~/components/BgServiceComponent';
-import GlassesConnectionComponent from '~/components/GlassesConnectionComponent';
+import { GLASSES_COLOR, IMAGE_COLORMATRIX } from '~/vue.views';
+import FirmwareUpdateComponent from './FirmwareUpdateComponent';
 import PageIndicator from './PageIndicator.vue';
 import Slider from './Slider.vue';
-import { GLASSES_COLOR, IMAGE_COLORMATRIX } from '~/vue.views';
-import { debounce, throttle } from 'helpful-decorators';
-import FirmwareUpdateComponent from './FirmwareUpdateComponent';
-import { Canvas, Paint } from '@nativescript-community/ui-canvas';
 
 export enum Pages {
     BLE_GPS_GLASSES_STATE = 0,

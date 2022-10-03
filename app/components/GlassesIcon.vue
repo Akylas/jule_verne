@@ -7,17 +7,10 @@
         </GridLayout>
         <Label isUserInteractionEnabled="false" horizontalAlignment="center" fontSize="7" fontWeight="bold" :text="battery + '%'" row="5" col="1" colSpan="2" />
     </GridLayout> -->
-    <GridLayout
-        :backgroundColor="glassBatteryColor"
-        width="20"
-        height="20"
-        borderRadius="10"
-        horizontalAlignment="center"
-        verticalAlignment="center"
-        margin="18"
-        @tap="$emit('tap', $event)"
-        @longPress="onLongGlassesButton"
-    />
+    <GridLayout @tap="$emit('tap', $event)" @longPress="onLongGlassesButton" rows="auto" columns="auto">
+        <Image v-show="showImage" src="res://glasses_small" height="40" />
+        <Label :backgroundColor="glassBatteryColor" width="20" height="20" borderRadius="10" horizontalAlignment="right" verticalAlignment="bottom" />
+    </GridLayout>
 </template>
 
 <script lang="ts">
@@ -28,11 +21,10 @@ import BaseVueComponent from './BaseVueComponent';
 
 @Component({})
 export default class GlassesIcon extends BaseVueComponent {
-    @Prop({ default: 0, type: Number })
-    public battery: number;
+    @Prop({ default: 0, type: Number }) battery: number;
 
-    @Prop({ default: null })
-    public glasses: GlassesDevice;
+    @Prop({ default: null }) glasses: GlassesDevice;
+    @Prop({ default: false, type: Boolean }) showImage: boolean;
 
     get glassesBatteryColumns() {
         const value = this.battery;

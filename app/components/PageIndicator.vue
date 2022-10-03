@@ -1,5 +1,5 @@
 <template>
-    <CanvasView height="10" :width="count * spacing + spacing" v-show="count > 1" ref="canvas">
+    <CanvasView :height="radius * 2 + 2" :width="count * spacing + spacing" v-show="count > 1" ref="canvas">
         <Circle v-for="(n, index) in count" :key="index" :fillColor="textColor" :radius="radius" top="5" :left="spacing * index + spacing" />
         <Circle :fillColor="selectedColor" :radius="radius" top="5" :left="spacing * actualIndex + spacing" />
     </CanvasView>
