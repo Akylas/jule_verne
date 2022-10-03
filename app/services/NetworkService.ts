@@ -231,8 +231,8 @@ export class NetworkService extends Observable {
 
                 const progressNotification = ProgressNotification.show({
                     id: progressNotificationId, //required
-                    icon: 'mdi-map',
-                    smallIcon: 'mdi-glasses',
+                    icon: 'mdi-glasses',
+                    smallIcon: 'mdi-download',
                     title: $tc('downloading_glasses_update', storyId),
                     message: fileSize(parseInt(headers['content-length'], 10)),
                     ongoing: true,

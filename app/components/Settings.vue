@@ -76,7 +76,14 @@
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'button'">
-                    <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto" :rippleColor="accentColor" @tap="onButtonTap(item.id, item, $event)">
+                    <GridLayout
+                        class="settings-section settings-section-holder"
+                        columns="*,auto"
+                        rows="auto"
+                        :rippleColor="accentColor"
+                        @tap="onButtonTap(item.id, item, $event)"
+                        @longPress="onLongPress(item.id, item, $event)"
+                    >
                         <Label verticalAlignment="center">
                             <Span padding="5 0 5 0" fontSize="17" fontWeight="600" lineHeight="20" :text="item.title | uppercase" />
                             <Span fontSize="15" :text="item.subtitle ? '\n' + item.subtitle : ''" />
@@ -124,7 +131,7 @@
 import { openFilePicker } from '@nativescript-community/ui-document-picker';
 import { confirm, prompt } from '@nativescript-community/ui-material-dialogs';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
-import { ApplicationSettings, File, Folder, ObservableArray, Utils, knownFolders, path } from '@nativescript/core';
+import { ApplicationSettings, File, Folder, ImageSource, ObservableArray, Utils, knownFolders, path } from '@nativescript/core';
 import { TouchGestureEventData } from '@nativescript/core/ui';
 import dayjs from 'dayjs';
 import fileSize from 'filesize';
@@ -500,7 +507,7 @@ export default class Settings extends FirmwareUpdateComponent {
 
     async onButtonTap(command, item?, event?) {
         try {
-            console.log('onButtonTap', command);
+            DEV_LOG && console.log('onButtonTap', command);
             switch (command) {
                 case 'wallpaper':
                     await this.setWallpaper();
@@ -605,7 +612,9 @@ export default class Settings extends FirmwareUpdateComponent {
             this.hideLoading();
         }
     }
-    async onLongPress(command: string, event?) {
+    @Catch()
+    async onLongPress(command, item?, event?) {
+        DEV_LOG && console.log('onLongPress', command);
         if (event && event.ios && event.ios.state !== 3) {
             return;
         }
@@ -614,7 +623,15 @@ export default class Settings extends FirmwareUpdateComponent {
                 this.$networkService.checkFirmwareUpdateOnline(this.connectedGlasses.versions, true);
                 break;
             case 'update_data':
-                await this.checkForDataUpdates(true);
+                const result = await confirm({
+                    title: $tc('are_you_sure'),
+                    message: $tc('force_update_data_confirm'),
+                    okButtonText: $tc('confirm'),
+                    cancelButtonText: $tc('cancel')
+                });
+                if (result) {
+                    await this.checkForDataUpdates(true);
+                }
                 break;
         }
     }
