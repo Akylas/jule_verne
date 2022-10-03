@@ -52,6 +52,7 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
         this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
         this.connectingToGlasses = handlers.bluetoothHandler.connectingToGlasses;
+        this.glassesName = handlers.bluetoothHandler.savedGlassesName;
         if (handlers.bluetoothHandler.glasses) {
             this.onGlassesBattery({
                 data: handlers.bluetoothHandler.glassesBattery
@@ -126,7 +127,7 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
     onGlassesSerialNumber(e) {
         this.glassesSerialNumber = e.data;
     }
-
+    glassesName = null;
     @Catch()
     async pickGlasses() {
         await this.bluetoothHandler.enableForScan();
@@ -151,6 +152,7 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         // console.log(TAG, 'connecting to picked device', device);
         if (device) {
             const promise = this.bluetoothHandler.connect(device.UUID, device.localName);
+            this.glassesName = this.bluetoothHandler.savedGlassesName;
             this.connectingToGlasses = true;
             return promise;
         }

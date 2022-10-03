@@ -107,12 +107,9 @@
                             src="~/assets/images/lottie/location-not-detected.json"
                             :loop="true"
                             :autoPlay="true"
-                            margin="10"
+                            margin="40"
                             verticalAlignment="top"
                             horizontalAlignment="right"
-                            rowSpan="7"
-                            width="60"
-                            height="60"
                         />
                         <Label row="1" v-show="playingInstructions" :text="$tc('playing_instructions_story')" fontSize="20" fontWeight="bold" textAlignment="center" verticalTextAlignment="center" />
                         <Label
@@ -137,6 +134,7 @@
                     </GridLayout>
                 </PagerItem>
             </Pager>
+            <MDButton row="2" horizontalAlignment="left" verticalAlignment="center" v-show="canGoBack" variant="text" class="actionBarButton" text="mdi-chevron-left" marginLeft="10" />
             <PageIndicator row="2" horizontalAlignment="center" :count="forMap ? 6 : 5" :selectedIndex="selectedPageIndex" marginTop="10" marginBottom="20" />
             <MDButton variant="text" v-show="!forMap || canSkip" :text="$tc('skip')" row="2" horizontalAlignment="right" verticalAlignment="bottom" @tap="onSkip" margin="5" :color="textColor" />
         </GridLayout>
@@ -201,7 +199,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
     lastLocation: GeoLocation = null;
     watchingLocation = false;
     playingInstructions = false;
-    savedGlassesName = null;
 
     volume = getVolumeLevel();
 
@@ -232,8 +229,8 @@ export default class Onboarding extends FirmwareUpdateComponent {
     }
 
     get connectingGlassesText() {
-        console.log('connectingGlassesText', this.savedGlassesName);
-        return this.$tc('connecting_glasses', this.savedGlassesName);
+        console.log('connectingGlassesText', this.glassesName);
+        return this.$tc('connecting_glasses', this.glassesName);
     }
     get showPage() {
         return (index) => {
@@ -242,6 +239,9 @@ export default class Onboarding extends FirmwareUpdateComponent {
             }
             return false;
         };
+    }
+    get canGoBack() {
+        return this.selectedPageIndex >= Pages.PUT_HEADPHONES && this.selectedPageIndex < Pages.FIND_LOCATION_STORY;
     }
     setCurrentPage(page: Pages) {
         if (this.selectedPageIndex !== page) {
@@ -310,7 +310,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
 
         // this.isWatchingLocation = handlers.geoHandler.isWatching();
         this.levelLuminance = handlers.bluetoothHandler.levelLuminance;
-        this.savedGlassesName = handlers.bluetoothHandler.savedGlassesName;
     }
     onServiceStarted(handlers: BgServiceMethodParams) {
         console.log(TAG, 'onServiceStarted');
@@ -329,7 +328,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
     onGlassesConnected(e) {
         const changed = this.connectedGlasses !== e.data;
         super.onGlassesConnected(e);
-        this.savedGlassesName = this.bluetoothHandler.savedGlassesName;
         if (this.selectedPageIndex === 0) {
             this.selectedPageIndex = 1;
         }

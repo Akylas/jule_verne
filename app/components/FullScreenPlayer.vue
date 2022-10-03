@@ -9,8 +9,8 @@
 
             <MDSlider row="3" margin="10" :value="progress" minValue="0" maxValue=" 100" verticalAlignment="bottom" @valueChange="onSliderChange" />
             <CanvasLabel row="4" margin="0 20 20 20" fontSize="14" height="18">
-                <Span :text="formatDuration(currentTime)" verticalAlignment="bottom" />
-                <Span :text="playingInfo && formatDuration(playingInfo.duration)" textAlignment="right" verticalAlignment="bottom" paddingRight="2" />
+                <CSpan :text="formatDuration(currentTime)" verticalAlignment="bottom" />
+                <CSpan :text="playingInfo && formatDuration(playingInfo.duration)" textAlignment="right" verticalAlignment="bottom" paddingRight="2" />
             </CanvasLabel>
             <StackLayout row="5" orientation="horizontal" horizontalAlignment="center" marginBottom="10">
                 <MDButton
