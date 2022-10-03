@@ -41,3 +41,4 @@ pnpm-lock.yaml
 /.vscode/settings.json
 .yarn
 /times.html
+strings.xml
