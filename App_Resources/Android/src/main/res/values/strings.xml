@@ -10,6 +10,7 @@
   <string name="updating_firmware">"mise à jour du firmware"</string>
   <string name="update_glasses">"mettre à jour"</string>
   <string name="update_firmware">"mettre à jour le firmware avec un fichier"</string>
+  <string name="update_app_data_desc">"Recherche des mises à jours des histoires, pastilles, navigation et données de carte. Un appuie long force le téléchargement"</string>
   <string name="update_app_data">"rechercher des mises à jour des données"</string>
   <string name="update">"mise à jour"</string>
   <string name="uncompress_map_data">"décompression des données de carte"</string>

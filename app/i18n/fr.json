@@ -153,6 +153,7 @@
   "uncompress_map_data": "décompression des données de carte",
   "update": "mise à jour",
   "update_app_data": "rechercher des mises à jour des données",
+  "update_app_data_desc": "Recherche des mises à jours des histoires, pastilles, navigation et données de carte. Un appuie long force le téléchargement",
   "update_firmware": "mettre à jour le firmware avec un fichier",
   "update_glasses": "mettre à jour",
   "updating_firmware": "mise à jour du firmware",

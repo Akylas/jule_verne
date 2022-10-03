@@ -76,12 +76,13 @@
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'button'">
-                    <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto">
+                    <GridLayout class="settings-section settings-section-holder" columns="*,auto" rows="auto" :rippleColor="accentColor" @tap="onButtonTap(item.id, item, $event)">
                         <Label verticalAlignment="center">
                             <Span padding="5 0 5 0" fontSize="17" fontWeight="600" lineHeight="20" :text="item.title | uppercase" />
                             <Span fontSize="15" :text="item.subtitle ? '\n' + item.subtitle : ''" />
                         </Label>
-                        <MDButton
+                        <Label col="1" class="mdi" text="mdi-chevron-right" verticalAlignment="center" fontSize="24" />
+                        <!-- <MDButton
                             variant="text"
                             :color="accentColor"
                             :rippleColor="accentColor"
@@ -89,7 +90,7 @@
                             :text="item.buttonTitle"
                             @tap="onButtonTap(item.id, item, $event)"
                             verticalAlignment="center"
-                        />
+                        /> -->
                     </GridLayout>
                 </v-template>
                 <v-template if="item.type === 'slider'">
@@ -294,7 +295,7 @@ export default class Settings extends FirmwareUpdateComponent {
         let items: any[] = [
             { type: 'header', title: $t('app_settings') },
             { id: 'wallpaper', type: 'button', title: $t('set_wallpaper'), buttonTitle: $t('set') },
-            { id: 'update_data', type: 'button', title: $t('update_app_data'), buttonTitle: $t('check') },
+            { id: 'update_data', type: 'button', title: $t('update_app_data'), subtitle: $t('update_app_data_desc'), buttonTitle: $t('check') },
             { id: 'sentry', type: 'button', title: $t('upload_logs'), subtitle: $t('internet_needed'), buttonTitle: $t('upload') },
             { type: 'header', title: $t('geo_settings') },
             {
@@ -396,16 +397,15 @@ export default class Settings extends FirmwareUpdateComponent {
         }
     }
     onGlassesDisconnected(e: BLEConnectionEventData) {
-        console.log(TAG, 'onGlassesDisconnected');
         super.onGlassesDisconnected(e);
         this.hideLoading();
         this.refresh();
     }
 
-    async checkForDataUpdates() {
+    async checkForDataUpdates(forceReload = false) {
         await this.$getAppComponent().importDevSessions(true);
         await this.$networkService.checkForMapDataUpdate();
-        await this.$networkService.checkForGlassesDataUpdate();
+        await this.$networkService.checkForGlassesDataUpdate(forceReload);
     }
     // async getConfigs(refresh = true) {
     //     try {
@@ -612,6 +612,9 @@ export default class Settings extends FirmwareUpdateComponent {
         switch (command) {
             case 'checkFirmware':
                 this.$networkService.checkFirmwareUpdateOnline(this.connectedGlasses.versions, true);
+                break;
+            case 'update_data':
+                await this.checkForDataUpdates(true);
                 break;
         }
     }

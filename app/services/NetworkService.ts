@@ -214,7 +214,7 @@ export class NetworkService extends Observable {
     //         });
     // }
 
-    async checkForStoryUpdate(storyId) {
+    async checkForStoryUpdate(storyId, forceReload = false) {
         let progressNotificationId;
         try {
             progressNotificationId = 52346 + hashCode(storyId + '');
@@ -222,12 +222,11 @@ export class NetworkService extends Observable {
             const headers = await getHEAD(url);
             const lastSize = ApplicationSettings.getString('GLASSES_DATA_SIZE_' + storyId, '');
             let workingDir = path.join(getWorkingDir(), 'glasses_images');
-            if (storyId === 'navigation' || storyId === 'pastilles') {
-            } else {
+            if (storyId !== 'navigation' && storyId !== 'pastilles') {
                 workingDir += '/stories';
             }
             DEV_LOG && console.log('checkForStoryUpdate', url, storyId, workingDir, lastSize !== headers['content-length'], Folder.exists(path.join(workingDir, storyId + '')));
-            if (lastSize !== headers['content-length'] || !Folder.exists(path.join(workingDir, storyId + ''))) {
+            if (forceReload || lastSize !== headers['content-length'] || !Folder.exists(path.join(workingDir, storyId + ''))) {
                 const requestTag = Date.now() + '';
 
                 const progressNotification = ProgressNotification.show({
@@ -307,7 +306,7 @@ export class NetworkService extends Observable {
     }
     updatingStories = false;
 
-    async checkForGlassesDataUpdate() {
+    async checkForGlassesDataUpdate(forceReload = false) {
         // if (!PRODUCTION) {
         //     return;
         // }
@@ -315,7 +314,7 @@ export class NetworkService extends Observable {
             return;
         }
         this.updatingStories = true;
-        const toUpdate = ['navigation', 'pastilles'];
+        const toUpdate = ['navigation', 'pastilles', '1000'];
         const track = Vue.prototype.$bgService?.geoHandler?.currentTrack;
         if (track) {
             const storyIds = [...new Set(track.geometry.features.map((f) => parseInt('index' in f.properties ? f.properties.index : f.properties.name, 10)).filter((f) => !isNaN(f)))].sort();
@@ -324,7 +323,7 @@ export class NetworkService extends Observable {
             }
         }
         for (let index = 0; index < toUpdate.length; index++) {
-            await this.checkForStoryUpdate(toUpdate[index]);
+            await this.checkForStoryUpdate(toUpdate[index], forceReload);
         }
         // await Promise.all(toUpdate.map(this.checkForStoryUpdate));
         // await this.checkForStoryUpdate('navigation');
