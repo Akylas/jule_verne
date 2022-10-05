@@ -70,7 +70,7 @@
                                 <CanvasView @draw="onDraw" />
                             </GridLayout>
 
-                            <Label row="1" :html="$tc('test_image_see_glasses')" fontSize="22" textAlignment="center" width="90%" />
+                            <Label row="1" :html="$tc('test_image_see_glasses')" fontSize="20" textAlignment="center" width="90%" />
                             <!-- <MDSlider row="3" :color="accentColor" :value="levelLuminance" @valueChange="onSliderChange('luminance', $event)" :minValue="0" :maxValue="15" verticalAlignment="center" /> -->
                             <Slider
                                 id="luminance"
@@ -92,7 +92,7 @@
                         <Label :text="$tc('place_audio_headphones')" fontSize="20" fontWeight="bold" textAlignment="center" />
 
                         <Label row="1" text="mdi-music" class="mdi" fontSize="140" textAlignment="center" marginTop="20" marginBottom="40" />
-                        <Label row="2" :text="$tc('play_test_desc')" fontSize="19" textAlignment="center" width="70%" />
+                        <Label row="2" :text="$tc('play_test_desc')" fontSize="20" textAlignment="center" width="70%" />
                         <MDButton variant="outline" row="3" :text="$tc('play_test')" @tap="() => playAudioTest()" horizontalAlignment="center" />
                         <Slider id="volume" row="4" margin="10 20 10 20" :value="volume" @valueChange="onSliderChange('volume', $event)" icon="mdi-volume-high" />
                         <Label row="5" :text="$tc('adjust_volume')" fontSize="16" textAlignment="center" width="70%" />
@@ -103,7 +103,7 @@
                     <GridLayout v-show="showPage(5)" padding="10" rows="*,*,auto">
                         <LottieView
                             v-show="watchingLocation"
-                            row="1"
+                            row="0"
                             src="~/assets/images/lottie/location-not-detected.json"
                             :loop="true"
                             :autoPlay="true"
@@ -282,7 +282,7 @@ export default class Onboarding extends FirmwareUpdateComponent {
                     this.$modal.close(this.lastLocation);
                 }
                 this.playingInstructions = true;
-                await this.geoHandler.loadAndPlayStory({ storyIndex: 1000, shouldPlayStart: false, shouldPlayRideau: false });
+                await this.bluetoothHandler.loadAndPlayStory({ storyIndex: 1000, shouldPlayStart: false, shouldPlayRideau: false });
                 this.playingInstructions = false;
 
                 break;
@@ -328,6 +328,7 @@ export default class Onboarding extends FirmwareUpdateComponent {
     onGlassesConnected(e) {
         const changed = this.connectedGlasses !== e.data;
         super.onGlassesConnected(e);
+
         if (this.selectedPageIndex === 0) {
             this.selectedPageIndex = 1;
         }

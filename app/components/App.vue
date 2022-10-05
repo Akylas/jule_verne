@@ -10,7 +10,7 @@
                 failOffsetYEnd: 10
             }"
         >
-            <BottomSheet :stepIndex="stepIndex" :steps="[0, 80]" :gestureEnabled="false" ~mainContent>
+            <BottomSheet :stepIndex="stepIndex" :steps="[0, 70]" :gestureEnabled="false" ~mainContent>
                 <StackLayout ref="page" actionBarHidden>
                     <Pager ref="pager" height="0" :items="messages" backgroundColor="#405798" +alias="messageItem">
                         <v-template>
@@ -287,12 +287,6 @@ export default class App extends GlassesConnectionComponent {
         if (this.dbHandler && this.dbHandler.started) {
             this.importDevSessions();
         }
-        if (PRODUCTION || !isSimulator()) {
-            this.$networkService.checkForMapDataUpdate();
-        }
-        if (!DISABLE_UPDATES && (PRODUCTION || !isSimulator())) {
-            this.$networkService.checkForGlassesDataUpdate();
-        }
     }
     onButtonTap(item: MessageItem) {
         item.action?.callback?.();
@@ -346,6 +340,7 @@ export default class App extends GlassesConnectionComponent {
         } else {
             this.stepIndex = state === 'stopped' ? 0 : 1;
         }
+        DEV_LOG && console.log(TAG, 'onPlayerState', state, this.stepIndex);
     }
     setup(handlers: BgServiceMethodParams) {
         super.setup(handlers);
@@ -361,6 +356,13 @@ export default class App extends GlassesConnectionComponent {
         super.onServiceStarted(handlers);
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
         this.importDevSessions();
+
+        if (PRODUCTION || !isSimulator()) {
+            this.$networkService.checkForMapDataUpdate();
+        }
+        if (!DISABLE_UPDATES && (PRODUCTION || !isSimulator())) {
+            this.$networkService.checkForGlassesDataUpdate();
+        }
     }
     async importDevSessions(force = false) {
         if (!force && this.sessionsImported) {

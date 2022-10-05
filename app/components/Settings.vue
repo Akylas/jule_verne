@@ -348,7 +348,7 @@ export default class Settings extends FirmwareUpdateComponent {
         if (this.connectedGlasses) {
             items = [
                 { type: 'header', title: $t('memory') },
-                { type: 'text', title: $t('glasses') + ': ' + this.connectedGlasses.localName, subtitle: this.firmwareVersion },
+                { type: 'button', title: $t('glasses') + ': ' + this.connectedGlasses.localName, subtitle: this.firmwareVersion, id: 'rename' },
                 {
                     id: 'refreshMemory',
                     type: 'button',
@@ -366,7 +366,8 @@ export default class Settings extends FirmwareUpdateComponent {
                 { id: 'checkFirmware', type: 'button', title: $t('firmware'), buttonTitle: $t('check') },
                 { id: 'firmwareUpdate', type: 'button', title: $t('update_firmware'), buttonTitle: $t('select') },
                 { id: 'reboot', type: 'button', title: $t('reboot_glasses'), buttonTitle: $t('reboot') },
-                { id: 'reset', type: 'button', title: $t('reset_glasses'), buttonTitle: $t('reset') }
+                { id: 'reset', type: 'button', title: $t('reset_glasses'), buttonTitle: $t('reset') },
+                { id: 'format', type: 'button', title: $t('format_glasses'), buttonTitle: $t('format') }
             ].concat(items);
         }
 
@@ -426,7 +427,6 @@ export default class Settings extends FirmwareUpdateComponent {
 
     @Catch()
     async getMemory(refresh = true) {
-        console.log('getMemory', refresh);
         this.memory = await this.bluetoothHandler.getMemory(true);
         refresh && this.refresh();
     }
@@ -515,6 +515,9 @@ export default class Settings extends FirmwareUpdateComponent {
                 case 'addConfig':
                     const config = await this.pickConfig();
                     if (config) {
+                        if (!this.memory) {
+                            await this.getMemory(true);
+                        }
                         await this.bluetoothHandler.sendConfigToGlasses(
                             config,
                             this.memory
@@ -571,6 +574,45 @@ export default class Settings extends FirmwareUpdateComponent {
                     await this.setupGlasses();
                     break;
 
+                case 'rename': {
+                    const result = await prompt({
+                        title: $tc('change_glasses_name'),
+                        // message: $tc('change_glasses_name'),
+                        okButtonText: $tc('change'),
+                        cancelButtonText: $tc('cancel'),
+                        autoFocus: true,
+                        defaultText: this.connectedGlasses.localName,
+                        textFieldProperties: {
+                            marginLeft: 10,
+                            marginRight: 10,
+                            hint: $tc('name')
+                        }
+                    });
+                    if (result && !!result.result && result.text.length > 0 && result.text !== this.connectedGlasses.localName) {
+                        await this.bluetoothHandler.setGlassesName(result.text);
+                        this.refresh();
+                        showSnack({
+                            message: $tc('reboot_glasses_required')
+                        });
+                    }
+                    break;
+                }
+
+                case 'format': {
+                    const result = await confirm({
+                        title: $tc('are_you_sure'),
+                        message: $tc('reset_glasses_confirm'),
+                        okButtonText: $tc('format'),
+                        cancelButtonText: $tc('cancel')
+                    });
+                    if (result) {
+                        const commands = [hexToBytes('FFB6000ADEADBEEF11AA')];
+                        this.bluetoothHandler.sendRawCommands(commands);
+                        await this.getMemory(true);
+                        await this.bluetoothHandler.askConfigs();
+                    }
+                    break;
+                }
                 case 'firmwareUpdate':
                     const pickedFile = await this.pickFile('.img');
                     if (pickedFile) {
@@ -667,8 +709,11 @@ export default class Settings extends FirmwareUpdateComponent {
             const commands = [hexToBytes('FFB6000ADEADBEEF11AA')];
             DEV_LOG && console.log('setupGlasses', 'format', commands);
             this.bluetoothHandler.sendRawCommands(commands);
+            await this.getMemory(true);
+            await this.bluetoothHandler.askConfigs();
             this.refresh();
             const r = (await Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories')).getEntities())
+                .filter((f) => Folder.exists(f.path))
                 .concat([{ path: path.join(getGlassesImagesFolder(), 'navigation'), name: 'navigation' }] as any)
                 .sort((a, b) => a.name.localeCompare(b.name));
             console.log('r', r);

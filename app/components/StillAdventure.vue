@@ -79,7 +79,8 @@ export default class StillAdventure extends BgServiceComponent {
         const stories = await Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories')).getEntities();
         this.items = stories
             .map((s) => {
-                if ((PRODUCTION && s.name === '1000') || !Folder.exists(s.path)) {
+                if (!Folder.exists(s.path)) {
+                    // if ((PRODUCTION && s.name === '1000') || !Folder.exists(s.path)) {
                     return;
                 }
 
@@ -97,7 +98,11 @@ export default class StillAdventure extends BgServiceComponent {
 
     @Catch()
     async onItemTap(item: Item) {
-        await this.geoHandler.loadAndPlayStory({ storyIndex: +item.id, shouldPlayStart: false, shouldPlayMusic: true, shouldPlayRideau: false, canStop: true });
+        console.log('onItemTap', item.id, this.bluetoothHandler.isPlaying, this.bluetoothHandler.isPlayingStory, this.bluetoothHandler.isPlayingPastille);
+
+        if (!this.bluetoothHandler.isPlaying) {
+            await this.bluetoothHandler.loadAndPlayStory({ storyIndex: +item.id, shouldPlayStart: false, shouldPlayMusic: true, shouldPlayRideau: false, canStop: true });
+        }
     }
 }
 </script>

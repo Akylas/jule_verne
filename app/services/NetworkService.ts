@@ -225,8 +225,9 @@ export class NetworkService extends Observable {
             if (storyId !== 'navigation' && storyId !== 'pastilles') {
                 workingDir += '/stories';
             }
-            DEV_LOG && console.log('checkForStoryUpdate', url, storyId, workingDir, lastSize !== headers['content-length'], Folder.exists(path.join(workingDir, storyId + '')));
-            if (forceReload || lastSize !== headers['content-length'] || !Folder.exists(path.join(workingDir, storyId + ''))) {
+            const storyDirPath = path.join(workingDir, storyId + '');
+            DEV_LOG && console.log('checkForStoryUpdate', url, storyId, workingDir, lastSize !== headers['content-length'], Folder.exists(storyDirPath));
+            if (forceReload || lastSize !== headers['content-length'] || !Folder.exists(storyDirPath)) {
                 const requestTag = Date.now() + '';
 
                 const progressNotification = ProgressNotification.show({
@@ -281,6 +282,7 @@ export class NetworkService extends Observable {
                         rightIcon: '0%',
                         progress: 0
                     });
+                    await Folder.fromPath(storyDirPath).remove();
                     await Zip.unzip({
                         archive: file.path,
                         directory: workingDir,

@@ -48,6 +48,7 @@
   "firmware_update": "mise à jour de firmware %1$s",
   "firmware_update_available_desc": "une mise à jour du firmware est disponible pour vos lunettes",
   "force_update_data_confirm": "toutes les données d'histoires, navigation et pastilles seront re-téléchargées",
+  "format": "formatter",
   "free": "libre",
   "genericStoryMessages": "messages générics",
   "genericStoryMessages_desc": "Activer/Désactiver les instructions géneriques en entrée / fin d'histoire",

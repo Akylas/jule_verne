@@ -140,6 +140,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         this.geoHandlerListeners = [];
     }
     unloadService() {
+        DEV_LOG && console.log('unloadService');
         this.unregisterSetupEvents();
         this.unregisterEvents();
         this.onServiceUnloaded.call(this, this.getParams());

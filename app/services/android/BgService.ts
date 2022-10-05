@@ -355,17 +355,14 @@ export class BgService extends android.app.Service {
     }
     playingNotifBuilder: androidx.core.app.NotificationCompat.Builder;
     showPlayingNotification() {
-        console.log('showPlayingNotification1');
+        // console.log('showPlayingNotification', new Error().stack);
         const context = Utils.ad.getApplicationContext();
         const builder = (this.playingNotifBuilder = NotificationHelper.getMediaNotification(context, this.getMediaSessionCompat()));
         if (builder === null) {
             return;
         }
-        console.log('showPlayingNotification2');
         const MediaStyle = androidx.media.app.NotificationCompat.MediaStyle;
-        console.log('showPlayingNotification3');
         const PlaybackStateCompat = android.support.v4.media.session.PlaybackStateCompat;
-        console.log('showPlayingNotification4');
         const playingInfo = this.playingInfo;
         const actionsInCompactView = [];
         if (playingInfo.canPause) {
@@ -376,9 +373,7 @@ export class BgService extends android.app.Service {
             actionsInCompactView.push(1);
             builder.addAction(ic_stop_id, 'Stop', com.akylas.juleverne.CustomMediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_STOP));
         }
-        console.log('showPlayingNotification5');
         builder.setStyle(new MediaStyle().setShowActionsInCompactView(actionsInCompactView).setMediaSession(this.getMediaSessionCompat().getSessionToken()));
-        console.log('showPlayingNotification6');
         NotificationHelper.showNotification(PLAYING_NOTIFICATION_ID, builder);
     }
     showPausedNotification() {
@@ -412,6 +407,7 @@ export class BgService extends android.app.Service {
             this.updateMediaSessionMetadata();
             this.getMediaSessionCompat().setActive(true);
             this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
+            DEV_LOG && console.log('onPlayerStart', event.data, this.playingState, this.playingInfo);
             this.showPlayingNotification();
         } catch (error) {
             console.error('onPlayerStart', error, error.stack);
@@ -420,6 +416,8 @@ export class BgService extends android.app.Service {
     onPlayerState(event) {
         if (event.data !== this.playingState) {
             this.playingState = event.data;
+            // this.playingInfo = this.bluetoothHandler.playingInfo;
+            DEV_LOG && console.log('onPlayerState1', event.data, this.playingState, this.playingInfo);
             if (!this.playingInfo || this.playingInfo.showPlayBar !== true) {
                 return;
             }

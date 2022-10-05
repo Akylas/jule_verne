@@ -4,8 +4,8 @@
         <Label margin="10" :text="playingInfo && playingInfo.name" row="1" col="1" fontSize="17" color="white" />
 
         <CanvasLabel margin="10" col="1" fontSize="12" color="lightgray">
-            <Span :text="formatDuration(currentTime)" verticalAlignment="bottom" />
-            <Span :text="playingInfo && formatDuration(playingInfo.duration)" textAlignment="right" verticalAlignment="bottom" />
+            <CSpan :text="formatDuration(currentTime)" verticalAlignment="bottom" />
+            <CSpan :text="playingInfo && formatDuration(playingInfo.duration)" textAlignment="right" verticalAlignment="bottom" />
         </CanvasLabel>
         <MDButton
             variant="text"

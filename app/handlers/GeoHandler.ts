@@ -147,7 +147,7 @@ export class GeoHandler extends Observable {
         } as SessionEventData);
     }
     actualSessionStart(createSession = false) {
-        console.log('actualSessionStart', this.sessionState);
+        DEV_LOG && console.log('actualSessionStart', this.sessionState);
         this.setSessionState(SessionState.RUNNING);
         this.startWatch();
     }
@@ -290,7 +290,7 @@ export class GeoHandler extends Observable {
             console.log(TAG, 'GPS state change', enabled);
         }
         if (!enabled) {
-            this.stopSession();
+            this.stopSession(true);
         }
         this.notify({
             eventName: GPSStatusChangedEvent,
@@ -471,12 +471,16 @@ export class GeoHandler extends Observable {
     set insideFeature(value) {
         if (value !== this._insideFeature) {
             this._insideFeature = value;
-            DEV_LOG && console.log('insideFeature', value?.properties.name);
 
             const playing = this.bluetoothHandler.isPlayingStory || this.bluetoothHandler.isPlayingMusic || this.bluetoothHandler.isPlayingPastille;
 
             if (value && !playing) {
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
+                DEV_LOG && console.log('insideFeature', name, this._playedHistory);
+                if (name === 'exit' && !this._playedHistory.length) {
+                    this._insideFeature = null;
+                    return;
+                }
                 if (name.startsWith('pastille_')) {
                     const featuresViewed = this.featuresViewed;
                     const featureId = (name + '').split('_')[1];
@@ -487,21 +491,23 @@ export class GeoHandler extends Observable {
                     const nextStoryIndex = parseInt(featureId, 10);
                     (async () => {
                         try {
-                            console.log('about to start pastille', nextStoryIndex);
+                            DEV_LOG && console.log('about to start pastille', nextStoryIndex);
                             await this.bluetoothHandler.stopPlayingInstruction();
                             this.bluetoothHandler.playPastille(nextStoryIndex);
                         } catch (error) {
                             console.error('playPastille', error, error.stack);
                         }
                     })();
-                } else if (name === 'exit') {
-                    this.stopSession(false);
+                    // } else if (name === 'exit' && this._playedHistory.length) {
+                    //     console.log('stopping session because we went back to exit', this._playedHistory);
+                    //     this.stopSession(false);
                 } else {
                     const featureId = (name + '').split('_')[0];
                     const nextStoryIndex = parseInt(featureId, 10);
                     DEV_LOG && console.log('nextStoryIndex', nextStoryIndex);
                     const playableStories = Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories'))
                         .getEntitiesSync()
+                        .filter((s) => Folder.exists(s.path))
                         .map((e) => parseInt(e.name, 10));
                     DEV_LOG && console.log('playableStories', playableStories);
                     if (playableStories.indexOf(nextStoryIndex) !== -1) {
@@ -512,7 +518,7 @@ export class GeoHandler extends Observable {
                             featuresViewed.push(featureId + '_out');
                         }
                         this.featuresViewed = featuresViewed;
-                        this.loadAndPlayStory({ storyIndex: nextStoryIndex });
+                        this.bluetoothHandler.loadAndPlayStory({ storyIndex: nextStoryIndex });
                     }
                 }
 
@@ -543,129 +549,15 @@ export class GeoHandler extends Observable {
         return this._insideFeature;
     }
 
-    async loadAndPlayStory({
-        storyIndex,
-        shouldPlayStart = true,
-        shouldPlayMusic = false,
-        shouldPlayRideau = false,
-        canStop = false
-    }: {
-        storyIndex: number;
-        shouldPlayStart?: boolean;
-        shouldPlayMusic?: boolean;
-        shouldPlayRideau?: boolean;
-        canStop?: boolean;
-    }) {
-        try {
-            console.log('loadAndPlayStory', storyIndex, shouldPlayStart, shouldPlayMusic, shouldPlayRideau, canStop);
-            let needsToplayMusic = false;
-            let configurationAlreadyLoaded = true;
-            const featureId = storyIndex + '';
-            const storyFolder = path.join(getGlassesImagesFolder(), 'stories', featureId);
-
-            let currentConfigs;
-            if (this.bluetoothHandler.currentConfigs) {
-                currentConfigs = this.bluetoothHandler.currentConfigs.slice(0);
-                configurationAlreadyLoaded = currentConfigs?.findIndex((c) => c.name === featureId) !== -1;
-            }
-
-            // for now we play music ONLY if we need to load the config
-            if (shouldPlayMusic && /* name.endsWith('_out') || */ !configurationAlreadyLoaded) {
-                needsToplayMusic = true;
-            }
-            DEV_LOG && console.log('nextStoryIndex', this._playedHistory, storyIndex, currentConfigs, configurationAlreadyLoaded, needsToplayMusic, shouldPlayStart);
-
-            await this.bluetoothHandler.stopPlayingInstruction();
-            if (shouldPlayStart) {
-                // TODO: play per story play instruction with playAudio
-                let audioFiles;
-
-                if (ApplicationSettings.getBoolean('perStoryMessages', true)) {
-                    const startingStoryAudio = path.join(storyFolder, 'starting.mp3');
-                    if (File.exists(startingStoryAudio)) {
-                        audioFiles = [startingStoryAudio];
-                    }
-                }
-                const promise = this.bluetoothHandler.playInstruction('starting_story', { audioFiles });
-                if (configurationAlreadyLoaded) {
-                    await promise;
-                }
-            }
-
-            if (needsToplayMusic) {
-                // story will be queued after
-                this.bluetoothHandler.playMusic(storyIndex, !configurationAlreadyLoaded);
-            }
-            if (!configurationAlreadyLoaded) {
-                const configsInMemory = currentConfigs
-                    .map((c) => c.name)
-                    .map((s) => parseInt(s, 10))
-                    .filter((s) => !isNaN(s));
-                const alreadyPlayedStoriesInMemory = configsInMemory.filter((value) => this._playedHistory.includes(value));
-                DEV_LOG && console.log('alreadyPlayedStoriesInMemory', alreadyPlayedStoriesInMemory);
-
-                let memory = await this.bluetoothHandler.getMemory();
-                let availableSpace = memory.freeSpace;
-                let needToGetMemoryAgain = false;
-
-                const deleteConfig = async (configToRemove: string) => {
-                    needToGetMemoryAgain = true;
-                    const configData = currentConfigs.find((d) => d.name === `${configToRemove}`);
-                    const configIndex = currentConfigs.findIndex((d) => d.name === `${configToRemove}`);
-                    DEV_LOG && console.log('deleting config to get space', availableSpace, configToRemove, JSON.stringify(configData), configIndex);
-                    await this.bluetoothHandler.deleteConfig(configData.name);
-                    if (configIndex !== -1) {
-                        currentConfigs.splice(configIndex, 1);
-                    }
-                    availableSpace += configData.size;
-                    DEV_LOG && console.log('deleting config done', configToRemove, availableSpace);
-                };
-                for (let index = 0; index < alreadyPlayedStoriesInMemory.length; index++) {
-                    const configToRemove = alreadyPlayedStoriesInMemory[index] + '';
-                    // delete already played stories
-                    DEV_LOG && console.log('deleting played config', configToRemove, availableSpace, needToGetMemoryAgain);
-                    await deleteConfig(configToRemove);
-                    DEV_LOG && console.log('deleted played config', configToRemove, availableSpace, needToGetMemoryAgain);
-                }
-                const newStorySize = JSON.parse(File.fromPath(path.join(storyFolder, 'info.json')).readTextSync()).totalImageSize;
-                DEV_LOG && console.log('newStorySize', featureId, newStorySize, availableSpace);
-                while (newStorySize >= availableSpace) {
-                    // we need more space!
-                    const configToRemove = configsInMemory.shift();
-                    await deleteConfig(configToRemove + '');
-                }
-                DEV_LOG && console.log('needToGetMemoryAgain', availableSpace, needToGetMemoryAgain);
-                if (needToGetMemoryAgain) {
-                    // ask glasses memory again to ensue we have enough space!
-                    memory = await this.bluetoothHandler.getMemory(true);
-                }
-                await this.bluetoothHandler.sendConfigToGlasses(storyFolder, memory);
-                await timeout(500);
-                // music is looping we need to stop it
-                this.bluetoothHandler.stopPlayingLoop({ fade: true });
-            }
-            this.bluetoothHandler.canStopStoryPlayback = canStop;
-            if (shouldPlayRideau) {
-                await this.bluetoothHandler.playRideauAndStory(storyIndex);
-            } else {
-                await this.bluetoothHandler.playStory(storyIndex, shouldPlayStart);
-            }
-        } catch (error) {
-            console.error('loadAndPlayStory', error, error.stack);
-            this.notify({ eventName: 'error', data: error });
-        } finally {
-            this.bluetoothHandler.canStopStoryPlayback = false;
-        }
-    }
     async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {
         const insideFeatures = events.filter((e) => e.state !== 'leaving');
         // if (DEV_LOG) {
-        // DEV_LOG &&
-        //     console.log(
-        //         'insideFeatures',
-        //         insideFeatures.length,
-        //         insideFeatures.map((f) => [f.state, f.feature.properties.name])
-        //     );
+        //     DEV_LOG &&
+        //         console.log(
+        //             'insideFeatures',
+        //             insideFeatures.length,
+        //             insideFeatures.map((f) => [f.state, f.feature.properties.name])
+        //         );
         // }
         let featureToEnter;
         if (insideFeatures.length > 1) {
@@ -750,7 +642,7 @@ export class GeoHandler extends Observable {
         if (this._playedPastille.indexOf(rindex) === -1) {
             this._playedPastille.push(rindex);
         }
-        console.log('playedPastille', index, rindex, this._playedPastille, !!this.insideFeature);
+        DEV_LOG && console.log('playedPastille', index, rindex, this._playedPastille, !!this.insideFeature);
         if (this.insideFeature) {
             // we clear insideFeature as this feature is now played and thus
             // we should ignore it and notify of next aiming feature
@@ -762,7 +654,7 @@ export class GeoHandler extends Observable {
         if (this._playedHistory.indexOf(rindex) === -1) {
             this._playedHistory.push(rindex);
         }
-        console.log('playedStory', index, rindex, this._playedHistory, !!this.insideFeature);
+        DEV_LOG && console.log('playedStory', index, rindex, this._playedHistory, !!this.insideFeature);
         if (this.insideFeature) {
             // we clear insideFeature as this feature is now played and thus
             // we should ignore it and notify of next aiming feature
@@ -1178,8 +1070,8 @@ export class GeoHandler extends Observable {
         if (this.sessionState === SessionState.STOPPED) {
             return;
         }
-        DEV_LOG && console.log(TAG, 'stopSession', finish);
         this.bluetoothHandler.stopSession(!finish);
+        DEV_LOG && console.log(TAG, 'stopSession', finish);
         this.actualSessionStop(true);
         this.featuresViewed = [];
         this.insideFeature = null;
