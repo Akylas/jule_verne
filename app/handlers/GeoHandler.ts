@@ -928,6 +928,8 @@ export class GeoHandler extends Observable {
                 } else {
                     this.aimingAngle = Infinity;
                 }
+            } else {
+                this.aimingAngle = Infinity;
             }
             let audioFolder;
             //we are not inside any story feature
@@ -989,10 +991,14 @@ export class GeoHandler extends Observable {
         // DEV_LOG && console.log('onLocation', loc.lat, loc.lon, this.sessionState);
         if (this.lastLocation && getDistance(this.lastLocation, loc) > 1) {
             loc.computedBearing = bearing(this.lastLocation, loc);
+            this.lastLocation = loc;
         } else {
-            loc.computedBearing = this.lastLocation?.computedBearing;
+            // we are not moving. If we stay put for a while let s not give navigation instructions anymore
+            // it will start over as we move
+            if (!this.lastLocation || loc.timestamp - this.lastLocation.timestamp > 30000) {
+                this.lastLocation = loc;
+            }
         }
-        this.lastLocation = loc;
 
         const args = {
             eventName: UserRawLocationEvent,
