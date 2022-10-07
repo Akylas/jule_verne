@@ -1,7 +1,7 @@
 <template>
     <Page :actionBarHidden="true" ref="page" @navigatingFrom="onNavigatingFrom">
         <GridLayout rows="auto,*,auto">
-            <CActionBar :title="$tc('onboarding')" textAlignment="center" modal />
+            <CActionBar :title="$tc('onboarding')" textAlignment="center" modal :goBack="close" />
             <Pager row="1" ref="pager" v-model="selectedPageIndex" disableAnimation disableSwipe @swipe="onPagerSwipeEnd">
                 <PagerItem>
                     <GridLayout v-show="showPage(0)" padding="10 10 10 10">
@@ -109,7 +109,7 @@
                             :autoPlay="true"
                             margin="40"
                             verticalAlignment="top"
-                            horizontalAlignment="right"
+                            horizontalAlignment="center"
                         />
                         <Label row="1" v-show="playingInstructions" :text="$tc('playing_instructions_story')" fontSize="20" fontWeight="bold" textAlignment="center" verticalTextAlignment="center" />
                         <Label
@@ -121,16 +121,7 @@
                             textAlignment="center"
                             verticalTextAlignment="center"
                         />
-                        <MDButton
-                            row="2"
-                            variant="outline"
-                            v-show="lastLocation"
-                            :text="$tc('start')"
-                            @tap="selectedPageIndex += 1"
-                            verticalAlignment="bottom"
-                            horizontalAlignment="center"
-                            marginTop="40"
-                        />
+                        <MDButton row="2" variant="outline" :text="$tc('wait') + '...'" horizontalAlignment="center" isEnabled="false" />
                     </GridLayout>
                 </PagerItem>
             </Pager>
@@ -234,7 +225,7 @@ export default class Onboarding extends FirmwareUpdateComponent {
         this.$modal.close();
     }
 
-    onSkip() {
+    onSkip(e) {
         if (this.selectedPageIndex === Pages.BLE_GPS_GLASSES_STATE) {
             this.selectedPageIndex = Pages.SOUND_TEST;
         } else {
@@ -292,14 +283,26 @@ export default class Onboarding extends FirmwareUpdateComponent {
                 this.bluetoothHandler.drawImageFromPathWithMire(this.configImagePath);
                 break;
             case Pages.FIND_LOCATION_STORY:
+                DEV_LOG && console.log(TAG, 'FIND_LOCATION_STORY');
                 if (this.lastLocation) {
                     this.$modal.close(this.lastLocation);
                 }
                 this.playingInstructions = true;
-                await this.bluetoothHandler.loadAndPlayStory({ storyIndex: 1000, shouldPlayStart: false, shouldPlayRideau: false });
+                await this.bluetoothHandler.loadAndPlayStory({ storyIndex: 1000, shouldPlayStart: false, shouldPlayRideau: false, canStop: true });
                 this.playingInstructions = false;
 
                 break;
+        }
+    }
+
+    setCurrentLocation(location: GeoLocation) {
+        DEV_LOG && console.log(TAG, 'setCurrentLocation', location, location && Date.now() - location.timestamp < 600000);
+        if (!this.lastLocation && location && location.horizontalAccuracy < 10 && Date.now() - location.timestamp < 600000) {
+            this.lastLocation = location;
+
+            if (this.selectedPageIndex === Pages.FIND_LOCATION_STORY) {
+                this.$modal.close(this.lastLocation);
+            }
         }
     }
 
@@ -320,7 +323,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
 
         this.bluetoothHandlerOn(AvailableConfigsEvent, this.onAvailableConfigs, this);
         this.bluetoothHandlerOn(GlassesMemoryChangeEvent, this.onGlassesMemory);
-        this.lastLocation = handlers.geoHandler.lastLocation;
 
         // this.isWatchingLocation = handlers.geoHandler.isWatching();
         this.levelLuminance = handlers.bluetoothHandler.levelLuminance;
@@ -373,13 +375,27 @@ export default class Onboarding extends FirmwareUpdateComponent {
             this.showError(data.error);
             return;
         }
-        if (data.location) {
-            this.lastLocation = data.location;
+        if (data.location && !this.lastLocation) {
+            this.setCurrentLocation(data.location);
+        }
+        if (this.lastLocation) {
             this.stopWatchLocation();
         }
-        if (this.selectedPageIndex === Pages.FIND_LOCATION_STORY) {
-            this.$modal.close(this.lastLocation);
-        }
+    }
+    async startMapSession() {
+        DEV_LOG && console.log(TAG, 'startMapSession', new Error().stack);
+        // const lastLocation = await this.$showModal((await import('~/components/Onboarding.vue')).default, { fullscreen: true, props: { canSkip: !PRODUCTION } });
+        // if (this.forMap) {
+        //     const component = await import('~/components/Map.vue');
+        //     this.$navigateTo(component.default, {
+        //         clearHistory: true
+        //     });
+        // } else {
+        //     const component = await import('~/components/StillAdventure.vue');
+        //     this.$navigateTo(component.default, {
+        //         clearHistory: true
+        //     });
+        // }
     }
     onGlassesDataUpdateDate(event) {
         this.glassesDataUpdateDate = event.data;
