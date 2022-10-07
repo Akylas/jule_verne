@@ -476,7 +476,7 @@ export class GeoHandler extends Observable {
 
             if (value && !playing) {
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
-                DEV_LOG && console.log('insideFeature', name, this._playedHistory);
+                // DEV_LOG && console.log('insideFeature', name, this._playedHistory);
                 if (name === 'exit' && !this._playedHistory.length) {
                     this._insideFeature = null;
                     return;
@@ -1099,10 +1099,10 @@ export class GeoHandler extends Observable {
     }
     async startSession() {
         this.actualSessionStart(true);
-        await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
-        if (PRODUCTION) {
-            return this.bluetoothHandler.playInstruction('start', { force: true });
-        }
+        // await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+        // if (PRODUCTION) {
+        //     return this.bluetoothHandler.playInstruction('start', { force: true });
+        // }
         const currentConfigs = this.bluetoothHandler.currentConfigs;
         const needsToLoadNav = currentConfigs?.findIndex((c) => c.name === 'nav') === -1;
         if (needsToLoadNav) {
