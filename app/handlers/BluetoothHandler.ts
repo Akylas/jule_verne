@@ -1340,7 +1340,7 @@ export class BluetoothHandler extends Observable {
         if (instruction && !this.isPlayingNavigationInstruction) {
             return;
         }
-        DEV_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this.mPlayer.isAudioPlaying(), this.isPlayingStory, this.isPlayingPastille, new Error().stack);
+        DEV_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this.mPlayer.isAudioPlaying(), this.isPlayingStory, this.isPlayingPastille);
         this.isPlaying = false;
         this.isPlayingPaused = false;
         this.isPlayingMusic = false;
