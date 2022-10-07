@@ -5,8 +5,8 @@
             <GlassesIcon :glasses="connectedGlasses" :battery="glassesBattery" verticalAlignment="top" horizontalAlignment="right" />
             <GridLayout :backgroundColor="backgroundColor" v-show="showStartText" row="1" margin="20" padding="20" borderRadius="30" verticalAlignment="center" rows="auto,auto">
                 <Label textAlignment="center" fontSize="20">
-                    <CSPan :text="$tc('all_good_title')" fontWeight="bold" />
-                    <CSPan :text="'\n\n' + $tc('all_good_desc')" />
+                    <SPan :text="$tc('all_good_title')" fontWeight="bold" />
+                    <SPan :text="'\n\n' + $tc('all_good_desc')" />
                 </Label>
                 <MDButton row="1" marginTop="20" :text="$tc('lets_go')" @tap="showStartText = false" horizontalAlignment="center" />
             </GridLayout>
