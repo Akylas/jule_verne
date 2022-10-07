@@ -476,8 +476,8 @@ export class GeoHandler extends Observable {
 
             if (value && !playing) {
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
-                // DEV_LOG && console.log('insideFeature', name, this._playedHistory);
-                if (name === 'exit' && !this._playedHistory.length) {
+                DEV_LOG && console.log('insideFeature', name, this._playedHistory);
+                if (name === 'exit' && this._playedHistory.length <= 1) {
                     this._insideFeature = null;
                     return;
                 }
