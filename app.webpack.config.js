@@ -50,8 +50,8 @@ module.exports = (env, params = {}) => {
             {},
             {
                 production: true,
-                sentry: true,
-                uploadSentry: true,
+                sentry: false,
+                uploadSentry: false,
                 noconsole: true,
                 sourceMap: true,
                 uglify: true
