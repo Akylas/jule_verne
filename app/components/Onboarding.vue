@@ -91,12 +91,12 @@
                     <GridLayout v-show="showPage(4)" padding="10" rows="auto,auto,auto,auto,auto,auto,*,auto">
                         <Label :text="$tc('place_audio_headphones')" fontSize="20" fontWeight="bold" textAlignment="center" />
 
-                        <Label row="1" text="mdi-music" class="mdi" fontSize="140" textAlignment="center" marginTop="20" marginBottom="40" />
+                        <Label row="1" text="mdi-music" class="mdi" fontSize="140" textAlignment="center" marginTop="20" marginBottom="20" />
                         <Label row="2" :text="$tc('play_test_desc')" fontSize="20" textAlignment="center" width="70%" />
                         <MDButton variant="outline" row="3" :text="$tc('play_test')" @tap="() => playAudioTest()" horizontalAlignment="center" />
                         <Slider id="volume" row="4" margin="10 20 10 20" :value="volume" @valueChange="onSliderChange('volume', $event)" icon="mdi-volume-high" />
                         <Label row="5" :text="$tc('adjust_volume')" fontSize="16" textAlignment="center" width="70%" />
-                        <MDButton variant="outline" row="7" :text="forMap ? $tc('volume_ok') : $tc('finish')" @tap="onAudioDone" horizontalAlignment="center" marginTop="40" />
+                        <MDButton variant="outline" row="7" :text="forMap ? $tc('volume_ok') : $tc('finish')" @tap="onAudioDone" horizontalAlignment="center" />
                     </GridLayout>
                 </PagerItem>
                 <PagerItem>
@@ -134,8 +134,18 @@
                     </GridLayout>
                 </PagerItem>
             </Pager>
-            <MDButton row="2" horizontalAlignment="left" verticalAlignment="center" v-show="canGoBack" variant="text" class="actionBarButton" text="mdi-chevron-left" marginLeft="10" />
-            <PageIndicator row="2" horizontalAlignment="center" :count="forMap ? 6 : 5" :selectedIndex="selectedPageIndex" marginTop="10" marginBottom="20" />
+            <MDButton
+                row="2"
+                horizontalAlignment="left"
+                verticalAlignment="center"
+                :visibility="canGoBack ? 'visible' : 'hidden'"
+                variant="text"
+                class="actionBarButton"
+                text="mdi-chevron-left"
+                marginLeft="10"
+                @tap="selectedPageIndex -= 1"
+            />
+            <PageIndicator row="2" horizontalAlignment="center" :count="forMap ? 6 : 5" :selectedIndex="selectedPageIndex" verticalAlignment="center" />
             <MDButton variant="text" v-show="!forMap || canSkip" :text="$tc('skip')" row="2" horizontalAlignment="right" verticalAlignment="bottom" @tap="onSkip" margin="5" :color="textColor" />
         </GridLayout>
     </Page>
@@ -225,7 +235,11 @@ export default class Onboarding extends FirmwareUpdateComponent {
     }
 
     onSkip() {
-        this.$modal.close(true);
+        if (this.selectedPageIndex === Pages.BLE_GPS_GLASSES_STATE) {
+            this.selectedPageIndex = Pages.SOUND_TEST;
+        } else {
+            this.$modal.close(true);
+        }
     }
 
     get connectingGlassesText() {
