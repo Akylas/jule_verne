@@ -401,6 +401,7 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
             return;
         }
         const loc = data.location;
+        delete loc.altitude;
         this.updateUserLocation(loc);
         const feature = data.aimingFeature;
         if (feature) {
