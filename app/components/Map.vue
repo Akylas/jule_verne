@@ -10,6 +10,7 @@
                 </Label>
                 <MDButton row="1" marginTop="20" :text="$tc('lets_go')" @tap="showStartText = false" horizontalAlignment="center" />
             </GridLayout>
+            <MDButton horizontalAlignment="center" verticalAlignment="bottom" class="playerButton" :text="sessionPaused ? 'mdi-play' : 'mdi-pause'" @tap="toggleSessionState" />
         </GridLayout>
     </Page>
 </template>
@@ -72,6 +73,9 @@ export default class Map extends GlassesConnectionComponent {
     get map() {
         const mapComp = this.$refs.mapComp as MapComponent;
         return mapComp && mapComp.cartoMap;
+    }
+    get sessionPaused() {
+        return this.currentSessionState === SessionState.PAUSED;
     }
     mounted() {
         super.mounted();
@@ -163,7 +167,7 @@ export default class Map extends GlassesConnectionComponent {
     // }
     onTrackSelected(event: EventData) {
         const track = event['track'] as Track;
-        console.log('onTrackSelected', JSON.stringify(track));
+        // console.log('onTrackSelected', JSON.stringify(track));
         this.selectedTrack = track;
         this.selectedTracks = [track];
         const map = this.map;
@@ -182,7 +186,7 @@ export default class Map extends GlassesConnectionComponent {
 
     @Catch()
     async setup(handlers: BgServiceMethodParams) {
-        DEV_LOG && console.log('Map', 'setup');
+        // DEV_LOG && console.log('Map', 'setup');
         super.setup(handlers);
         if (!handlers.geoHandler) {
             return;
@@ -212,5 +216,12 @@ export default class Map extends GlassesConnectionComponent {
     // onInsideFeature(event: EventData) {
     //     this.insideFeature = event['data'].feature;
     // }
+    toggleSessionState() {
+        if (this.currentSessionState === SessionState.PAUSED) {
+            this.geoHandler.resumeSession();
+        } else if (this.currentSessionState === SessionState.RUNNING) {
+            this.geoHandler.pauseSession();
+        }
+    }
 }
 </script>
