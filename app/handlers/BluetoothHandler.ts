@@ -1722,7 +1722,7 @@ export class BluetoothHandler extends Observable {
         // console.log('playRideauAndStory', this.isPlaying);
         // set it now to make sure we dont play the same story twice
         this.isPlayingStory = storyIndex;
-        await this.playInstruction('rideau', { iterations: 1 });
+        // await this.playInstruction('rideau', { iterations: 1 });
         return this.playStory(storyIndex);
     }
 

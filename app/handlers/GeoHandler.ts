@@ -928,8 +928,8 @@ export class GeoHandler extends Observable {
                 } else {
                     this.aimingAngle = Infinity;
                 }
-            } else {
-                this.aimingAngle = Infinity;
+            // } else {
+                // this.aimingAngle = Infinity;
             }
             let audioFolder;
             //we are not inside any story feature
@@ -993,11 +993,13 @@ export class GeoHandler extends Observable {
             loc.computedBearing = bearing(this.lastLocation, loc);
             this.lastLocation = loc;
         } else {
+            //TODO: to reenable this i must ensure that when a story end we get a first navigation instruction event
+            // if the user is still
             // we are not moving. If we stay put for a while let s not give navigation instructions anymore
             // it will start over as we move
-            if (!this.lastLocation || loc.timestamp - this.lastLocation.timestamp > 30000) {
-                this.lastLocation = loc;
-            }
+            // if (!this.lastLocation || loc.timestamp - this.lastLocation.timestamp > 30000) {
+            //     this.lastLocation = loc;
+            // }
         }
 
         const args = {
