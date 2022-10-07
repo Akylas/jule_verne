@@ -332,14 +332,14 @@ export default class App extends GlassesConnectionComponent {
     }
     onPlayerState(event) {
         const state = event.data;
-        if (PRODUCTION && state === 'play') {
-            const playingInfo = this.bluetoothHandler.playingInfo;
-            if (playingInfo.showPlayBar === true) {
-                this.stepIndex = 1;
-            }
-        } else {
-            this.stepIndex = state === 'stopped' ? 0 : 1;
-        }
+        // if (PRODUCTION && state === 'play') {
+        //     const playingInfo = this.bluetoothHandler.playingInfo;
+        //     if (playingInfo.showPlayBar === true) {
+        //         this.stepIndex = 1;
+        //     }
+        // } else {
+        this.stepIndex = state === 'stopped' ? 0 : 1;
+        // }
         DEV_LOG && console.log(TAG, 'onPlayerState', state, this.stepIndex);
     }
     setup(handlers: BgServiceMethodParams) {
