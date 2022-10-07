@@ -7,7 +7,7 @@ android {
     applicationId "com.akylas.juleverne"
     minSdkVersion 19 
     targetSdkVersion 33
-    versionCode 41
+    versionCode 43
     versionName "1.1.0"
     
     ndk {
