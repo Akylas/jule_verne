@@ -553,14 +553,12 @@ export class GeoHandler extends Observable {
 
     async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {
         const insideFeatures = events.filter((e) => e.state !== 'leaving');
-        // if (DEV_LOG) {
-        //     DEV_LOG &&
-        //         console.log(
-        //             'insideFeatures',
-        //             insideFeatures.length,
-        //             insideFeatures.map((f) => [f.state, f.feature.properties.name])
-        //         );
-        // }
+        DEV_LOG &&
+            console.log(
+                'handleFeatureEvent',
+                insideFeatures.length,
+                insideFeatures.map((f) => [f.state, f.feature.properties.name])
+            );
         let featureToEnter;
         if (insideFeatures.length > 1) {
             let minIndex = 0;
@@ -990,7 +988,7 @@ export class GeoHandler extends Observable {
 
     @bind
     onLocation(loc: GeoLocation, manager?: any) {
-        // DEV_LOG && console.log('onLocation', loc.lat, loc.lon, this.sessionState);
+        DEV_LOG && console.log('onLocation', loc.lat, loc.lon, this.sessionState);
         if (this.lastLocation && getDistance(this.lastLocation, loc) > 1) {
             loc.computedBearing = bearing(this.lastLocation, loc);
             this.lastLocation = loc;
