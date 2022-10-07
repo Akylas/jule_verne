@@ -504,21 +504,23 @@ export class GeoHandler extends Observable {
                 } else {
                     const featureId = (name + '').split('_')[0];
                     const nextStoryIndex = parseInt(featureId, 10);
-                    DEV_LOG && console.log('nextStoryIndex', nextStoryIndex);
-                    const playableStories = Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories'))
-                        .getEntitiesSync()
-                        .filter((s) => Folder.exists(s.path))
-                        .map((e) => parseInt(e.name, 10));
-                    DEV_LOG && console.log('playableStories', playableStories);
-                    if (playableStories.indexOf(nextStoryIndex) !== -1) {
-                        const featuresViewed = this.featuresViewed;
+                    if (!isNaN(nextStoryIndex)) {
+                        DEV_LOG && console.log('nextStoryIndex', nextStoryIndex);
+                        const playableStories = Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories'))
+                            .getEntitiesSync()
+                            .filter((s) => Folder.exists(s.path))
+                            .map((e) => parseInt(e.name, 10));
+                        DEV_LOG && console.log('playableStories', playableStories);
+                        if (playableStories.indexOf(nextStoryIndex) !== -1) {
+                            const featuresViewed = this.featuresViewed;
 
-                        if (featuresViewed.indexOf(featureId) === -1) {
-                            featuresViewed.push(featureId);
-                            featuresViewed.push(featureId + '_out');
+                            if (featuresViewed.indexOf(featureId) === -1) {
+                                featuresViewed.push(featureId);
+                                featuresViewed.push(featureId + '_out');
+                            }
+                            this.featuresViewed = featuresViewed;
+                            this.bluetoothHandler.loadAndPlayStory({ storyIndex: nextStoryIndex });
                         }
-                        this.featuresViewed = featuresViewed;
-                        this.bluetoothHandler.loadAndPlayStory({ storyIndex: nextStoryIndex });
                     }
                 }
 
