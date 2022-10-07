@@ -21,29 +21,16 @@ import BaseVueComponent from './BaseVueComponent';
 
 @Component({})
 export default class ActionBar extends BaseVueComponent {
-    @Prop({
-        default: null
-    })
-    public title: string;
+    @Prop({ default: null }) title: string;
+    @Prop({ default: null }) subtitle: string;
+    @Prop({ default: false, type: Boolean }) showMenuIcon: boolean;
+    @Prop({ default: 'left', type: String }) textAlignment: string;
+    @Prop({ default: false, type: Boolean }) disableBackButton: boolean;
+    @Prop({ default: true }) showLogo: boolean;
+    @Prop({ default: false, type: Boolean }) modal: boolean;
+    @Prop({ type: Function }) goBack: Function;
 
-    @Prop({ default: null })
-    public subtitle: string;
-
-    @Prop({ default: false, type: Boolean })
-    public showMenuIcon: boolean;
-
-    @Prop({ default: 'left', type: String })
-    public textAlignment: string;
-
-    @Prop({ default: false, type: Boolean })
-    public disableBackButton: boolean;
-    // @Prop({ default: false })
     public canGoBack = false;
-
-    @Prop({ default: true })
-    public showLogo: boolean;
-    @Prop({ default: false, type: Boolean })
-    public modal: boolean;
 
     get menuIcon() {
         if (this.modal) {
@@ -67,7 +54,9 @@ export default class ActionBar extends BaseVueComponent {
         }, 0);
     }
     onMenuIcon() {
-        if (this.modal) {
+        if (this.goBack) {
+            this.goBack();
+        } else if (this.modal) {
             this.$modal.close();
         } else {
             if (this.$canGoBack()) {

@@ -107,7 +107,7 @@ export default class BaseVueComponent extends Vue {
         this.$showError(err);
     }
 
-    goBack() {
+    navigateBack() {
         this.$navigateBack();
     }
 
