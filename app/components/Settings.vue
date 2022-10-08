@@ -313,7 +313,7 @@ export default class Settings extends FirmwareUpdateComponent {
                 type: 'switch',
                 title: $t('perStoryMessages'),
                 subtitle: $t('perStoryMessages_desc'),
-                checked: ApplicationSettings.getBoolean('genericStoryMessages', true)
+                checked: ApplicationSettings.getBoolean('perStoryMessages', true)
             },
             {
                 id: 'detectUserStopping',
