@@ -1,6 +1,6 @@
 <template>
     <Page ref="page" :navigateUrl="navigateUrl" @navigatingTo="onNavigatingTo" @navigatingFrom="onNavigatingFrom">
-        <GridLayout backgroundColor="white">
+        <GridLayout>
             <MapComponent ref="mapComp" @mapReady="onMapReady" showLocationButton :tracks="selectedTracks" :viewedFeature="viewedFeatures" />
             <GlassesIcon :glasses="connectedGlasses" :battery="glassesBattery" verticalAlignment="top" horizontalAlignment="right" />
             <GridLayout :backgroundColor="backgroundColor" v-show="showStartText" row="1" margin="20" padding="20" borderRadius="30" verticalAlignment="center" rows="auto,auto">
@@ -11,6 +11,11 @@
                 <MDButton row="1" marginTop="20" :text="$tc('lets_go')" @tap="showStartText = false" horizontalAlignment="center" />
             </GridLayout>
             <MDButton horizontalAlignment="center" verticalAlignment="bottom" class="playerButton" :text="sessionPaused ? 'mdi-play' : 'mdi-pause'" @tap="toggleSessionState" />
+            <GridLayout v-if="devMode">
+                <Label horizontalAlignment="left" color="blue" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentBearing" padding="10" />
+                <Label horizontalAlignment="center" color="black" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="aimingAngle" padding="10" />
+                <Label horizontalAlignment="right" color="red" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentComputedBearing" padding="10" />
+            </GridLayout>
         </GridLayout>
     </Page>
 </template>
@@ -70,12 +75,31 @@ export default class Map extends GlassesConnectionComponent {
     public currentSessionState: SessionState = SessionState.STOPPED;
     public shouldConfirmBack = true;
     public showStartText = true;
+
+    public debug = false;
+    aimingAngle: number = 0;
+
     get map() {
         const mapComp = this.$refs.mapComp as MapComponent;
         return mapComp && mapComp.cartoMap;
     }
     get sessionPaused() {
         return this.currentSessionState === SessionState.PAUSED;
+    }
+    get devMode() {
+        return this.$getDevMode();
+    }
+    get currentBearing() {
+        if (this.lastLocation) {
+            return this.lastLocation.bearing || 0;
+        }
+        return 0;
+    }
+    get currentComputedBearing() {
+        if (this.lastLocation) {
+            return this.lastLocation.computedBearing || 0;
+        }
+        return 0;
     }
     mounted() {
         super.mounted();
@@ -181,6 +205,7 @@ export default class Map extends GlassesConnectionComponent {
             return;
         }
         this.lastLocation = data.location;
+        this.aimingAngle = data.aimingAngle;
         this.searchingLocation = false;
     }
 
