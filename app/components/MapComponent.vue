@@ -397,7 +397,7 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         if (!this.locationEnabled) {
             return;
         }
-        if (data.error) {
+        if (data.error || !data.location) {
             return;
         }
         const loc = data.location;
