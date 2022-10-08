@@ -118,7 +118,6 @@ export default class Home extends GlassesConnectionComponent {
     }
     mounted() {
         super.mounted();
-        this.$onAppMounted();
         appOn('GLASSES_DATA_LASTDATE', this.onGlassesDataUpdateDate, this);
         appOn('MAP_DATA_LASTDATE', this.onMapDataUpdateDate, this);
         appOn('GEOJSON_DATA_LASTDATE', this.onGeojsonDataUpdateDate, this);
