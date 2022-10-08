@@ -42,6 +42,7 @@
                                 variant="outline"
                                 :text="$tc('connect_glasses')"
                                 @tap="() => pickGlasses()"
+                                @longPress="onGlassesBtnLongPress"
                                 horizontalAlignment="center"
                                 textAlignment="center"
                             />
@@ -236,8 +237,20 @@ export default class Onboarding extends FirmwareUpdateComponent {
         }
     }
 
-    get showSkipButton() {
+    get canActualSip() {
         return this.canSkip || (!this.connectingToGlasses && this.selectedPageIndex === Pages.BLE_GPS_GLASSES_STATE);
+    }
+    get showSkipButton() {
+        return this.canSkip;
+    }
+
+    onGlassesBtnLongPress(e) {
+        if (__IOS__ && e?.ios?.state !== 3) {
+            return;
+        }
+        if (this.canActualSip) {
+            this.onSkip(e);
+        }
     }
 
     onSkip(e) {
