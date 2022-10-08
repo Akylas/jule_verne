@@ -50,7 +50,7 @@ export default class GlassesIcon extends BaseVueComponent {
         this.$emit('tapGlass');
     }
     onLongGlassesButton(args: GestureEventData) {
-        if (__IOS__ && args && args.ios && args.ios.state !== 3) {
+        if (__IOS__ && args?.ios?.state !== 3) {
             return;
         }
         this.$emit('longPress', args);
