@@ -134,10 +134,10 @@
                 class="actionBarButton"
                 text="mdi-chevron-left"
                 marginLeft="10"
-                @tap="selectedPageIndex -= 1"
+                @tap="onGoBack"
             />
             <PageIndicator row="2" horizontalAlignment="center" :count="forMap ? 6 : 5" :selectedIndex="selectedPageIndex" verticalAlignment="center" />
-            <MDButton variant="text" v-show="!forMap || canSkip" :text="$tc('skip')" row="2" horizontalAlignment="right" verticalAlignment="bottom" @tap="onSkip" margin="5" :color="textColor" />
+            <MDButton variant="text" v-show="showSkipButton" :text="$tc('skip')" row="2" horizontalAlignment="right" verticalAlignment="bottom" @tap="onSkip" margin="5" :color="textColor" />
         </GridLayout>
     </Page>
 </template>
@@ -225,6 +225,21 @@ export default class Onboarding extends FirmwareUpdateComponent {
         this.$modal.close();
     }
 
+    get canGoBack() {
+        return this.selectedPageIndex >= Pages.PUT_HEADPHONES && this.selectedPageIndex < Pages.FIND_LOCATION_STORY;
+    }
+    onGoBack() {
+        if (!this.connectedGlasses && this.selectedPageIndex === Pages.SOUND_TEST) {
+            this.selectedPageIndex = Pages.BLE_GPS_GLASSES_STATE;
+        } else {
+            this.selectedPageIndex -= 1;
+        }
+    }
+
+    get showSkipButton() {
+        return this.canSkip || (!this.connectingToGlasses && this.selectedPageIndex === Pages.BLE_GPS_GLASSES_STATE);
+    }
+
     onSkip(e) {
         if (this.selectedPageIndex === Pages.BLE_GPS_GLASSES_STATE) {
             this.selectedPageIndex = Pages.SOUND_TEST;
@@ -244,9 +259,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
             }
             return false;
         };
-    }
-    get canGoBack() {
-        return this.selectedPageIndex >= Pages.PUT_HEADPHONES && this.selectedPageIndex < Pages.FIND_LOCATION_STORY;
     }
     setCurrentPage(page: Pages) {
         if (this.selectedPageIndex !== page) {

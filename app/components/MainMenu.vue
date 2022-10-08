@@ -34,8 +34,6 @@ export default class MainMenu extends BgServiceComponent {
     textColor = textColor;
     bluetoothEnabled = true;
     gpsEnabled = true;
-    nbDevModeTap = 0;
-    devModeClearTimer;
     public connectedGlasses: GlassesDevice = null;
     public glassesBattery: number = 0;
 
@@ -51,7 +49,7 @@ export default class MainMenu extends BgServiceComponent {
         switch (command) {
             case 'still_adventure': {
                 await this.geoHandler.enableLocation();
-                const result = await this.$showModal((await import('~/components/Onboarding.vue')).default, { fullscreen: true, props: { forMap: false } });
+                const result = await this.$showModal((await import('~/components/Onboarding.vue')).default, { fullscreen: true, props: { forMap: false, canSkip: !PRODUCTION } });
                 if (result) {
                     const component = (await import('~/components/StillAdventure.vue')).default;
                     await this.$navigateTo(component);
@@ -129,23 +127,5 @@ export default class MainMenu extends BgServiceComponent {
     onGlassesConnected(e: BLEConnectionEventData) {
         const glasses = (this.connectedGlasses = e.data as GlassesDevice);
     }
-
-    // handleDevModeTap() {
-    //     this.nbDevModeTap += 1;
-    //     if (this.devModeClearTimer) {
-    //         clearTimeout(this.devModeClearTimer);
-    //         this.devModeClearTimer = null;
-    //     }
-    //     if (this.nbDevModeTap === 6) {
-    //         this.$switchDevMode();
-    //         this.devMode = this.$getDevMode();
-    //         this.nbDevModeTap = 0;
-    //         return;
-    //     }
-    //     this.devModeClearTimer = setTimeout(() => {
-    //         this.devModeClearTimer = null;
-    //         this.nbDevModeTap = 0;
-    //     }, 500);
-    // }
 }
 </script>
