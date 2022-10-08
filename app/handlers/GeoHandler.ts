@@ -107,7 +107,7 @@ export class GeoHandler extends Observable {
     _playedHistory: number[] = [];
     _playedPastille: number[] = [];
     _featuresViewed: string[] = [];
-    aimingAngle = 0;
+    aimingAngle = Infinity;
     gpsEnabled = true;
     _insideFeature: TrackFeature = null;
     isSessionPaused() {
@@ -160,9 +160,7 @@ export class GeoHandler extends Observable {
         super();
 
         this.dbHandler = new DBHandler();
-        if (DEV_LOG) {
-            console.log(TAG, 'creating GPS Handler', !!geolocation, DEV_LOG);
-        }
+        DEV_LOG && console.log(TAG, 'creating GPS Handler', !!geolocation, DEV_LOG);
         if (!geolocation) {
             geolocation = new GPS();
         }
@@ -250,7 +248,7 @@ export class GeoHandler extends Observable {
                 }
             }
         } catch (err) {
-            console.log('dbHandler', 'start error', err, err.stack);
+            console.error('dbHandler', 'start error', err, err.stack);
             return Promise.reject(err);
         }
     }
@@ -318,6 +316,7 @@ export class GeoHandler extends Observable {
         }
     }
     async openGPSSettings() {
+        DEV_LOG && console.log('openGPSSettings');
         return geolocation.openGPSSettings();
     }
     permResultCheck(r) {
@@ -420,9 +419,7 @@ export class GeoHandler extends Observable {
         return geolocation
             .getCurrentLocation<LatLonKeys>(options || { desiredAccuracy, timeout: gpsTimeout, onDeferred: this.onDeferred, skipPermissionCheck: true })
             .then((r) => {
-                if (DEV_LOG) {
-                    console.log(TAG, 'getLocation', r);
-                }
+                DEV_LOG && console.log(TAG, 'getLocation', r);
                 if (r) {
                     this.notify({
                         eventName: UserRawLocationEvent,
@@ -553,12 +550,12 @@ export class GeoHandler extends Observable {
 
     async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {
         const insideFeatures = events.filter((e) => e.state !== 'leaving');
-        DEV_LOG &&
-            console.log(
-                'handleFeatureEvent',
-                insideFeatures.length,
-                insideFeatures.map((f) => [f.state, f.feature.properties.name])
-            );
+        // DEV_LOG &&
+        //     console.log(
+        //         'handleFeatureEvent',
+        //         insideFeatures.length,
+        //         insideFeatures.map((f) => [f.state, f.feature.properties.name])
+        //     );
         let featureToEnter;
         if (insideFeatures.length > 1) {
             let minIndex = 0;
@@ -914,7 +911,6 @@ export class GeoHandler extends Observable {
                     return name + '' === nextPotentialIndex + '';
                 });
             }
-            // console.log('computedBearing', loc.computedBearing, loc.hasOwnProperty('computedBearing'), !!this.aimingFeature);
             if (loc.hasOwnProperty('computedBearing') && loc.computedBearing !== undefined) {
                 if (this.aimingFeature) {
                     this.aimingAngle =
@@ -928,8 +924,9 @@ export class GeoHandler extends Observable {
                 } else {
                     this.aimingAngle = Infinity;
                 }
-            // } else {
-                // this.aimingAngle = Infinity;
+                DEV_LOG && console.log('computedBearing', loc.computedBearing, loc.hasOwnProperty('computedBearing'), this.aimingAngle, !!this.aimingFeature);
+            } else {
+                this.aimingAngle = Infinity;
             }
             let audioFolder;
             //we are not inside any story feature
@@ -988,18 +985,31 @@ export class GeoHandler extends Observable {
 
     @bind
     onLocation(loc: GeoLocation, manager?: any) {
-        DEV_LOG && console.log('onLocation', loc.lat, loc.lon, this.sessionState);
-        if (this.lastLocation && getDistance(this.lastLocation, loc) > 1) {
-            loc.computedBearing = bearing(this.lastLocation, loc);
+        DEV_LOG &&
+            console.log(
+                'onLocation',
+                loc.lat,
+                loc.lon,
+                loc.computedBearing,
+                this.sessionState,
+                this.lastLocation && getDistance(this.lastLocation, loc),
+                this.lastLocation && loc.timestamp - this.lastLocation.timestamp
+            );
+        if (!this.lastLocation) {
             this.lastLocation = loc;
         } else {
-            //TODO: to reenable this i must ensure that when a story end we get a first navigation instruction event
-            // if the user is still
-            // we are not moving. If we stay put for a while let s not give navigation instructions anymore
-            // it will start over as we move
-            // if (!this.lastLocation || loc.timestamp - this.lastLocation.timestamp > 30000) {
-            //     this.lastLocation = loc;
-            // }
+            const detectUserStopping = ApplicationSettings.getBoolean('detectUserStopping', false);
+            if (getDistance(this.lastLocation, loc) > 1) {
+                loc.computedBearing = bearing(this.lastLocation, loc);
+                DEV_LOG && console.log('computed bearing', this.lastLocation, loc, getDistance(this.lastLocation, loc), loc.computedBearing);
+                this.lastLocation = loc;
+            } else if (detectUserStopping && loc.timestamp - this.lastLocation.timestamp > 30000) {
+                // the user stopped moving we reset and wait for him to move
+                this.lastLocation = loc;
+            } else if (!detectUserStopping) {
+                loc.computedBearing = this.lastLocation.computedBearing;
+                this.lastLocation = loc;
+            }
         }
 
         const args = {
@@ -1009,7 +1019,7 @@ export class GeoHandler extends Observable {
         } as UserLocationdEventData;
         // ensure we update before notifying
         if (this.sessionState === SessionState.RUNNING) {
-            this.updateTrackWithLocation(loc);
+            this.updateTrackWithLocation(this.lastLocation);
             Object.assign(args, {
                 aimingFeature: this.aimingFeature,
                 aimingAngle: this.aimingAngle,
@@ -1028,9 +1038,7 @@ export class GeoHandler extends Observable {
     }
     @bind
     onLocationError(err: Error) {
-        if (DEV_LOG) {
-            console.log(TAG, ' location error: ', err);
-        }
+        DEV_LOG && console.log(TAG, ' location error: ', err);
         this.notify({
             eventName: UserRawLocationEvent,
             object: this,
@@ -1088,7 +1096,8 @@ export class GeoHandler extends Observable {
         this.aimingAngle = Infinity;
     }
     async pauseSession() {
-        this.actualSessionStop();
+        this.setSessionState(SessionState.PAUSED);
+        // this.actualSessionStop();
     }
     async askForSessionPerms() {
         await this.enableLocation();
@@ -1115,8 +1124,9 @@ export class GeoHandler extends Observable {
 
     async resumeSession() {
         if (this.sessionState === SessionState.PAUSED) {
-            await this.enableLocation();
-            this.actualSessionStart();
+            this.setSessionState(SessionState.RUNNING);
+            // await this.enableLocation();
+            // this.actualSessionStart();
         }
     }
     @bind
@@ -1133,9 +1143,7 @@ export class GeoHandler extends Observable {
             }
             // return Promise.resolve().then(() => {
 
-            if (DEV_LOG) {
-                console.log(TAG, 'importJSONString', value, value.length);
-            }
+            DEV_LOG && console.log(TAG, 'importJSONString', value, value.length);
 
             const data = JSON.parse(value);
             return null;

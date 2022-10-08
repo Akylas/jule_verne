@@ -290,6 +290,9 @@ export default class Settings extends FirmwareUpdateComponent {
                 this.bluetoothHandler.switchSensor();
                 this.sensorEnabled = newValue = this.bluetoothHandler.isSensorOn;
                 break;
+            default:
+                ApplicationSettings.setBoolean(item.id, newValue);
+                break;
         }
         const index = this.items.findIndex((i) => i.id === item.id);
         if (index !== -1) {
@@ -311,6 +314,13 @@ export default class Settings extends FirmwareUpdateComponent {
                 title: $t('perStoryMessages'),
                 subtitle: $t('perStoryMessages_desc'),
                 checked: ApplicationSettings.getBoolean('genericStoryMessages', false)
+            },
+            {
+                id: 'detectUserStopping',
+                type: 'switch',
+                title: $t('detectUserStopping'),
+                subtitle: $t('detectUserStopping_desc'),
+                checked: ApplicationSettings.getBoolean('detectUserStopping', false)
             },
             {
                 id: 'instructionRepeatDuration',
