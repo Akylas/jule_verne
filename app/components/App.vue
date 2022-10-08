@@ -69,7 +69,7 @@
             </BottomSheet>
             <GridLayout ~leftDrawer rows="auto,*,auto,auto" height="100%" :backgroundColor="backgroundColor" width="80%">
                 <GridLayout padding="10" rows="auto" columns="*">
-                    <Image horizontalAlignment="center" src="res://logo" height="100" />
+                    <Image horizontalAlignment="center" src="res://logo" height="100" @touch="handleDevModeTap" />
                     <GlassesIcon
                         horizontalAlignment="right"
                         verticalAlignment="top"
@@ -92,7 +92,7 @@
                 </CollectionView>
                 <MDButton :text="$tc('stop')" row="2" v-show="sessionRunning" @tap="stopSession" />
                 <StackLayout row="3" padding="10">
-                    <Label @longPress="$switchDevMode" textWrap textAlignment="center" fontSize="15">
+                    <Label textWrap textAlignment="center" fontSize="15">
                         <Span :text="'Glasses data version: ' + (glassesDataUpdateDate ? date(glassesDataUpdateDate, 'L LT') : $tc('missing'))" />
                         <Span :text="'\n' + 'Map data version: ' + (mapDataUpdateDate ? date(mapDataUpdateDate, 'L LT') : $tc('missing'))" />
                         <Span :text="'\n' + 'GeoJSON version: ' + (geojsonDataUpdateDate ? date(geojsonDataUpdateDate, 'L LT') : $tc('missing'))" />
@@ -523,6 +523,31 @@ export default class App extends GlassesConnectionComponent {
             cancelButtonText: this.$t('cancel')
         });
         this.geoHandler.stopSession(true);
+    }
+
+    nbDevModeTap = 0;
+    devModeClearTimer;
+    handleDevModeTap(event) {
+        if (event.action !== 'down') {
+            return;
+        }
+        console.log('handleDevModeTap', Date.now(), this.nbDevModeTap, event.action);
+        this.nbDevModeTap += 1;
+        if (this.devModeClearTimer) {
+            clearTimeout(this.devModeClearTimer);
+            this.devModeClearTimer = null;
+        }
+        if (this.nbDevModeTap === 6) {
+            this.$switchDevMode();
+            const devMode = this.$getDevMode();
+            this.nbDevModeTap = 0;
+            showSnack({ message: devMode ? $tc('devmode_on') : $tc('devmode_off'), view: this.page });
+            return;
+        }
+        this.devModeClearTimer = setTimeout(() => {
+            this.devModeClearTimer = null;
+            this.nbDevModeTap = 0;
+        }, 500);
     }
 }
 </script>
