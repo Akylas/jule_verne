@@ -36,7 +36,7 @@ import { AndroidActivityBackPressedEventData } from '@nativescript/core/applicat
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { AndroidApplication } from '@nativescript/core/application';
 import { File } from '@nativescript/core/file-system';
-import filesize from 'filesize';
+import {filesize} from 'filesize';
 import { Component, Prop } from 'vue-property-decorator';
 import { BLEConnectionEventData } from '~/handlers/BluetoothHandler';
 import { Catch } from '~/utils';

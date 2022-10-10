@@ -9,7 +9,7 @@ import { EventData, Observable } from '@nativescript/core/data/observable';
 import { Folder, path } from '@nativescript/core/file-system';
 import { AdditiveTweening } from 'additween';
 import dayjs from 'dayjs';
-import fileSize from 'filesize';
+import {filesize} from 'filesize';
 import { Vibrate } from 'nativescript-vibrate';
 import { getUint32 } from '~/handlers/bluetooth/SuotaCharacteristic';
 import { GeoHandler, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
@@ -2137,7 +2137,7 @@ export class BluetoothHandler extends Observable {
                         smallIcon: 'mdi-upload',
                         title: $tc('uploading_story'),
                         notifTitle: $tc('uploading_story_to_glasses', configId),
-                        message: `${fileSize(size, { round: 1, pad: true })}`,
+                        message: `${filesize(size, { round: 1, pad: true })}`,
                         ongoing: true,
                         indeterminate: false,
                         progress: 0,

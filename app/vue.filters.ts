@@ -1,4 +1,4 @@
-import fileSize from 'filesize';
+import {filesize} from 'filesize';
 import VueStringFilter from 'vue-string-filter';
 import { UNITS, convertTime, formatValueToUnit } from '~/helpers/formatter';
 
@@ -15,7 +15,7 @@ const Plugin = {
             return formatValueToUnit(value, unit, isImperial);
         });
         Vue.filter('filesize', function (value: any) {
-            return fileSize(value);
+            return filesize(value);
         });
 
         Vue.filter('date', date);

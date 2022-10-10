@@ -2,7 +2,7 @@ import { ReadResult } from '@nativescript-community/ble';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { AndroidActivityBackPressedEventData, AndroidApplication, Application } from '@nativescript/core';
 import { File } from '@nativescript/core/file-system';
-import filesize from 'filesize';
+import {filesize} from 'filesize';
 import { Component, Prop } from 'vue-property-decorator';
 import {
     SPOTA_GPIO_MAP_UUID,

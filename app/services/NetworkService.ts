@@ -9,7 +9,7 @@ import Vue from 'nativescript-vue';
 import { $t, $tc } from '~/helpers/locale';
 import { getWorkingDir, throttle } from '~/utils/utils';
 import * as ProgressNotification from '~/services/android/ProgressNotifications';
-import fileSize from 'filesize';
+import {filesize} from 'filesize';
 import { Zip } from '@nativescript/zip';
 import { GlassesVersions } from '~/handlers/bluetooth/GlassesDevice';
 
@@ -235,7 +235,7 @@ export class NetworkService extends Observable {
                     icon: 'mdi-glasses',
                     smallIcon: 'mdi-download',
                     title: $tc('downloading_glasses_update', storyId),
-                    message: fileSize(parseInt(headers['content-length'], 10)),
+                    message: filesize(parseInt(headers['content-length'], 10))  as string,
                     ongoing: true,
                     indeterminate: false,
                     progress: 0,
@@ -358,7 +358,7 @@ export class NetworkService extends Observable {
                     icon: 'mdi-map',
                     smallIcon: 'mdi-download',
                     title: $tc('downloading_map_update'),
-                    message: fileSize(parseInt(headers['content-length'], 10)),
+                    message: filesize(parseInt(headers['content-length'], 10)) as string,
                     ongoing: true,
                     indeterminate: false,
                     progress: 0,

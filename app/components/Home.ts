@@ -4,7 +4,7 @@ import { CartoMap } from '@nativescript-community/ui-carto/ui';
 import { Drawer } from '@nativescript-community/ui-drawer';
 import { alert, prompt } from '@nativescript-community/ui-material-dialogs';
 import { AndroidActivityBackPressedEventData, AndroidApplication, Application, ApplicationSettings, EventData, File, Frame, GestureEventData, knownFolders, path } from '@nativescript/core';
-import fileSize from 'filesize';
+import {filesize} from 'filesize';
 import { Component } from 'vue-property-decorator';
 import { BaseVueComponentRefs } from '~/components/BaseVueComponent';
 import { BgServiceMethodParams } from '~/components/BgServiceComponent';
@@ -100,7 +100,7 @@ export default class Home extends GlassesConnectionComponent {
     }
     get availableConfigsLabel() {
         if (this.availableConfigs) {
-            return `${$tc('configs')}:\n${this.availableConfigs.map((c) => `${c.name}: ${fileSize(c.size)}`).join('\n')}`;
+            return `${$tc('configs')}:\n${this.availableConfigs.map((c) => `${c.name}: ${filesize(c.size)}`).join('\n')}`;
         }
         return null;
     }

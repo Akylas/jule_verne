@@ -134,7 +134,7 @@ import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { ApplicationSettings, File, Folder, ImageSource, ObservableArray, Utils, knownFolders, path } from '@nativescript/core';
 import { TouchGestureEventData } from '@nativescript/core/ui';
 import dayjs from 'dayjs';
-import fileSize from 'filesize';
+import {filesize} from 'filesize';
 import { debounce } from 'helpful-decorators';
 import { Component } from 'vue-property-decorator';
 import { BgServiceMethodParams } from '~/components/BgServiceComponent';
@@ -363,7 +363,7 @@ export default class Settings extends FirmwareUpdateComponent {
                     id: 'refreshMemory',
                     type: 'button',
                     title: $t('memory'),
-                    subtitle: $tc('free') + ': ' + fileSize(this.memory?.freeSpace || 0) + ', ' + $tc('total') + ': ' + fileSize(this.memory?.totalSize || 0),
+                    subtitle: $tc('free') + ': ' + filesize(this.memory?.freeSpace || 0) + ', ' + $tc('total') + ': ' + filesize(this.memory?.totalSize || 0),
                     buttonTitle: $t('refresh')
                 },
                 { id: 'addConfig', type: 'header', title: $t('configs'), buttonTitle: $t('add') },
