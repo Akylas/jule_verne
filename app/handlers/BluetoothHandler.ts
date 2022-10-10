@@ -1699,7 +1699,7 @@ export class BluetoothHandler extends Observable {
     }
     lyric: Lyric = null;
 
-    async playRideauAndStory(storyIndex = 1) {
+    async playRideauAndStory(storyIndex = 1, markAsPlayedOnMap = true) {
         if (!this.canDrawOnGlasses) {
             return;
         }
@@ -1714,7 +1714,7 @@ export class BluetoothHandler extends Observable {
         if (this.isPlaying) {
             return new Promise<void>((resolve) => {
                 this.toPlayNext = async () => {
-                    await this.playRideauAndStory(storyIndex);
+                    await this.playRideauAndStory(storyIndex, markAsPlayedOnMap);
                     resolve();
                 };
             });
@@ -1723,7 +1723,7 @@ export class BluetoothHandler extends Observable {
         // set it now to make sure we dont play the same story twice
         this.isPlayingStory = storyIndex;
         // await this.playInstruction('rideau', { iterations: 1 });
-        return this.playStory(storyIndex);
+        return this.playStory(storyIndex, markAsPlayedOnMap);
     }
 
     pausedStoryPlayTime = 0;
@@ -1758,7 +1758,7 @@ export class BluetoothHandler extends Observable {
             }
         }
     }
-    async playStory(index = 1, shouldPlayStop = true, canStopStoryPlayback = false) {
+    async playStory(index = 1, shouldPlayStop = true, canStopStoryPlayback = false, markAsPlayedOnMap = true) {
         if (!this.canDrawOnGlasses) {
             return;
         }
@@ -1766,7 +1766,7 @@ export class BluetoothHandler extends Observable {
         if (this.isPlaying || !this.canDrawOnGlasses) {
             return new Promise<void>((resolve) => {
                 this.toPlayNext = async () => {
-                    await this.playStory(index, shouldPlayStop, canStopStoryPlayback);
+                    await this.playStory(index, shouldPlayStop, canStopStoryPlayback, markAsPlayedOnMap);
                     resolve();
                 };
             });
@@ -1898,7 +1898,7 @@ export class BluetoothHandler extends Observable {
             DEV_LOG && console.log('playStory done ', index, this.isPlaying);
             // mark story as played
 
-            this.geoHandler.playedStory(index + '');
+            this.geoHandler.playedStory(index + '', markAsPlayedOnMap);
             this.notify({ eventName: 'playback', data: 'stopped' });
             if (shouldPlayStop && this.geoHandler.sessionState !== SessionState.STOPPED) {
                 let audioFiles;
@@ -1908,7 +1908,9 @@ export class BluetoothHandler extends Observable {
                         audioFiles = [endingStoryAudio];
                     }
                 }
-                this.playInstruction('story_finished', { audioFiles });
+                if (PRODUCTION) {
+                    this.playInstruction('story_finished', { audioFiles });
+                }
             }
         } catch (err) {
             throw err;
@@ -1924,16 +1926,18 @@ export class BluetoothHandler extends Observable {
 
     async loadAndPlayStory({
         storyIndex,
-        shouldPlayStart = true,
+        shouldPlayStart = PRODUCTION,
         shouldPlayMusic = false,
         shouldPlayRideau = false,
-        canStop = false
+        canStop = false,
+        markAsPlayedOnMap = true
     }: {
         storyIndex: number;
         shouldPlayStart?: boolean;
         shouldPlayMusic?: boolean;
         shouldPlayRideau?: boolean;
         canStop?: boolean;
+        markAsPlayedOnMap?: boolean;
     }) {
         try {
             const wasSessionRunning = this.geoHandler.sessionState !== SessionState.STOPPED;
@@ -2029,9 +2033,9 @@ export class BluetoothHandler extends Observable {
                 this.stopPlayingLoop({ fade: true });
             }
             if (shouldPlayRideau) {
-                await this.playRideauAndStory(storyIndex);
+                await this.playRideauAndStory(storyIndex, markAsPlayedOnMap);
             } else {
-                await this.playStory(storyIndex, shouldPlayStart, canStop);
+                await this.playStory(storyIndex, shouldPlayStart, canStop, markAsPlayedOnMap);
             }
         } catch (error) {
             console.error('loadAndPlayStory', error, error.stack);

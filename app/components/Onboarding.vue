@@ -314,7 +314,7 @@ export default class Onboarding extends FirmwareUpdateComponent {
                     this.$modal.close(this.lastLocation);
                 }
                 this.playingInstructions = true;
-                await this.bluetoothHandler.loadAndPlayStory({ storyIndex: 1000, shouldPlayStart: false, shouldPlayRideau: false, canStop: true });
+                await this.bluetoothHandler.loadAndPlayStory({ storyIndex: 1000, shouldPlayStart: false, shouldPlayRideau: false, canStop: true, markAsPlayedOnMap:false });
                 this.playingInstructions = false;
 
                 break;
