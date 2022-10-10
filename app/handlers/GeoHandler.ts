@@ -474,7 +474,7 @@ export class GeoHandler extends Observable {
             if (value && !playing) {
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
                 DEV_LOG && console.log('insideFeature', name, this._playedHistory);
-                if (name === 'exit' && this._playedHistory.length <= 1) {
+                if (name === 'exit' && this._playedHistory.length  === 0) {
                     this._insideFeature = null;
                     return;
                 }
@@ -495,13 +495,13 @@ export class GeoHandler extends Observable {
                             console.error('playPastille', error, error.stack);
                         }
                     })();
-                    // } else if (name === 'exit' && this._playedHistory.length) {
-                    //     console.log('stopping session because we went back to exit', this._playedHistory);
-                    //     this.stopSession(false);
+                    } else if (name === 'exit' && this._playedHistory.length) {
+                        console.log('stopping session because we went back to exit', this._playedHistory);
+                        this.stopSession(false);
                 } else {
                     const featureId = (name + '').split('_')[0];
                     const nextStoryIndex = parseInt(featureId, 10);
-                    if (!isNaN(nextStoryIndex)) {
+                    if (!isNaN(nextStoryIndex) && this._playedHistory.indexOf(nextStoryIndex) === -1) {
                         DEV_LOG && console.log('nextStoryIndex', nextStoryIndex);
                         const playableStories = Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories'))
                             .getEntitiesSync()
@@ -550,12 +550,12 @@ export class GeoHandler extends Observable {
 
     async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {
         const insideFeatures = events.filter((e) => e.state !== 'leaving');
-        // DEV_LOG &&
-        //     console.log(
-        //         'handleFeatureEvent',
-        //         insideFeatures.length,
-        //         insideFeatures.map((f) => [f.state, f.feature.properties.name])
-        //     );
+        DEV_LOG &&
+            console.log(
+                'handleFeatureEvent',
+                insideFeatures.length,
+                insideFeatures.map((f) => [f.state, f.feature.properties.name])
+            );
         let featureToEnter;
         if (insideFeatures.length > 1) {
             let minIndex = 0;
@@ -646,13 +646,13 @@ export class GeoHandler extends Observable {
             this.insideFeature = null;
         }
     }
-    playedStory(index: string) {
+    playedStory(index: string, markAsPlayedOnMap = true) {
         const rindex = parseInt(index, 10);
-        if (this._playedHistory.indexOf(rindex) === -1) {
+        if (markAsPlayedOnMap && this._playedHistory.indexOf(rindex) === -1) {
             this._playedHistory.push(rindex);
         }
-        DEV_LOG && console.log('playedStory', index, rindex, this._playedHistory, !!this.insideFeature);
-        if (this.insideFeature) {
+        DEV_LOG && console.log('playedStory', index, rindex, this._playedHistory, !!this.insideFeature, markAsPlayedOnMap);
+        if (markAsPlayedOnMap && this.insideFeature) {
             // we clear insideFeature as this feature is now played and thus
             // we should ignore it and notify of next aiming feature
             this.insideFeature = null;
@@ -662,6 +662,7 @@ export class GeoHandler extends Observable {
     mLastPlayedAimingDirection: string;
     mLastPlayedAimingDirectionTime: number;
     updateTrackWithLocation(loc: GeoLocation) {
+        DEV_LOG && console.log('updateTrackWithLocation', this.insideFeature?.properties.name);
         if (this.insideFeature) {
             // we can ignore almost everything while inside a feature(playing story)
             this.mLastPlayedAimingDirectionTime = null;
@@ -696,7 +697,9 @@ export class GeoHandler extends Observable {
                 .sort();
 
             let playedAll = false;
-            if (trackStories.length === this._playedHistory.length) {
+            // _playedHistory also contained 1000
+            // const playedHistory = this._playedHistory.filter(s=>s!==1000);
+            if (trackStories.length === this._playedHistory.length ) {
                 // we are done!
                 playedAll = true;
             }
@@ -717,28 +720,22 @@ export class GeoHandler extends Observable {
                 }
 
                 // used to compute aiming feature
-                if (playedAll) {
-                    if (name === 'exit') {
+                if (feature.properties.isStory === true || isNumber(name) || (playedAll && name === 'exit')) {
+                    const featureId = (name + '').split('_')[0];
+                    if (this._featuresViewed.indexOf(featureId) !== -1) {
+                        return;
+                    }
+                    const storyIndex = parseInt(featureId, 10);
+                    const g = feature.geometry as Polygon;
+                    const dist = distanceToPolygon(currentPosition, g);
+                    // const dist = computeDistanceBetween(feature.geometry.center, currentPosition);
+                    // DEV_LOG && console.log('updateTrackWithLocation in bounds!', name, feature.id, dist, minDist);
+                    if (dist < minDist) {
+                        minDist = dist;
                         minFeature = feature;
                     }
-                } else {
-                    if (feature.properties.isStory === true || isNumber(name)) {
-                        const featureId = (name + '').split('_')[0];
-                        if (this._featuresViewed.indexOf(featureId) !== -1) {
-                            return;
-                        }
-                        const storyIndex = parseInt(featureId, 10);
-                        const g = feature.geometry as Polygon;
-                        const dist = distanceToPolygon(currentPosition, g);
-                        // const dist = computeDistanceBetween(feature.geometry.center, currentPosition);
-                        // DEV_LOG && console.log('updateTrackWithLocation in bounds!', name, feature.id, dist, minDist);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            minFeature = feature;
-                        }
-                        if (nextPotentialIndex === storyIndex) {
-                            nextPotentialIndexDistance = dist;
-                        }
+                    if (nextPotentialIndex === storyIndex) {
+                        nextPotentialIndexDistance = dist;
                     }
                 }
 
@@ -889,20 +886,22 @@ export class GeoHandler extends Observable {
             });
             this.handleFeatureEvent(events);
 
-            // DEV_LOG &&
-            //     console.log(
-            //         'updateTrackWithPosition ',
-            //         JSON.stringify({
-            //             lat: loc.lat,
-            //             lon: loc.lon,
-            //             computedBearing: loc.computedBearing,
-            //             playedAll,
-            //             minDist,
-            //             name: minFeature?.properties.name,
-            //             nextPotentialIndex,
-            //             nextPotentialIndexDistance
-            //         })
-            //     );
+            DEV_LOG &&
+                console.log(
+                    'updateTrackWithPosition ',
+                    JSON.stringify({
+                        lat: loc.lat,
+                        lon: loc.lon,
+                        computedBearing: loc.computedBearing,
+                        trackStories,
+                        _playedHistory:this._playedHistory,
+                        playedAll,
+                        minDist,
+                        name: minFeature?.properties.name,
+                        nextPotentialIndex,
+                        nextPotentialIndexDistance
+                    })
+                );
             if (playedAll || minDist < closestStoryStep || minDist <= nextPotentialIndexDistance / 2) {
                 this.aimingFeature = minFeature;
             } else {
@@ -1089,11 +1088,6 @@ export class GeoHandler extends Observable {
         this.bluetoothHandler.stopSession(!finish);
         DEV_LOG && console.log(TAG, 'stopSession', finish);
         this.actualSessionStop(true);
-        this.featuresViewed = [];
-        this.insideFeature = null;
-        this._playedHistory = [];
-        this._isInTrackBounds = false;
-        this.aimingAngle = Infinity;
     }
     async pauseSession() {
         this.setSessionState(SessionState.PAUSED);
@@ -1109,6 +1103,11 @@ export class GeoHandler extends Observable {
         return this.startSession();
     }
     async startSession() {
+        this.featuresViewed = [];
+        this.insideFeature = null;
+        this._playedHistory = [];
+        this._isInTrackBounds = false;
+        this.aimingAngle = Infinity;
         this.actualSessionStart(true);
         // await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
         // if (PRODUCTION) {
