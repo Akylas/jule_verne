@@ -4,13 +4,16 @@ module.exports = {
     appResourcesPath: 'App_Resources',
     forceLog: true,
     android: {
-        maxLogcatObjectSize: 2048,
         markingMode: 'none',
-        // v8Flags: '--expose_gc',
         codeCache: true,
-        forceLog: true
     },
     cssParser: 'rework',
     appPath: 'app',
-    webpackConfigPath: './app.webpack.config.js'
+    webpackConfigPath: './app.webpack.config.js',
+    hooks: [
+        {
+            type: 'after-prepareNativeApp',
+            script: 'scripts/after-prepareNativeApp.js'
+        }
+    ]
 };

@@ -3,16 +3,29 @@ def BUILD_TOOLS_PATH = "$rootDir/build-tools"
 
 android { 
   compileSdkVersion 33
+  def splitEnabled = (gradle.startParameter.taskNames.contains("assembleDebug") && project.hasProperty('abiFilters')) || project.hasProperty('splitEnabled');
   defaultConfig {
     applicationId "com.akylas.juleverne"
     minSdkVersion 19 
     targetSdkVersion 33
     versionCode 47
     versionName "1.1.0"
+
+    if (project.hasProperty('resConfigs')) {
+      def resConfigs = project.findProperty('resConfigs')
+      reset()
+      include resConfigs.split(',')
+    } else {
+      resConfigs "fr"
+    }
     
     ndk {
-      abiFilters.clear()
-      // abiFilters  'x86_64', 'arm64-v8a', 'armeabi-v7a'
+      if (splitEnabled || project.hasProperty('abiFilters')) {
+        abiFilters.clear()
+        if (!splitEnabled && project.hasProperty('abiFilters')) {
+          abiFilters.addAll(project.findProperty('abiFilters').split(',').collect{it as String})
+        }
+      }
     }
   }
   lintOptions {
@@ -23,18 +36,14 @@ android {
   }
   splits {
       abi {
-          enable gradle.startParameter.taskNames.contains("assembleRelease")
-          reset()
-          include  'armeabi-v7a'
-          universalApk false
+          enable splitEnabled
+          if (project.hasProperty('abiFilters')) {
+            def abis = project.findProperty('abiFilters')
+            reset()
+            include abis.split(',')
+          }
+          universalApk project.hasProperty('universalApk')
       }
-    //   density {
-    //     enable gradle.startParameter.taskNames.contains("assembleRelease")
-    //     // Specify a list of screen densities which Gradle won't create multiple APKs for
-    //     exclude 'ldpi', 'mdpi'
-    //     // Specify a list of compatible screen size for the manifest
-    //     compatibleScreens 'small', 'normal', 'large', 'xlarge'
-    //   }
   }
   aaptOptions {
     additionalParameters "--no-version-vectors"  
@@ -116,3 +125,8 @@ android.applicationVariants.all { variant ->
         }
     }
 }
+// configurations {
+//     all {
+//         exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-ktx'
+//     }
+// }

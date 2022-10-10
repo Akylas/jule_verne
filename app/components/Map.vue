@@ -15,6 +15,18 @@
                 <Label horizontalAlignment="left" color="blue" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentBearing" padding="10" />
                 <Label horizontalAlignment="center" color="black" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="aimingAngle" padding="10" />
                 <Label horizontalAlignment="right" color="red" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentComputedBearing" padding="10" />
+                <Label
+            backgroundColor="rgba(0, 0, 0, 0.533)"
+            borderRadius="10"
+            marginTop="50"
+            padding="4"
+            fontSize="11"
+            textWrap
+            color="white"
+            horizontalAlignment="center"
+            verticalAlignment="top"
+            :text="lastLocationDetails"
+        />
             </GridLayout>
         </GridLayout>
     </Page>
@@ -25,6 +37,7 @@ import { CartoMap } from '@nativescript-community/ui-carto/ui';
 import { confirm } from '@nativescript-community/ui-material-dialogs';
 import { AndroidApplication, Application, Frame } from '@nativescript/core';
 import { AndroidActivityBackPressedEventData } from '@nativescript/core/application';
+import dayjs from 'dayjs';
 import { Component } from 'vue-property-decorator';
 import { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import GlassesIcon from '~/components/GlassesIcon.vue';
@@ -100,6 +113,18 @@ export default class Map extends GlassesConnectionComponent {
             return this.lastLocation.computedBearing || 0;
         }
         return 0;
+    }
+
+
+    get lastLocationDetails() {
+         
+        return this.lastLocation? `
+position:               ${this.lastLocation.lat.toFixed(4)},${this.lastLocation.lon.toFixed(4)}
+horizontalAccuracy:     ${this.lastLocation.horizontalAccuracy.toFixed()}m
+provider:               ${this.lastLocation.provider} 
+speed:                  ${this.lastLocation.hasOwnProperty('speed') ? this.lastLocation.speed.toFixed() : '-'}m/s
+altitude:               ${this.lastLocation.hasOwnProperty('altitude') ? this.lastLocation.altitude.toFixed() : '-'}m
+time:                   ${dayjs(this.lastLocation.timestamp).format('LLL')}`: null;
     }
     mounted() {
         super.mounted();

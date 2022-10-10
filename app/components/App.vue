@@ -10,7 +10,7 @@
                 failOffsetYEnd: 10
             }"
         >
-            <BottomSheet :stepIndex="stepIndex" :steps="[0, 70]" :gestureEnabled="false" ~mainContent>
+            <BottomSheet :stepIndex="stepIndex" :steps="[0, 160]" :gestureEnabled="false" ~mainContent>
                 <StackLayout ref="page" actionBarHidden>
                     <Pager ref="pager" height="0" :items="messages" backgroundColor="#405798" +alias="messageItem">
                         <v-template>
@@ -65,7 +65,9 @@
                         <MainMenu />
                     </Frame>
                 </StackLayout>
-                <BarAudioPlayerWidget ~bottomSheet />
+                <GridLayout ~bottomSheet height="160">
+                <BarAudioPlayerWidget  :verticalAlignment="showingMap?'top':'bottom'"/>
+                </GridLayout>
             </BottomSheet>
             <GridLayout ~leftDrawer rows="auto,*,auto,auto" height="100%" :backgroundColor="backgroundColor" width="80%">
                 <GridLayout padding="10" rows="auto" columns="*">
@@ -190,6 +192,8 @@ export default class App extends GlassesConnectionComponent {
     messageItem: MessageItem;
     menuItem: MenuItem;
 
+    showingMap = false;
+
     appVersion = __APP_VERSION__ + '.' + __APP_BUILD_NUMBER__;
     glassesDataUpdateDate = ApplicationSettings.getNumber('GLASSES_DATA_LASTDATE', null);
     mapDataUpdateDate = ApplicationSettings.getNumber('MAP_DATA_LASTDATE', null);
@@ -279,6 +283,11 @@ export default class App extends GlassesConnectionComponent {
     }
     onDrawerLoaded() {
         Vue.prototype.$drawer = this.drawer;
+    }
+
+    setActivatedUrl(id) {
+        console.log('setActivatedUrl', id)
+        this.showingMap = id === ComponentIds.Map;
     }
 
     sessionsImported = false;

@@ -33,7 +33,7 @@ const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const SentryCliPlugin = require('@sentry/webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 const Fontmin = require('@akylas/fontmin');
-const IgnoreNotFoundExportPlugin = require('./IgnoreNotFoundExportPlugin');
+const IgnoreNotFoundExportPlugin = require('./scripts/IgnoreNotFoundExportPlugin');
 
 function fixedFromCharCode(codePt) {
     if (codePt > 0xffff) {
@@ -53,7 +53,7 @@ module.exports = (env, params = {}) => {
                 sentry: false,
                 uploadSentry: false,
                 noconsole: true,
-                sourceMap: true,
+                sourceMap: false,
                 uglify: true
             },
             env
@@ -66,7 +66,7 @@ module.exports = (env, params = {}) => {
                 sentry: false,
                 uploadSentry: false,
                 sourceMap: false,
-                uglify: false
+                uglify: true
             },
             env
         );
@@ -82,6 +82,8 @@ module.exports = (env, params = {}) => {
         sentry, // --env.sentry
         uploadSentry = true,
         uglify, // --env.uglify
+        profile, // --env.profile
+        timeline, // --env.profile
         noconsole, // --env.noconsole
         reportall, // --env.reportall
         disableUpdates,
@@ -106,6 +108,11 @@ module.exports = (env, params = {}) => {
     const projectRoot = params.projectRoot || __dirname;
     const dist = nsWebpack.Utils.platform.getDistPath();
     const appResourcesFullPath = resolve(projectRoot, appResourcesPath);
+
+    if (profile) {
+        config.profile = true;
+        config.stats = { preset: 'minimal', chunkModules: true, modules: true };
+    }
 
     config.externals.push('~/licenses.json');
     config.externals.push(function ({ context, request }, cb) {
@@ -139,11 +146,11 @@ module.exports = (env, params = {}) => {
         buildNumber = plistData.match(/<key>CFBundleVersion<\/key>[\s\n]*<string>([0-9]*)<\/string>/)[1];
     }
 
-    const locales = readdirSync(join(projectRoot, appPath, 'i18n'))
+    const supportedLocales = readdirSync(join(projectRoot, appPath, 'i18n'))
         .filter((s) => s.endsWith('.json'))
         .map((s) => s.replace('.json', ''));
     const defines = {
-        SUPPORTED_LOCALES: JSON.stringify(locales),
+        SUPPORTED_LOCALES: JSON.stringify(supportedLocales),
         PRODUCTION: !!production,
         process: 'global.process',
         'global.TNS_WEBPACK': 'true',
@@ -170,6 +177,7 @@ module.exports = (env, params = {}) => {
         DEV_LOG: !!devlog,
         TEST_LOGS: !!adhoc || !production
     };
+    Object.assign(config.plugins.find((p) => p.constructor.name === 'DefinePlugin').definitions, defines);
 
     const symbolsParser = require('scss-symbols-parser');
     const mdiSymbols = symbolsParser.parseSymbols(readFileSync(resolve(projectRoot, 'node_modules/@mdi/font/scss/_variables.scss')).toString());
@@ -255,59 +263,9 @@ module.exports = (env, params = {}) => {
         ]
     });
 
-    if (!!production) {
-        config.module.rules.push({
-            // rules to replace mdi icons and not use nativescript-font-icon
-            test: /\.(js)$/,
-            use: [
-                {
-                    loader: 'string-replace-loader',
-                    options: {
-                        search: '__decorate\\(\\[((.|\n)*?)profile,((.|\n)*?)\\],.*?,.*?,.*?\\);?',
-                        replace: (match, p1, offset, str) => '',
-                        flags: 'g'
-                    }
-                }
-            ]
-        });
-        // rules to clean up all Trace in production
-        // we must run it for all files even node_modules
-        config.module.rules.push({
-            test: /\.(ts|js)$/,
-            use: [
-                {
-                    loader: 'string-replace-loader',
-                    options: {
-                        search: 'if\\s*\\(\\s*Trace.isEnabled\\(\\)\\s*\\)',
-                        replace: 'if (false)',
-                        flags: 'g'
-                    }
-                }
-            ]
-        });
-    }
 
     // we remove default rules
     config.plugins = config.plugins.filter((p) => ['CopyPlugin', 'ForkTsCheckerWebpackPlugin'].indexOf(p.constructor.name) === -1);
-
-    config.plugins.push(
-        new webpack.ProvidePlugin({
-            // Buffer: ['buffer', 'Buffer']
-        })
-    );
-    // handle node polyfills
-    // config.externals.push('fs');
-    config.externalsPresets = { node: false };
-    config.resolve.fallback = config.resolve.fallback || {};
-    // config.resolve.fallback.buffer = require.resolve('buffer/');
-    config.resolve.fallback.buffer = false;
-    // config.resolve.fallback.util = require.resolve('util/');
-    config.resolve.fallback.util = false;
-    config.resolve.fallback.path = false;
-    config.resolve.fallback.fs = false;
-    config.resolve.fallback.assert = false;
-    config.resolve.fallback.tty = false;
-    config.resolve.fallback.os = false;
 
     const globOptions = { dot: false, ignore: [`**/${relative(appPath, appResourcesFullPath)}/**`] };
     const context = nsWebpack.Utils.platform.getEntryDirPath();
@@ -323,7 +281,7 @@ module.exports = (env, params = {}) => {
             from: 'node_modules/@mdi/font/fonts/materialdesignicons-webfont.ttf',
             to: 'fonts',
             globOptions,
-            transform: production
+            transform: !!production
                 ? {
                       transformer(content, path) {
                           return new Promise((resolve, reject) => {
@@ -345,29 +303,111 @@ module.exports = (env, params = {}) => {
     ];
     copyPatterns.push({ from: 'test_assets/**/*', to: 'assets/[name][ext]', noErrorOnMissing: false, globOptions });
 
-    Object.assign(config.plugins.find((p) => p.constructor.name === 'DefinePlugin').definitions, defines);
 
     config.plugins.unshift(new CopyWebpackPlugin({ patterns: copyPatterns }));
-    config.plugins.push(new IgnoreNotFoundExportPlugin());
-    config.plugins.push(new webpack.ContextReplacementPlugin(/dayjs[\/\\]locale$/, new RegExp(`(${locales.join('|')})$`)));
-    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /reduce-css-calc$/ }));
-    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /punnycode$/ }));
-    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^url$/ }));
 
     config.plugins.unshift(
         new webpack.ProvidePlugin({
             setTimeout: [require.resolve(coreModulesPackageName + '/timer/index.' + platform), 'setTimeout'],
             clearTimeout: [require.resolve(coreModulesPackageName + '/timer/index.' + platform), 'clearTimeout'],
-            setImmediate: [require.resolve(coreModulesPackageName + '/timer/index.' + platform), 'setImmediate'],
             setInterval: [require.resolve(coreModulesPackageName + '/timer/index.' + platform), 'setInterval'],
             clearInterval: [require.resolve(coreModulesPackageName + '/timer/index.' + platform), 'clearInterval'],
-            FormData: [require.resolve(coreModulesPackageName + '/polyfills/formdata'), 'FormData'],
             requestAnimationFrame: [require.resolve(coreModulesPackageName + '/animation-frame'), 'requestAnimationFrame'],
             cancelAnimationFrame: [require.resolve(coreModulesPackageName + '/animation-frame'), 'cancelAnimationFrame']
         })
     );
-    // config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /sha.js$/ }));
+    config.plugins.push(new webpack.ContextReplacementPlugin(/dayjs[\/\\]locale$/, new RegExp(`(${supportedLocales.join('|')})$`)));
+    config.plugins.push(new IgnoreNotFoundExportPlugin());
 
+    const nativescriptReplace = '(NativeScript[\\/]dist[\\/]packages[\\/]core|@nativescript/core)';
+    config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(/http$/, (resource) => {
+            if (resource.context.match(nativescriptReplace)) {
+                resource.request = '@nativescript-community/https';
+            }
+        })
+    );
+
+    config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(/accessibility$/, (resource) => {
+            if (resource.context.match(nativescriptReplace)) {
+                resource.request = '~/shims/accessibility';
+            }
+        })
+    );
+    config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(/action-bar$/, (resource) => {
+            if (resource.context.match(nativescriptReplace)) {
+                resource.request = '~/shims/action-bar';
+            }
+        })
+    );
+
+    // save as long as we dont use calc in css
+    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /reduce-css-calc$/ }));
+    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /punnycode$/ }));
+    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^url$/ }));
+
+    if (!!production && !timeline) {
+        console.log('removing N profiling');
+        config.plugins.push(
+            new webpack.NormalModuleReplacementPlugin(/profiling$/, (resource) => {
+                if (resource.context.match(nativescriptReplace)) {
+                    resource.request = '~/shims/profile';
+                }
+            }),
+            new webpack.NormalModuleReplacementPlugin(/trace$/, (resource) => {
+                if (resource.context.match(nativescriptReplace)) {
+                    resource.request = '~/shims/trace';
+                }
+            })
+        );
+        config.module.rules.push(
+            {
+                // rules to replace mdi icons and not use nativescript-font-icon
+                test: /\.(js)$/,
+                use: [
+                    {
+                        loader: 'string-replace-loader',
+                        options: {
+                            search: '^__decorate\\(\\[((\\s|\\t|\\n)*?)profile((\\s|\\t|\\n)*?)\\],.*?,.*?,.*?\\);?',
+                            replace: (match, p1, offset, string) => '',
+                            flags: 'gm'
+                        }
+                    }
+                ]
+            },
+            {
+                // rules to replace mdi icons and not use nativescript-font-icon
+                test: /\.(ts)$/,
+                use: [
+                    {
+                        loader: 'string-replace-loader',
+                        options: {
+                            search: '@profile',
+                            replace: (match, p1, offset, string) => '',
+                            flags: ''
+                        }
+                    }
+                ]
+            },
+            // rules to clean up all Trace in production
+            // we must run it for all files even node_modules
+            {
+                test: /\.(ts|js)$/,
+                use: [
+                    {
+                        loader: 'string-replace-loader',
+                        options: {
+                            search: 'if\\s*\\(\\s*Trace.isEnabled\\(\\)\\s*\\)',
+                            replace: 'if (false)',
+                            flags: 'g'
+                        }
+                    }
+                ]
+            }
+        );
+    }
     if (hiddenSourceMap || sourceMap) {
         if (!!sentry && !!uploadSentry) {
             config.devtool = false;
@@ -411,11 +451,11 @@ module.exports = (env, params = {}) => {
         new TerserPlugin({
             parallel: true,
             terserOptions: {
-                ecma: 2017,
-                module: false,
+                ecma: isAndroid ? 2020 : 2017,
+                module: true,
                 toplevel: false,
-                keep_classnames: false,
-                keep_fnames: false,
+                keep_classnames: platform !== 'android',
+                keep_fnames: platform !== 'android',
                 output: {
                     comments: false,
                     semicolons: !isAnySourceMapEnabled
@@ -432,8 +472,8 @@ module.exports = (env, params = {}) => {
                     // when these options are enabled
                     collapse_vars: platform !== 'android',
                     sequences: platform !== 'android',
-                    passes: 2,
-                    drop_console: production && !sentry && noconsole
+                    passes: 3,
+                    drop_console: production && noconsole
                 }
             }
         })

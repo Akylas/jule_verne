@@ -1,20 +1,6 @@
 <template>
     <GridLayout width="100%" height="100%">
         <CartoMap ref="mapView" zoom="16" @mapReady="onMapReady" @mapMoved="onMapMove" />
-        <!-- <Label
-            v-if="devMode && mLastUserLocation"
-            backgroundColor="rgba(0, 0, 0, 0.533)"
-            borderRadius="10"
-            marginTop="4"
-            padding="4"
-            fontSize="11"
-            textWrap
-            color="white"
-            horizontalAlignment="center"
-            verticalAlignment="top"
-            :text="lastLocationDetails"
-        /> -->
-
         <GridLayout
             v-if="locationEnabled && showLocationButton"
             class="floating-btn"
@@ -104,18 +90,7 @@ export default class MapComponent extends BgServiceComponent {
     }
 
     get lastKnownLocation() {
-        const lastKnown = this.geoHandler && this.geoHandler.getLastKnownLocation();
-        return lastKnown || { lat: 45.2002, lon: 5.7222 };
-    }
-
-    get lastLocationDetails() {
-        return `
-position:               ${this.mLastUserLocation.lat.toFixed(4)},${this.mLastUserLocation.lon.toFixed(4)}
-horizontalAccuracy:     ${this.mLastUserLocation.horizontalAccuracy.toFixed()}m
-provider:               ${this.mLastUserLocation.provider} 
-speed:                  ${this.mLastUserLocation.hasOwnProperty('speed') ? this.mLastUserLocation.speed.toFixed() : '-'}m/s
-altitude:               ${this.mLastUserLocation.hasOwnProperty('altitude') ? this.mLastUserLocation.altitude.toFixed() : '-'}m
-time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
+        return this.geoHandler?.getLastKnownLocation() || { lat: 45.2002, lon: 5.7222 };
     }
     destroyed() {
         super.destroyed();
@@ -568,10 +543,6 @@ time:                   ${this.formatDate(this.mLastUserLocation.timestamp)}`;
         } else if (this.localVectorDataSource) {
             // this.geoJSONVectorDataSource.clear();
         }
-    }
-
-    formatDate(timestamp: number) {
-        return dayjs(timestamp).format('LLL');
     }
 }
 </script>

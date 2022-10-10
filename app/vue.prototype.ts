@@ -87,28 +87,14 @@ const Plugin = {
             }
             const oldActiveUrl = activatedUrl;
             activatedUrl = id;
-            // if (oldActiveUrl) {
-            //     const index = menuItems.findIndex((d) => d.url === oldActiveUrl);
-            //     if (index !== -1) {
-            //         const item = menuItems.getItem(index);
-            //         item.activated = false;
-            //         menuItems.setItem(index, item);
-            //     }
-            // }
-            // if (activatedUrl) {
-            //     const index = menuItems.findIndex((d) => d.url === activatedUrl);
-            //     if (index !== -1) {
-            //         const item = menuItems.getItem(index);
-            //         item.activated = true;
-            //         menuItems.setItem(index, item);
-            //     }
-            // }
+            appComponent?.setActivatedUrl?.(activatedUrl);
         }
 
         Vue.prototype.$onAppMounted = function (app: App) {
             appComponent = app;
             Frame.topmost().on(Page.navigatedToEvent, onPageNavigation);
         };
+
         function onPageNavigation(event) {
             if (!event.entry.resolvedPage) {
                 return;

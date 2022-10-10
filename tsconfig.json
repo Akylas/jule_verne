@@ -5,7 +5,7 @@
         "moduleResolution": "node",
         "declaration": false,
         "removeComments": false,
-        "emitDecoratorMetadata": true,
+        "emitDecoratorMetadata": false,
         "experimentalDecorators": true,
         "sourceMap": true,
         "skipLibCheck": true,
@@ -19,13 +19,11 @@
         "noImplicitReturns": false,
         "noImplicitUseStrict": false,
         "noFallthroughCasesInSwitch": true,
+        "resolveJsonModule": true,
         "types": ["node", "vue", "geojson"],
         "baseUrl": ".",
         "paths": {
-            "~/*": ["app/*"],
-            "@nativescript/core": ["./node_modules/@akylas/nativescript"],
-            "tns-core-modules": ["./node_modules/@akylas/nativescript"],
-            "tns-core-modules/*": ["./node_modules/@akylas/nativescript/*"]
+            "~/*": ["app/*"]
         },
         "plugins": [{ "transform": "@nativescript/webpack/dist/transformers/NativeClass", "type": "raw" }]
 

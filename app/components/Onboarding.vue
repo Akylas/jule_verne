@@ -122,7 +122,9 @@
                             textAlignment="center"
                             verticalTextAlignment="center"
                         />
-                        <MDButton row="2" variant="outline" :text="$tc('wait') + '...'" horizontalAlignment="center" isEnabled="false" />
+                        <MDButton row="2" variant="outline" :text="$tc('wait') + '...'" horizontalAlignment="center"
+                                @longPress="onSkip"
+                         />
                     </GridLayout>
                 </PagerItem>
             </Pager>
@@ -167,8 +169,7 @@ export enum Pages {
     PUT_HEADPHONES = 2,
     IMAGE_TEST = 3,
     SOUND_TEST = 4,
-    FIND_LOCATION_STORY = 5,
-    READY = 6
+    FIND_LOCATION_STORY = 5
 }
 
 const TAG = '[Onboarding]';
