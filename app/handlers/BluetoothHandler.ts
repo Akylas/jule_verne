@@ -1772,6 +1772,10 @@ export class BluetoothHandler extends Observable {
             });
         }
         try {
+            if (this.geoHandler.isStoryPlayed(index)) {
+                DEV_LOG && console.error('trying to play already played story', index, new Error().stack);
+                return;
+            }
             const cfgId = index + '';
             const storyFolder = path.join(getGlassesImagesFolder(), 'stories', cfgId);
             DEV_LOG && console.log('storyFolder', storyFolder, Folder.exists(storyFolder));
