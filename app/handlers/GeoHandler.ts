@@ -474,7 +474,7 @@ export class GeoHandler extends Observable {
             if (value && !playing) {
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
                 DEV_LOG && console.log('insideFeature', name, this._playedHistory);
-                if (name === 'exit' && this._playedHistory.length  === 0) {
+                if (name === 'exit' && this._playedHistory.length === 0) {
                     this._insideFeature = null;
                     return;
                 }
@@ -495,13 +495,13 @@ export class GeoHandler extends Observable {
                             console.error('playPastille', error, error.stack);
                         }
                     })();
-                    } else if (name === 'exit' && this._playedHistory.length) {
-                        console.log('stopping session because we went back to exit', this._playedHistory);
-                        this.stopSession(false);
+                } else if (name === 'exit' && this._playedHistory.length) {
+                    console.log('stopping session because we went back to exit', this._playedHistory);
+                    this.stopSession(false);
                 } else {
                     const featureId = (name + '').split('_')[0];
                     const nextStoryIndex = parseInt(featureId, 10);
-                    if (!isNaN(nextStoryIndex) && this._playedHistory.indexOf(nextStoryIndex) === -1) {
+                    if (!isNaN(nextStoryIndex) && !this.isStoryPlayed(nextStoryIndex)) {
                         DEV_LOG && console.log('nextStoryIndex', nextStoryIndex);
                         const playableStories = Folder.fromPath(path.join(getGlassesImagesFolder(), 'stories'))
                             .getEntitiesSync()
@@ -516,7 +516,7 @@ export class GeoHandler extends Observable {
                                 featuresViewed.push(featureId + '_out');
                             }
                             this.featuresViewed = featuresViewed;
-                            this.bluetoothHandler.loadAndPlayStory({ storyIndex: nextStoryIndex });
+                            this.bluetoothHandler.loadAndPlayStory({ storyIndex: nextStoryIndex, canStop: this.isStoryPlayed(nextStoryIndex) });
                         }
                     }
                 }
@@ -646,9 +646,12 @@ export class GeoHandler extends Observable {
             this.insideFeature = null;
         }
     }
+    isStoryPlayed(index: number) {
+        return this._playedHistory.indexOf(index) !== -1;
+    }
     playedStory(index: string, markAsPlayedOnMap = true) {
         const rindex = parseInt(index, 10);
-        if (markAsPlayedOnMap && this._playedHistory.indexOf(rindex) === -1) {
+        if (markAsPlayedOnMap && !this.isStoryPlayed(rindex)) {
             this._playedHistory.push(rindex);
         }
         DEV_LOG && console.log('playedStory', index, rindex, this._playedHistory, !!this.insideFeature, markAsPlayedOnMap);
@@ -699,13 +702,13 @@ export class GeoHandler extends Observable {
             let playedAll = false;
             // _playedHistory also contained 1000
             // const playedHistory = this._playedHistory.filter(s=>s!==1000);
-            if (trackStories.length === this._playedHistory.length ) {
+            if (trackStories.length === this._playedHistory.length) {
                 // we are done!
                 playedAll = true;
             }
             let nextPotentialIndex = Math.max(0, ...this._playedHistory) + 1;
             for (let index = nextPotentialIndex; index > 0; index--) {
-                if (this._playedHistory.indexOf(index) === -1) {
+                if (!this.isStoryPlayed(index)) {
                     nextPotentialIndex = index;
                 }
             }
@@ -894,7 +897,7 @@ export class GeoHandler extends Observable {
                         lon: loc.lon,
                         computedBearing: loc.computedBearing,
                         trackStories,
-                        _playedHistory:this._playedHistory,
+                        _playedHistory: this._playedHistory,
                         playedAll,
                         minDist,
                         name: minFeature?.properties.name,
