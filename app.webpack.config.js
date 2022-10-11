@@ -86,7 +86,7 @@ module.exports = (env, params = {}) => {
         timeline, // --env.profile
         noconsole, // --env.noconsole
         reportall, // --env.reportall
-        disableUpdates,
+        disableupdates,
         usecrop, // --env.usecrop
         devlog, // --env.devlog
         adhoc // --env.adhoc
@@ -172,7 +172,7 @@ module.exports = (env, params = {}) => {
         UPDATE_DATA_DEFAULT_URL: '"https://nextcloud.akylas.fr/index.php/s/dB8weHEM5EzxNW7/download"',
         SENTRY_PREFIX: `"${!!sentry ? process.env.SENTRY_PREFIX : ''}"`,
         NO_CONSOLE: noconsole,
-        DISABLE_UPDATES: disableUpdates,
+        DISABLE_UPDATES: disableupdates,
         __FORCE_BUG_REPORT__: !!reportall,
         DEV_LOG: !!devlog,
         TEST_LOGS: !!adhoc || !production
@@ -263,7 +263,6 @@ module.exports = (env, params = {}) => {
         ]
     });
 
-
     // we remove default rules
     config.plugins = config.plugins.filter((p) => ['CopyPlugin', 'ForkTsCheckerWebpackPlugin'].indexOf(p.constructor.name) === -1);
 
@@ -302,7 +301,6 @@ module.exports = (env, params = {}) => {
         }
     ];
     copyPatterns.push({ from: 'test_assets/**/*', to: 'assets/[name][ext]', noErrorOnMissing: false, globOptions });
-
 
     config.plugins.unshift(new CopyWebpackPlugin({ patterns: copyPatterns }));
 
