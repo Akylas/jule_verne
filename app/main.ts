@@ -43,49 +43,6 @@ if (!global.window) {
     }
 }
 
-if (__ANDROID__) {
-    (global as any).setInterval = (handler, timeout, ...args) => {
-        timeout += 0;
-        const invoke = () => handler(...args);
-        const zoneBound = zonedCallback(invoke);
-        return (global as any).__setInterval(() => {
-            zoneBound();
-        }, timeout || 0);
-    };
-    (global as any).clearInterval = (global as any).__clearInterval;
-    (global as any).setTimeout = (handler, timeout, ...args) => {
-        timeout += 0;
-        const invoke = () => handler(...args);
-        const zoneBound = zonedCallback(invoke);
-        return (global as any).__setTimeout(() => {
-            zoneBound();
-        }, timeout || 0);
-    };
-
-    (global as any).clearTimeout = (global as any).__clearTimeout;
-}
-
-// if (__ANDROID__) {
-//     (global as any).setInterval = (handler, timeout, ...args) => {
-//         timeout += 0;
-//         const invoke = () => handler(...args);
-//         const zoneBound = zonedCallback(invoke);
-//         return (global as any).__setInterval(() => {
-//             zoneBound();
-//         }, timeout || 0);
-//     };
-//     (global as any).clearInterval = (global as any).__clearInterval;
-//     (global as any).setTimeout = (handler, timeout, ...args) => {
-//         timeout += 0;
-//         const invoke = () => handler(...args);
-//         const zoneBound = zonedCallback(invoke);
-//         return (global as any).__setTimeout(() => {
-//             zoneBound();
-//         }, timeout || 0);
-//     };
-
-//     (global as any).clearTimeout = (global as any).__clearTimeout;
-// }
 const crashReportService = new CrashReportService();
 // start it as soon as possible
 crashReportService.start();
