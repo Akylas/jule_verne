@@ -1,13 +1,17 @@
 <template>
     <Page ref="page" id="history" :navigateUrl="navigateUrl">
-        <GridLayout rows="auto,*">
-            <CActionBar showMenuIcon />
-            <StackLayout row="1" horizontalAlignment="center" verticalAlignment="center" width="100%">
-                <Image src="res://grenoble_full" stretch="aspectFill" height="70%" />
-                <MDButton variant="outline" width="80%" :text="$tc('still_adventure')" @tap="onTap('still_adventure')" />
-                <MDButton variant="outline" width="80%" :text="$tc('jules_verne_adventure')" @tap="onTap('jules_verne_adventure')" />
-                <!-- <MDButton variant="outline" horizontalAlignment="center" :text="$tc('dev_mode')" @tap="onTap('dev_mode')" v-show="devMode" /> -->
-            </StackLayout>
+        <GridLayout rows="auto,*,auto,auto,auto">
+            <CActionBar showMenuIcon>
+                <MDButton variant="text" class="actionBarButton" text="mdi-information-outline" @tap="showPartners" />
+            </CActionBar>
+            <Image row="1" src="res://grenoble_full" stretch="aspectFill" height="70%" />
+            <MDButton row="2" variant="outline" horizontalAlignment="center" width="80%" :text="$tc('still_adventure')" @tap="onTap('still_adventure')" />
+            <MDButton row="3" variant="outline" horizontalAlignment="center" width="80%" :text="$tc('jules_verne_adventure')" @tap="onTap('jules_verne_adventure')" />
+            <GridLayout row="4" width="80%" height="30" rows="*" columns="*,*,*" marginTop="10">
+                <Image src="res://activelook_logo" margin="4" :tintColor="textColor" />
+                <Image col="1" src="res://activemotion_logo" margin="8" :tintColor="textColor" />
+                <Image col="2" src="res://akylas_logo" margin="8" :tintColor="textColor" />
+            </GridLayout>
         </GridLayout>
     </Page>
 </template>
@@ -126,6 +130,12 @@ export default class MainMenu extends BgServiceComponent {
     }
     onGlassesConnected(e: BLEConnectionEventData) {
         const glasses = (this.connectedGlasses = e.data as GlassesDevice);
+    }
+
+    @Catch()
+    async showPartners() {
+        const component = (await import('~/components/Partners.vue')).default;
+        return this.$navigateTo(component);
     }
 }
 </script>
