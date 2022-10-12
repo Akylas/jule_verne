@@ -50,12 +50,20 @@ module.exports = (env, params = {}) => {
             {},
             {
                 production: true,
-                sentry: true,
-                uploadSentry: true,
-                testlog: true,
+                sentry: false,
+                uploadSentry: false,
+                testlog: false,
                 noconsole: true,
-                sourceMap: true,
+                sourceMap: false,
                 uglify: true
+
+                // production: true,
+                // sentry: true,
+                // uploadSentry: true,
+                // testlog: true,
+                // noconsole: false,
+                // sourceMap: true,
+                // uglify: true
             },
             env
         );
@@ -419,7 +427,7 @@ module.exports = (env, params = {}) => {
             );
             config.plugins.push(
                 new SentryCliPlugin({
-                    release: appVersion,
+                    release: `${nconfig.id}@${appVersion}+${buildNumber}`,
                     urlPrefix: 'app:///',
                     rewrite: true,
                     dist: `${buildNumber}.${platform}`,
