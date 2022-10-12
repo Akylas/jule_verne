@@ -82,7 +82,7 @@ lane :build_flavor do |params|
   push_to_git_remote
 
   sh("npm", "run", "sentry-set-commits", "#{version}")
-
+  
   sentry_upload(
     sentry_cli_path: sentry_create_release,
   )
