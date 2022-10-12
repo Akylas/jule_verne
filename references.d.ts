@@ -17,6 +17,7 @@ declare const PRODUCTION: boolean;
 declare const NO_CONSOLE: boolean;
 declare const __FORCE_BUG_REPORT__: boolean;
 declare const DISABLE_UPDATES: boolean;
+declare const SENTRY_ENABLED: boolean;
 declare const SENTRY_DSN: string;
 declare const SENTRY_PREFIX: string;
 declare const UPDATE_DATA_DEFAULT_URL: string;
@@ -27,12 +28,6 @@ declare const __APP_BUILD_NUMBER__: string;
 declare const ACTIVELOOK_INTERNAL_TOKEN: string;
 declare const ACTIVELOOK_BETA_TOKEN: string;
 // declare const process: { env: any };
-
-// Augment the NodeJS global type with our own extensions
-
-declare const gVars: {
-    sentry: boolean;
-};
 
 declare namespace com {
     export namespace akylas {

@@ -285,9 +285,7 @@ export class GeoHandler extends Observable {
 
     onGPSStateChange(e: GPSEvent) {
         const enabled = (this.gpsEnabled = e.data.enabled);
-        if (DEV_LOG) {
-            console.log(TAG, 'GPS state change', enabled);
-        }
+        TEST_LOG && console.log(TAG, 'GPS state change', enabled);
         if (!enabled) {
             this.stopSession(true);
         }
@@ -317,7 +315,7 @@ export class GeoHandler extends Observable {
         }
     }
     async openGPSSettings() {
-        DEV_LOG && console.log('openGPSSettings');
+        TEST_LOG && console.log('openGPSSettings');
         return geolocation.openGPSSettings();
     }
     permResultCheck(r) {

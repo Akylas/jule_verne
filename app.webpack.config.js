@@ -45,7 +45,21 @@ function fixedFromCharCode(codePt) {
 }
 
 module.exports = (env, params = {}) => {
-    if (env.adhoc) {
+    if (env.adhoc_sentry) {
+        env = Object.assign(
+            {},
+            {
+                production: true,
+                sentry: true,
+                uploadSentry: true,
+                testlog: true,
+                noconsole: false,
+                sourceMap: true,
+                uglify: true
+            },
+            env
+        );
+    } else if (env.adhoc) {
         env = Object.assign(
             {},
             {
@@ -56,14 +70,6 @@ module.exports = (env, params = {}) => {
                 noconsole: true,
                 sourceMap: false,
                 uglify: true
-
-                // production: true,
-                // sentry: true,
-                // uploadSentry: true,
-                // testlog: true,
-                // noconsole: false,
-                // sourceMap: true,
-                // uglify: true
             },
             env
         );
@@ -174,7 +180,7 @@ module.exports = (env, params = {}) => {
         __APP_BUILD_NUMBER__: `"${buildNumber}"`,
         'global.__AUTO_REGISTER_UI_MODULES__': false,
         TNS_ENV: JSON.stringify(mode),
-        'gVars.sentry': !!sentry,
+        SENTRY_ENABLED: !!sentry,
         GITLAB_TOKEN: `"${process.env.GITLAB_TOKEN}"`,
         ACTIVELOOK_INTERNAL_TOKEN: `"${process.env.ACTIVELOOK_INTERNAL_TOKEN}"`,
         ACTIVELOOK_BETA_TOKEN: `"${process.env.ACTIVELOOK_BETA_TOKEN}"`,

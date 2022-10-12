@@ -48,7 +48,7 @@ function timelineProfileFunctionFactory(target: any, always: boolean, key?, desc
 import * as SentryType from '@nativescript-community/sentry';
 
 let Sentry: typeof SentryType;
-if (gVars.sentry) {
+if (SENTRY_ENABLED) {
     Sentry = require('@nativescript-community/sentry');
 }
 const originalConsole = {
@@ -80,7 +80,7 @@ function convertArg(arg) {
     }
 }
 function actualLog(level: 'info' | 'log' | 'error' | 'warn' | 'debug', ...args) {
-    if (gVars.sentry) {
+    if (SENTRY_ENABLED) {
         Sentry.addBreadcrumb({
             category: 'console',
             message: args.map(convertArg).join(' '),

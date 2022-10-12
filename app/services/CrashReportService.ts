@@ -162,10 +162,10 @@ export class HTTPError extends CustomError {
 }
 
 export default class CrashReportService extends Observable {
-    @booleanProperty({ default: true }) sentryEnabled: boolean;
+    @booleanProperty({ default: false }) sentryEnabled: boolean;
     sentry: typeof Sentry;
     async start() {
-        if (gVars.sentry && this.sentryEnabled) {
+        if (SENTRY_ENABLED && this.sentryEnabled) {
             try {
                 install();
                 const Sentry = await import('@nativescript-community/sentry');
@@ -185,9 +185,11 @@ export default class CrashReportService extends Observable {
         }
     }
     async enable() {
-        this.sentryEnabled = true;
-        if (!this.sentry) {
-            await this.start();
+        if (SENTRY_ENABLED) {
+            this.sentryEnabled = true;
+            if (!this.sentry) {
+                await this.start();
+            }
         }
     }
     async disable() {

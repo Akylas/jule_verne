@@ -23,7 +23,6 @@ import MixinsPlugin from '~/vue.mixins';
 import PrototypePlugin from '~/vue.prototype';
 import ViewsPlugin from '~/vue.views';
 
-
 // For addiTween
 if (!global.window) {
     window = global.window = {
@@ -45,7 +44,9 @@ if (!global.window) {
 
 const crashReportService = new CrashReportService();
 // start it as soon as possible
-crashReportService.start();
+if (SENTRY_ENABLED) {
+    crashReportService.enable();
+}
 
 Vue.prototype.$crashReportService = crashReportService;
 

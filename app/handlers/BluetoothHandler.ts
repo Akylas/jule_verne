@@ -1,7 +1,7 @@
 import { TNSPlayer } from '@akylas/nativescript-audio';
 import { Bluetooth, StartScanningOptions as IStartScanningOptions, Peripheral, ReadResult, StartNotifyingOptions } from '@nativescript-community/ble';
 import { isSimulator } from '@nativescript-community/extendedinfo';
-import { check, request } from '@nativescript-community/perms';
+import { request } from '@nativescript-community/perms';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { ApplicationSettings, File } from '@nativescript/core';
 import * as appSettings from '@nativescript/core/application-settings';
@@ -9,8 +9,9 @@ import { EventData, Observable } from '@nativescript/core/data/observable';
 import { Folder, path } from '@nativescript/core/file-system';
 import { AdditiveTweening } from 'additween';
 import dayjs from 'dayjs';
-import {filesize} from 'filesize';
+import { filesize } from 'filesize';
 import { Vibrate } from 'nativescript-vibrate';
+import Vue from 'vue';
 import { getUint32 } from '~/handlers/bluetooth/SuotaCharacteristic';
 import { GeoHandler, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
 import { CommandType, ConfigListData, FULLSCREEN, FreeSpaceData, InputCommandType, Message } from '~/handlers/Message';
@@ -96,74 +97,6 @@ export function hexToBytes(hex) {
 }
 
 export type CancelPromise<T = void> = Promise<T> & { cancel() };
-
-// function pictureDimensionToByteArray(height, width) {
-//     const result = [];
-
-//     const size = height * Math.ceil(width / 2);
-
-//     result.push((size & 0xff000000) >> 24);
-//     result.push((size & 0xff0000) >> 16);
-//     result.push((size & 0xff00) >> 8);
-//     result.push(size & 0xff);
-
-//     result.push((width & 0xff00) >> 8);
-//     result.push(width & 0xff);
-//     return result;
-// }
-
-// function createBitmapData(filePath: string) {
-//     const mat = cv2.Imgcodecs.imread(filePath);
-//     cv2.Core.rotate(mat, mat, cv2.Core.ROTATE_180);
-//     cv2.Imgproc.cvtColor(mat, mat, cv2.Imgproc.COLOR_RGB2GRAY);
-//     const imgHeight = mat.size().height;
-//     const imgWidth = mat.size().width;
-//     let cptImg = 0;
-//     const commandsToSend = [[0xff, 0x41, 0x00, 0x0b].concat(pictureDimensionToByteArray(imgHeight, imgWidth)).concat([0xaa])];
-//     let commandToSend = [];
-//     let val0;
-//     for (let i = 0; i < imgHeight; i++) {
-//         for (let j = 0; j < imgWidth; j++) {
-//             // const pixel = mat.(i, j);
-//             const pixel = mat[j][i];
-//             if (cptImg % 2 === 0) {
-//                 if (pixel < 16 && pixel > 0) {
-//                     val0 = 0;
-//                 } else {
-//                     val0 = Math.floor(pixel / 16);
-//                 }
-//             } else {
-//                 let valShifted;
-//                 if (pixel < 16 && pixel > 0) {
-//                     valShifted = 0;
-//                 } else {
-//                     valShifted = Math.floor(pixel / 16);
-//                 }
-//                 const val = valShifted * 16 + val0;
-//                 commandToSend.push(val);
-//                 if (commandToSend.length >= 100) {
-//                     commandToSend.unshift(0xff, 0x41, 0x00, commandToSend.length + 5);
-//                     commandToSend.push(0xaa);
-//                     commandsToSend.push(commandToSend);
-//                     commandToSend = [];
-//                 }
-//             }
-
-//             cptImg += 1;
-//         }
-
-//         if (imgWidth % 2) {
-//             commandToSend.push(val0);
-//         }
-//     }
-//     if (commandToSend.length > 0) {
-//         commandToSend.unshift(0xff, 0x41, 0x00, commandToSend.length + 5);
-//         commandToSend.push(0xaa);
-//         commandsToSend.push(commandToSend);
-//         commandToSend = [];
-//     }
-//     return commandsToSend;
-// }
 
 export let bluetooth: Bluetooth;
 
@@ -360,7 +293,7 @@ export class BluetoothHandler extends Observable {
     }
 
     async stop() {
-        DEV_LOG && console.log(TAG, 'stop');
+        TEST_LOG && console.log(TAG, 'stop');
         this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
         this.cancelConnections();
         this.connectingToSavedGlasses = false;
@@ -376,7 +309,7 @@ export class BluetoothHandler extends Observable {
     }
     async start() {
         await request('storage');
-        DEV_LOG && console.log(TAG, 'start');
+        TEST_LOG && console.log(TAG, 'start');
         this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
         this.bluetoothEnabled = await this.isEnabled();
         bluetooth.on(Bluetooth.bluetooth_status_event, this.onBLEStatusChange, this);
@@ -386,7 +319,7 @@ export class BluetoothHandler extends Observable {
     bluetoothEnabled = false;
     onBLEStatusChange(e: BluetoothEvent) {
         const enabled = e.data.state === 'on';
-        DEV_LOG && console.log(TAG, 'onBLEStatusChange', this.bluetoothEnabled, enabled);
+        TEST_LOG && console.log(TAG, 'onBLEStatusChange', this.bluetoothEnabled, enabled);
         if (this.bluetoothEnabled !== enabled) {
             this.bluetoothEnabled = enabled;
             if (!enabled) {
@@ -616,6 +549,7 @@ export class BluetoothHandler extends Observable {
                 await this.readSerialNumber();
                 await this.readBattery();
                 if (this.glasses) {
+                    SENTRY_ENABLED && Vue.prototype.$crashReportService.setExtra('glasses', JSON.stringify(this.glasses.toJSON()));
                     // ensure we are still connected here
                     this.notify({
                         eventName: GlassesConnectedEvent,
@@ -689,6 +623,7 @@ export class BluetoothHandler extends Observable {
             // this.isEnabled().then((enabled) => {
             const manualDisconnect = !!this.manualDisconnect[UUID] || !this.bluetoothEnabled;
             DEV_LOG && console.log(TAG, 'GlassesDisconnectedEvent', manualDisconnect);
+            SENTRY_ENABLED && Vue.prototype.$crashReportService.setExtra('glasses', null);
             this.notify({
                 eventName: GlassesDisconnectedEvent,
                 object: this,

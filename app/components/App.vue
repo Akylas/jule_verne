@@ -103,13 +103,12 @@
                 </StackLayout>
                 <MDButton
                     row="3"
-                    horizontalAlignment="right"
-                    class="mdi"
+                    horizontalAlignment="left"
+                    class="actionBarButton"
                     variant="text"
                     v-if="$crashReportService.sentryEnabled"
                     text="mdi-bug"
                     @tap="sendBugReport"
-                    fontSize="24"
                     verticalAlignment="bottom"
                 />
             </GridLayout>
@@ -571,20 +570,20 @@ export default class App extends GlassesConnectionComponent {
 
     @Catch()
     async sendBugReport() {
-        const result = await prompt({
-            title: this.$tc('send_bug_report'),
-            message: this.$tc('send_bug_report_desc'),
-            okButtonText: this.$t('send'),
-            cancelButtonText: this.$t('cancel'),
-            autoFocus: true,
-            hintText: this.$tc('description'),
-            helperText: this.$tc('please_describe_error')
-        });
-        if (result.result) {
-            this.$crashReportService.withScope((scope) => {
-                this.$crashReportService.captureMessage(result.text);
-                showSnack({ message: this.$t('bug_report_sent') });
+        if (SENTRY_ENABLED) {
+            const result = await prompt({
+                title: this.$tc('send_bug_report'),
+                message: this.$tc('send_bug_report_desc'),
+                okButtonText: this.$t('send'),
+                cancelButtonText: this.$t('cancel'),
+                autoFocus: true,
+                hintText: this.$tc('description'),
+                helperText: this.$tc('please_describe_error')
             });
+            if (result.result) {
+                this.$crashReportService.captureMessage(result.text);
+                showSnack({ message: this.$t('bug_report_sent'), view: this.page });
+            }
         }
     }
 }

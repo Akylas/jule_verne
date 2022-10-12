@@ -55,6 +55,16 @@ export class GlassesDevice extends Device {
     _gestureOn: boolean = undefined;
     _alsOn: boolean = undefined;
 
+    toJSON() {
+        return {
+            UUID: this.UUID,
+            name: this.name,
+            versions: this.versions,
+            settings: this.settings,
+            serialNumber: this.serialNumber
+        };
+    }
+
     get gestureOn() {
         return this._gestureOn;
     }
