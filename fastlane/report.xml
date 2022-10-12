@@ -5,87 +5,84 @@
     
     
       
-      <testcase classname="fastlane.lanes" name="00: Verifying fastlane version" time="0.000637">
+      <testcase classname="fastlane.lanes" name="00: Verifying fastlane version" time="0.000352">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="01: opt_out_usage" time="0.000279">
+      <testcase classname="fastlane.lanes" name="01: opt_out_usage" time="0.000374">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="02: Switch to android build_flavor lane" time="0.000515">
+      <testcase classname="fastlane.lanes" name="02: Switch to android build_flavor lane" time="0.000206">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="03: ./node_modules/.bin/get-version android version" time="0.128772">
+      <testcase classname="fastlane.lanes" name="03: ./node_modules/.bin/get-version android version" time="0.187656">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="04: ./node_modules/.bin/get-version android code" time="0.113467">
+      <testcase classname="fastlane.lanes" name="04: ./node_modules/.bin/get-version android code" time="0.107809">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="05: Switch to android build lane" time="0.000273">
+      <testcase classname="fastlane.lanes" name="05: Switch to android build lane" time="0.000306">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="06: rm -fr platforms/android" time="0.010971">
+      <testcase classname="fastlane.lanes" name="06: rm -fr platforms/android" time="0.010768">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="07: npm run build.android.production.fdroid" time="86.964551">
+      <testcase classname="fastlane.lanes" name="07: npm run build.android.production.fdroid" time="88.531987">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="08: sentry_create_release" time="1.219752">
+      <testcase classname="fastlane.lanes" name="08: sentry_create_release" time="1.502384">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="09: push_to_git_remote" time="1.931488">
+      <testcase classname="fastlane.lanes" name="09: push_to_git_remote" time="4.466817">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="10: npm run sentry-set-commits 1.1.0" time="3.461309">
+      <testcase classname="fastlane.lanes" name="10: npm run sentry-set-commits com.akylas.juleverne@1.1.0+54" time="2.444221">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="11: Switch to android sentry_upload lane" time="0.000306">
+      <testcase classname="fastlane.lanes" name="11: Switch to android sentry_upload lane" time="0.000277">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="12: Switch to android get_changelog lane" time="0.000195">
+      <testcase classname="fastlane.lanes" name="12: Switch to android get_changelog lane" time="0.000191">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="13: analyze_commits" time="0.140883">
+      <testcase classname="fastlane.lanes" name="13: analyze_commits" time="0.104673">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="14: conventional_changelog" time="0.036895">
+      <testcase classname="fastlane.lanes" name="14: conventional_changelog" time="0.018772">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="15: add_git_tag" time="0.022053">
+      <testcase classname="fastlane.lanes" name="15: add_git_tag" time="0.01731">
         
-      </testcase>
-    
-      
-      <testcase classname="fastlane.lanes" name="16: push_git_tags" time="1.931576">
+          <failure message="/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/actions/actions_helper.rb:67:in `execute_action&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/runner.rb:255:in `block in execute_action&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/runner.rb:229:in `chdir&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/runner.rb:229:in `execute_action&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/runner.rb:157:in `trigger_action_by_name&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/fast_file.rb:159:in `method_missing&apos;&#10;Fastfile:100:in `block in parsing_binding&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/lane.rb:33:in `call&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/runner.rb:204:in `try_switch_to_lane&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/runner.rb:146:in `trigger_action_by_name&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/fast_file.rb:159:in `method_missing&apos;&#10;Fastfile:269:in `block (2 levels) in parsing_binding&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/lane.rb:33:in `call&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/runner.rb:49:in `block in execute&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/runner.rb:45:in `chdir&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/runner.rb:45:in `execute&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/lane_manager.rb:47:in `cruise_lane&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/command_line_handler.rb:36:in `handle&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/commands_generator.rb:110:in `block (2 levels) in run&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/commander-4.6.0/lib/commander/command.rb:187:in `call&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/commander-4.6.0/lib/commander/command.rb:157:in `run&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/commander-4.6.0/lib/commander/runner.rb:444:in `run_active_command&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane_core/lib/fastlane_core/ui/fastlane_runner.rb:124:in `run!&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/commander-4.6.0/lib/commander/delegates.rb:18:in `run!&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/commands_generator.rb:354:in `run&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/commands_generator.rb:43:in `start&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/fastlane/lib/fastlane/cli_tools_distributor.rb:123:in `take_off&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/fastlane-2.210.1/bin/fastlane:23:in `&lt;top (required)&gt;&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/bin/fastlane:25:in `load&apos;&#10;/Volumes/data/mguillon/.rbenv/versions/3.1.2/bin/fastlane:25:in `&lt;main&gt;&apos;&#10;&#10;Exit status of command &apos;git tag -am android/fdroid/1.1.0/54\ \(fastlane\) android/fdroid/1.1.0/54&apos; was 128 instead of 0.&#10;fatal: tag &apos;android/fdroid/1.1.0/54&apos; already exists&#10;" />
         
       </testcase>
     

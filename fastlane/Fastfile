@@ -11,6 +11,7 @@ end
 fastlane_version '2.135.2'
 opt_out_usage
 $ios_scheme = File.basename(File.expand_path('..')).gsub(/[^a-zA-Z0-9]/, "")
+app_identifier = CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)
 
 desc 'test lane'
 lane :test do
@@ -67,24 +68,26 @@ lane :build_flavor do |params|
   # this is because we generate different sources for android and ios so we have different sourceMaps
   # and so to map errors correctly we use different dist for ios and android
   sentryDist =  versionCode + '.' + platform # optional distribution of the release usually the buildnumber
+
+  sentry_cli_path = './node_modules/.bin/sentry-cli'
+  sentry_version = "#{app_identifier}@#{version}+#{versionCode}"
   puts "platform:"  + platform
   puts "flavor:"  + flavor
   puts "version:"  + version
   puts "versionCode:"  + versionCode
-  
-  build(flavor: flavor)
+  puts "sentry_version:"  + sentry_version
 
-  sentry_create_release = './node_modules/.bin/sentry-cli'
   sentry_create_release(
-    sentry_cli_path: sentry_create_release,
-    version: version, # release version to create
+    sentry_cli_path: sentry_cli_path,
+    version: sentry_version
   )
+  build(flavor: flavor)
   push_to_git_remote
 
-  sh("npm", "run", "sentry-set-commits", "#{version}")
-  
+  sh("npm", "run", "sentry-set-commits", "#{sentry_version}")
+
   sentry_upload(
-    sentry_cli_path: sentry_create_release,
+    sentry_cli_path: sentry_cli_path,
   )
 
   changelog = get_changelog(platform:platform, flavor:flavor)
