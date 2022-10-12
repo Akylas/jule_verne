@@ -12,7 +12,7 @@ declare module '*.scss';
 declare const GITLAB_TOKEN: string;
 declare const TNS_ENV: string;
 declare const DEV_LOG: boolean;
-declare const TEST_LOGS: boolean;
+declare const TEST_LOG: boolean;
 declare const PRODUCTION: boolean;
 declare const NO_CONSOLE: boolean;
 declare const __FORCE_BUG_REPORT__: boolean;
