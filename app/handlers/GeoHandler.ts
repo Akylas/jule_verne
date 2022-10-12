@@ -719,7 +719,7 @@ export class GeoHandler extends Observable {
                 const properties = feature.properties;
                 const name = 'index' in properties ? properties.index : properties.name;
 
-                if (name === 'outer_ring' || this._featuresViewed.indexOf(name) !== -1) {
+                if (name === 'outer_ring' || this._featuresViewed.indexOf(name) !== -1 || (!playedAll && name === 'exit')) {
                     return;
                 }
 
