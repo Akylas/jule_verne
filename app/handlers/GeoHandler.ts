@@ -1118,21 +1118,24 @@ export class GeoHandler extends Observable {
         return this.startSession();
     }
     async startSession() {
-        this.featuresViewed = [];
-        this.insideFeature = null;
-        this._playedHistory = [];
-        this._isInTrackBounds = false;
-        this.aimingAngle = Infinity;
-        this.actualSessionStart(true);
-        // await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
-        // if (PRODUCTION) {
-        //     return this.bluetoothHandler.playInstruction('start', { force: true });
-        // }
-        const currentConfigs = this.bluetoothHandler.currentConfigs;
-        const needsToLoadNav = currentConfigs?.findIndex((c) => c.name === 'nav') === -1;
-        if (needsToLoadNav) {
-            const memory = await this.bluetoothHandler.getMemory();
-            this.bluetoothHandler.sendConfigToGlasses(path.join(getGlassesImagesFolder(), 'navigation'), memory);
+        TEST_LOG && console.log(TAG, 'startSession', this.sessionState);
+        if (this.sessionState === SessionState.STOPPED) {
+            this.featuresViewed = [];
+            this.insideFeature = null;
+            this._playedHistory = [];
+            this._isInTrackBounds = false;
+            this.aimingAngle = Infinity;
+            this.actualSessionStart(true);
+            // await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+            // if (PRODUCTION) {
+            //     return this.bluetoothHandler.playInstruction('start', { force: true });
+            // }
+            const currentConfigs = this.bluetoothHandler.currentConfigs;
+            const needsToLoadNav = currentConfigs?.findIndex((c) => c.name === 'nav') === -1;
+            if (needsToLoadNav) {
+                const memory = await this.bluetoothHandler.getMemory();
+                this.bluetoothHandler.sendConfigToGlasses(path.join(getGlassesImagesFolder(), 'navigation'), memory);
+            }
         }
     }
 

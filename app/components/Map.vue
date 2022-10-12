@@ -261,6 +261,11 @@ time:                   ${dayjs(this.lastLocation.timestamp).format('LLL')}`: nu
         this.onTrackSelected({ track: this.geoHandler.currentTrack } as any);
         this.onFeatureViewed({ data: { featureViewed: this.geoHandler.featuresViewed } } as any);
         // this.onInsideFeature({ data: { featureViewed: this.geoHandler.featuresViewed } } as any);
+        // await this.geoHandler.startSession();
+    }
+
+    async onServiceStarted(handlers: BgServiceMethodParams) {
+        super.onServiceStarted(handlers);
         await this.geoHandler.startSession();
     }
     // onInsideFeature(event: EventData) {
