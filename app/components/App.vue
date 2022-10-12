@@ -66,7 +66,7 @@
                     </Frame>
                 </StackLayout>
                 <GridLayout ~bottomSheet height="160">
-                <BarAudioPlayerWidget  :verticalAlignment="showingMap?'top':'bottom'"/>
+                    <BarAudioPlayerWidget :verticalAlignment="showingMap ? 'top' : 'bottom'" />
                 </GridLayout>
             </BottomSheet>
             <GridLayout ~leftDrawer rows="auto,*,auto,auto" height="100%" :backgroundColor="backgroundColor" width="80%">
@@ -286,7 +286,6 @@ export default class App extends GlassesConnectionComponent {
     }
 
     setActivatedUrl(id) {
-        console.log('setActivatedUrl', id)
         this.showingMap = id === ComponentIds.Map;
     }
 

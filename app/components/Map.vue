@@ -16,17 +16,17 @@
                 <Label horizontalAlignment="center" color="black" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="aimingAngle" padding="10" />
                 <Label horizontalAlignment="right" color="red" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentComputedBearing" padding="10" />
                 <Label
-            backgroundColor="rgba(0, 0, 0, 0.533)"
-            borderRadius="10"
-            marginTop="50"
-            padding="4"
-            fontSize="11"
-            textWrap
-            color="white"
-            horizontalAlignment="center"
-            verticalAlignment="top"
-            :text="lastLocationDetails"
-        />
+                    backgroundColor="rgba(0, 0, 0, 0.533)"
+                    borderRadius="10"
+                    marginTop="50"
+                    padding="4"
+                    fontSize="11"
+                    textWrap
+                    color="white"
+                    horizontalAlignment="center"
+                    verticalAlignment="top"
+                    :text="lastLocationDetails"
+                />
             </GridLayout>
         </GridLayout>
     </Page>
@@ -115,16 +115,16 @@ export default class Map extends GlassesConnectionComponent {
         return 0;
     }
 
-
     get lastLocationDetails() {
-         
-        return this.lastLocation? `
+        return this.lastLocation
+            ? `
 position:               ${this.lastLocation.lat.toFixed(4)},${this.lastLocation.lon.toFixed(4)}
 horizontalAccuracy:     ${this.lastLocation.horizontalAccuracy.toFixed()}m
 provider:               ${this.lastLocation.provider} 
 speed:                  ${this.lastLocation.hasOwnProperty('speed') ? this.lastLocation.speed.toFixed() : '-'}m/s
 altitude:               ${this.lastLocation.hasOwnProperty('altitude') ? this.lastLocation.altitude.toFixed() : '-'}m
-time:                   ${dayjs(this.lastLocation.timestamp).format('LLL')}`: null;
+time:                   ${dayjs(this.lastLocation.timestamp).format('LLL')}`
+            : null;
     }
     mounted() {
         super.mounted();
@@ -236,7 +236,7 @@ time:                   ${dayjs(this.lastLocation.timestamp).format('LLL')}`: nu
 
     @Catch()
     async setup(handlers: BgServiceMethodParams) {
-        // DEV_LOG && console.log('Map', 'setup');
+        DEV_LOG && console.log('Map', 'setup');
         super.setup(handlers);
         if (!handlers.geoHandler) {
             return;
