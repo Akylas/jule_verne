@@ -44,6 +44,11 @@ android {
           }
           universalApk project.hasProperty('universalApk')
       }
+      density {
+          enable splitEnabled
+          reset()
+          include 'xxhdpi'
+      }
   }
   aaptOptions {
     additionalParameters "--no-version-vectors"  
