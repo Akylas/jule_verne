@@ -202,13 +202,14 @@ export class GeoHandler extends Observable {
     set currentTrack(track: Track) {
         this._currentTrack = track;
         this._isInTrackBounds = true;
+        TEST_LOG && console.log('set currentTrack', track?.id, track?.name);
         if (track) {
             ApplicationSettings.setString('selectedTrackId', track.id);
         } else {
             ApplicationSettings.remove('selectedTrackId');
         }
 
-        this.notify({ eventName: TrackSelecteEvent, track, object: this });
+        this.notify({ eventName: TrackSelecteEvent, track });
     }
     get currentTrack() {
         return this._currentTrack;
@@ -654,7 +655,7 @@ export class GeoHandler extends Observable {
         if (markAsPlayedOnMap && !this.isStoryPlayed(rindex)) {
             this._playedHistory.push(rindex);
         }
-        DEV_LOG && console.log('playedStory', index, rindex, this._playedHistory, !!this.insideFeature, markAsPlayedOnMap);
+        TEST_LOG && console.log('playedStory', index, rindex, this._playedHistory, !!this.insideFeature, markAsPlayedOnMap);
         if (markAsPlayedOnMap && this.insideFeature) {
             // we clear insideFeature as this feature is now played and thus
             // we should ignore it and notify of next aiming feature
@@ -665,7 +666,7 @@ export class GeoHandler extends Observable {
     mLastPlayedAimingDirection: string;
     mLastPlayedAimingDirectionTime: number;
     updateTrackWithLocation(loc: GeoLocation) {
-        DEV_LOG && console.log('updateTrackWithLocation', this.insideFeature?.properties.name);
+        TEST_LOG && console.log('updateTrackWithLocation', this.insideFeature?.properties.name, this._playedHistory);
         if (this.insideFeature) {
             // we can ignore almost everything while inside a feature(playing story)
             this.mLastPlayedAimingDirectionTime = null;
@@ -889,7 +890,7 @@ export class GeoHandler extends Observable {
             });
             this.handleFeatureEvent(events);
 
-            DEV_LOG &&
+            TEST_LOG &&
                 console.log(
                     'updateTrackWithPosition ',
                     JSON.stringify({
@@ -949,10 +950,23 @@ export class GeoHandler extends Observable {
                 } else {
                     // this.bluetoothHandler.stopNavigationInstruction();
                 }
-                // console.log('newAimingDirection', this.aimingAngle, newAimingDirection, this.mLastAimingDirection, this.mLastPlayedAimingDirection);
 
                 const instructionIntervalDuration = ApplicationSettings.getNumber('instructionIntervalDuration', 5000);
                 const instructionRepeatDuration = ApplicationSettings.getNumber('instructionRepeatDuration', 30000);
+                const deltaTime = this.mLastPlayedAimingDirectionTime ? Date.now() - this.mLastPlayedAimingDirectionTime : Number.MAX_SAFE_INTEGER;
+                TEST_LOG &&
+                    console.log(
+                        'newAimingDirection',
+                        JSON.stringify({
+                            isPlaying: this.bluetoothHandler.isPlaying,
+                            aimingAngle: this.aimingAngle,
+                            newAimingDirection,
+                            mLastAimingDirection: this.mLastAimingDirection,
+                            mLastPlayedAimingDirection: this.mLastPlayedAimingDirection,
+                            mLastPlayedAimingDirectionTime: this.mLastPlayedAimingDirectionTime,
+                            deltaTime
+                        })
+                    );
                 let forcePlay = false;
                 if (this.mLastAimingDirection !== newAimingDirection) {
                     // we are changing direction
@@ -961,7 +975,6 @@ export class GeoHandler extends Observable {
                     this.mLastPlayedAimingDirection = null;
                 }
                 if (!this.bluetoothHandler.isPlaying /* || this.bluetoothHandler.isPlayingNavigationInstruction */) {
-                    const deltaTime = this.mLastPlayedAimingDirectionTime ? Date.now() - this.mLastPlayedAimingDirectionTime : Number.MAX_SAFE_INTEGER;
                     // dont play if playing important thing)
                     if (
                         forcePlay /* first instruction */ ||
@@ -987,12 +1000,11 @@ export class GeoHandler extends Observable {
 
     @bind
     onLocation(loc: GeoLocation, manager?: any) {
-        DEV_LOG &&
+        const { android, ios, ...toLog } = loc;
+        TEST_LOG &&
             console.log(
                 'onLocation',
-                loc.lat,
-                loc.lon,
-                loc.computedBearing,
+                JSON.stringify(toLog),
                 this.sessionState,
                 this.lastLocation && getDistance(this.lastLocation, loc),
                 this.lastLocation && loc.timestamp - this.lastLocation.timestamp
@@ -1003,7 +1015,7 @@ export class GeoHandler extends Observable {
             const detectUserStopping = ApplicationSettings.getBoolean('detectUserStopping', false);
             if (getDistance(this.lastLocation, loc) > 1) {
                 loc.computedBearing = bearing(this.lastLocation, loc);
-                DEV_LOG && console.log('computed bearing', this.lastLocation, loc, getDistance(this.lastLocation, loc), loc.computedBearing);
+                TEST_LOG && console.log('computed bearing', this.lastLocation, loc, getDistance(this.lastLocation, loc), loc.computedBearing);
                 this.lastLocation = loc;
             } else if (detectUserStopping && loc.timestamp - this.lastLocation.timestamp > 30000) {
                 // the user stopped moving we reset and wait for him to move
@@ -1040,7 +1052,7 @@ export class GeoHandler extends Observable {
     }
     @bind
     onLocationError(err: Error) {
-        DEV_LOG && console.log(TAG, ' location error: ', err);
+        TEST_LOG && console.log(TAG, ' location error: ', err);
         this.notify({
             eventName: UserRawLocationEvent,
             object: this,
@@ -1067,13 +1079,13 @@ export class GeoHandler extends Observable {
         } else {
             options.provider = 'gps';
         }
-        DEV_LOG && console.log(TAG, 'startWatch', options);
+        TEST_LOG && console.log(TAG, 'startWatch', options);
 
         return geolocation.watchLocation<LatLonKeys>(this.onLocation, this.onLocationError, options).then((id) => (this.watchId = id));
     }
 
     stopWatch() {
-        DEV_LOG && console.log(TAG, 'stopWatch', this.watchId);
+        TEST_LOG && console.log(TAG, 'stopWatch', this.watchId);
         if (this.watchId) {
             geolocation.clearWatch(this.watchId);
             this.watchId = null;
@@ -1085,11 +1097,11 @@ export class GeoHandler extends Observable {
     }
 
     async stopSession(finish = false) {
+        TEST_LOG && console.log(TAG, 'stopSession', this.sessionState, finish);
         if (this.sessionState === SessionState.STOPPED) {
             return;
         }
         this.bluetoothHandler.stopSession(!finish);
-        DEV_LOG && console.log(TAG, 'stopSession', finish);
         this.actualSessionStop(true);
     }
     async pauseSession() {

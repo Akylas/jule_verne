@@ -89,6 +89,7 @@ module.exports = (env, params = {}) => {
         disableupdates,
         usecrop, // --env.usecrop
         devlog, // --env.devlog
+        testlog, // --env.testlog
         adhoc // --env.adhoc
     } = env;
     env.appPath = appPath;
@@ -175,7 +176,7 @@ module.exports = (env, params = {}) => {
         DISABLE_UPDATES: disableupdates,
         __FORCE_BUG_REPORT__: !!reportall,
         DEV_LOG: !!devlog,
-        TEST_LOGS: !!adhoc || !production
+        TEST_LOG: !!devlog || !!testlog
     };
     Object.assign(config.plugins.find((p) => p.constructor.name === 'DefinePlugin').definitions, defines);
 

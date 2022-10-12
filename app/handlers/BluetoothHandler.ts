@@ -1340,7 +1340,7 @@ export class BluetoothHandler extends Observable {
         if (instruction && !this.isPlayingNavigationInstruction) {
             return;
         }
-        DEV_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this.mPlayer.isAudioPlaying(), this.isPlayingStory, this.isPlayingPastille);
+        TEST_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this.mPlayer.isAudioPlaying(), this.isPlayingStory, this.isPlayingPastille);
         this.isPlaying = false;
         this.isPlayingPaused = false;
         this.isPlayingMusic = false;
@@ -1621,7 +1621,6 @@ export class BluetoothHandler extends Observable {
         }
     }
     async playNavigationInstruction(instruction: string, options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
-        // DEV_LOG && console.log('playNavigationInstruction', instruction, this.isPlaying, options);
         if (instruction === 'exit') {
             instruction = 'uturn';
             options = options || {};
@@ -1630,7 +1629,6 @@ export class BluetoothHandler extends Observable {
         return this.playInstruction(instruction, { iterations: 0, frameDuration: 300, instruction: true, queue: false, randomAudio: true, ...options });
     }
     async playInstruction(instruction: string, options: PlayInstructionOptions = {}) {
-        DEV_LOG && console.log('playInstruction', instruction, this.isPlaying, JSON.stringify(options));
         if (this.isPlaying) {
             if (options?.force === true) {
                 await this.stopPlayingLoop({ fade: false, ignoreNext: true });
@@ -1650,7 +1648,7 @@ export class BluetoothHandler extends Observable {
         }
 
         const instFolder = path.join(getGlassesImagesFolder(), `navigation/${instruction}`);
-        DEV_LOG && console.log('playInstruction', instruction, instFolder, Folder.exists(instFolder));
+        TEST_LOG && console.log('playInstruction', instruction, instFolder);
         if (!Folder.exists(instFolder)) {
             return;
         }
@@ -1703,7 +1701,7 @@ export class BluetoothHandler extends Observable {
         if (!this.canDrawOnGlasses) {
             return;
         }
-        DEV_LOG && console.log('playRideauAndStory', storyIndex, this.isPlayingStory, this.isPlaying, this.isPlayingPastille);
+        TEST_LOG && console.log('playRideauAndStory', storyIndex, this.isPlayingStory, this.isPlaying, this.isPlayingPastille);
         if (this.isPlayingStory === storyIndex) {
             return;
         }
@@ -1762,7 +1760,7 @@ export class BluetoothHandler extends Observable {
         if (!this.canDrawOnGlasses) {
             return;
         }
-        DEV_LOG && console.log('playStory', index, this.isPlaying, shouldPlayStop);
+        TEST_LOG && console.log('playStory', index, this.isPlaying, shouldPlayStop);
         if (this.isPlaying || !this.canDrawOnGlasses) {
             return new Promise<void>((resolve) => {
                 this.toPlayNext = async () => {
@@ -1773,12 +1771,12 @@ export class BluetoothHandler extends Observable {
         }
         try {
             if (this.geoHandler.isStoryPlayed(index)) {
-                DEV_LOG && console.error('trying to play already played story', index, new Error().stack);
+                TEST_LOG && console.error('trying to play already played story', index, new Error().stack);
                 return;
             }
             const cfgId = index + '';
             const storyFolder = path.join(getGlassesImagesFolder(), 'stories', cfgId);
-            DEV_LOG && console.log('storyFolder', storyFolder, Folder.exists(storyFolder));
+            TEST_LOG && console.log('storyFolder', storyFolder, Folder.exists(storyFolder));
             if (!Folder.exists(storyFolder)) {
                 return;
             }
@@ -1899,7 +1897,7 @@ export class BluetoothHandler extends Observable {
             this.lyric.play();
             // this.notify({ eventName: 'playback', data: 'play' });
             await this.playAudio({ fileName: path.join(storyFolder, 'audio.mp3'), notify: true });
-            DEV_LOG && console.log('playStory done ', index, this.isPlaying);
+            TEST_LOG && console.log('playStory done ', index, this.isPlaying);
             // mark story as played
 
             this.geoHandler.playedStory(index + '', markAsPlayedOnMap);
