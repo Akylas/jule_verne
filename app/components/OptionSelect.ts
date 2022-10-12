@@ -11,15 +11,9 @@ export interface Option {
 @Component({})
 export default class OptionSelect extends Vue {
     darkColor = darkColor;
-    @Prop({})
-    public options: Option[];
-
     public height = 300;
-    @Prop({ default: 'available devices' })
-    title: string;
-    public constructor() {
-        super();
-    }
+    @Prop({}) options: Option[];
+    @Prop({ default: 'available devices' }) title: string;
 
     public close(value?: Option) {
         this.$modal.close(value);

@@ -38,28 +38,19 @@ export default class ListItem extends Vue {
     backgroundColor = backgroundColor;
     accentColor = accentColor;
     defaultTextColor = textColor;
-    @Prop({})
-    title: string;
-    @Prop({})
-    rightTitle: string;
-    @Prop({})
-    icon: string;
-    @Prop({ default: () => accentColor })
-    color: Color;
-    @Prop({})
-    textColor: string;
-    @Prop({ default: false, type: Boolean })
-    chevron: boolean;
-    @Prop({ default: false, type: Boolean })
-    coloredIcon: boolean;
-    @Prop({ default: false })
-    checked: boolean;
-    @Prop({ default: false })
-    showChecked: boolean;
-    @Prop({ default: false })
-    selected: boolean;
-
     ignoreFirst = true;
+    
+    @Prop({}) title: string;
+    @Prop({}) rightTitle: string;
+    @Prop({}) icon: string;
+    @Prop({ default: () => accentColor }) color: Color;
+    @Prop({}) textColor: string;
+    @Prop({ default: false, type: Boolean }) chevron: boolean;
+    @Prop({ default: false, type: Boolean }) coloredIcon: boolean;
+    @Prop({ default: false }) checked: boolean;
+    @Prop({ default: false }) showChecked: boolean;
+    @Prop({ default: false }) selected: boolean;
+
     onLongPress(event) {
         this.$emit('longPress', event);
     }
