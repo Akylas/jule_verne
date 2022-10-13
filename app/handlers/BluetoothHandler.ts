@@ -1705,7 +1705,7 @@ export class BluetoothHandler extends Observable {
             });
         }
         try {
-            if (this.geoHandler.isStoryPlayed(index)) {
+            if (markAsPlayedOnMap && this.geoHandler.isStoryPlayed(index)) {
                 TEST_LOG && console.error('trying to play already played story', index, new Error().stack);
                 return;
             }
