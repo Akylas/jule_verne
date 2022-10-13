@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools"
     tools:shrinkMode="strict"
-    tools:keep="@layout/material_*,@font/*,@drawable/wallpaper*,@drawable/ic_notification*,@drawable/glasses*,@drawable/grenoble*,@drawable/head*,@drawable/ic_end,@drawable/icon_pause,@drawable/logo,@drawable/icon_play"/>
+    tools:keep="@layout/material_*,@font/*,@drawable/wallpaper*,@drawable/ic_notification*,@drawable/glasses*,@drawable/grenoble*,@drawable/head*,@drawable/ic_end,@drawable/icon_pause,@drawable/logo,@drawable/icon_play,@drawable/activelook_logo,@drawable/actimotion_logo,@drawable/akylas_logo"/>
