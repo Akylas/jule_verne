@@ -101,7 +101,7 @@ export default class StillAdventure extends BgServiceComponent {
         console.log('onItemTap', item.id, this.bluetoothHandler.isPlaying, this.bluetoothHandler.isPlayingStory, this.bluetoothHandler.isPlayingPastille);
 
         if (!this.bluetoothHandler.isPlaying) {
-            await this.bluetoothHandler.loadAndPlayStory({ storyIndex: +item.id, shouldPlayStart: false, shouldPlayMusic: true, shouldPlayRideau: false, canStop: true, markAsPlayedOnMap:false });
+            await this.bluetoothHandler.loadAndPlayStory({ storyIndex: +item.id, shouldPlayStart: false, shouldPlayMusic: true, shouldPlayRideau: false, canStop: true, markAsPlayedOnMap: false });
         }
     }
 }
