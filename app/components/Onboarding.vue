@@ -97,7 +97,7 @@
                         <MDButton variant="outline" row="3" :text="$tc('play_test')" @tap="() => playAudioTest()" horizontalAlignment="center" />
                         <Slider id="volume" row="4" margin="10 20 10 20" :value="volume" @valueChange="onSliderChange('volume', $event)" icon="mdi-volume-high" />
                         <Label row="5" :text="$tc('adjust_volume')" fontSize="16" textAlignment="center" width="70%" />
-                        <MDButton variant="outline" row="7" :text="forMap ? $tc('volume_ok') : $tc('next')" @tap="onAudioDone" horizontalAlignment="center" />
+                        <MDButton variant="outline" row="7" :text="forMap ? $tc('start_demo') : $tc('next')" @tap="onAudioDone" horizontalAlignment="center" />
                     </GridLayout>
                 </PagerItem>
                 <PagerItem>
