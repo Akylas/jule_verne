@@ -71,7 +71,7 @@
             </BottomSheet>
             <GridLayout ~leftDrawer rows="auto,*,auto,auto" height="100%" :backgroundColor="backgroundColor" width="80%">
                 <GridLayout padding="10" rows="auto" columns="*">
-                    <Image horizontalAlignment="center" src="res://logo" height="100" @touch="handleDevModeTap" />
+                    <Image horizontalAlignment="center" src="res://logo" height="100" @touch="handleDevModeTap" @longPress="switchTextMessage" />
                     <GlassesIcon
                         horizontalAlignment="right"
                         verticalAlignment="top"
@@ -124,6 +124,8 @@ import { confirm, login, prompt } from '@nativescript-community/ui-material-dial
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
 import { File, knownFolders, path } from '@nativescript/core/file-system';
 import { GestureEventData } from '@nativescript/core/ui';
+import dayjs from 'dayjs';
+import { filesize } from 'filesize';
 import Vue from 'nativescript-vue';
 import { Component } from 'vue-property-decorator';
 import BarAudioPlayerWidget from '~/components/BarAudioPlayerWidget.vue';
@@ -133,6 +135,7 @@ import GlassesIcon from '~/components/GlassesIcon.vue';
 import MainMenu from '~/components/MainMenu.vue';
 import { BLEConnectionEventData, GlassesReconnectingEvent, GlassesReconnectingFailedEvent } from '~/handlers/BluetoothHandler';
 import { SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
+import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
 import { $tc } from '~/helpers/locale';
 import { Catch, off as appOff, on as appOn, off, on } from '~/utils';
 import { bboxify } from '~/utils/geo';
@@ -324,8 +327,9 @@ export default class App extends GlassesConnectionComponent {
     setMessage(event) {
         try {
             const message = event.data;
-            // DEV_LOG && console.log('setMessage', message);
+            DEV_LOG && console.log('setMessage', message);
             const currentMessageIndex = this.messages.findIndex((d) => d.id === message.id);
+            DEV_LOG && console.log('setMessage', currentMessageIndex, message);
             if (currentMessageIndex >= 0) {
                 this.messages.setItem(currentMessageIndex, message);
             } else {
@@ -334,6 +338,38 @@ export default class App extends GlassesConnectionComponent {
             this.showMessages = this.messages.length > 0;
         } catch (error) {
             console.error('setMessage', error, error.stack);
+        }
+    }
+
+    testingMessage = false;
+    switchTextMessage() {
+        console.log('switchTextMessage', this.testingMessage);
+        if (!PRODUCTION) {
+            if (this.testingMessage) {
+                this.removeMessage({ data: { id: -1000 } });
+                this.testingMessage = false;
+            } else {
+                this.testingMessage = true;
+                this.setMessage({
+                    data: {
+                        id: -1000,
+                        icon: '1',
+                        smallIcon: 'mdi-upload',
+                        rightIcon: `${10}%`,
+                        title: $tc('uploading_story'),
+                        message: `${filesize(123589, { round: 1, pad: true })}`,
+                        rightMessage: `${formatDuration(dayjs.duration(120000), DURATION_FORMAT.SECONDS)}`,
+                        ongoing: true,
+                        indeterminate: false,
+                        progress: 10,
+                        action: {
+                            id: 'cancel',
+                            text: 'mdi-close',
+                            callback: () => {}
+                        }
+                    }
+                });
+            }
         }
     }
     removeMessage(event) {
