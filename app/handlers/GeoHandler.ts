@@ -671,7 +671,11 @@ export class GeoHandler extends Observable {
     mLastPlayedAimingDirection: string;
     mLastPlayedAimingDirectionTime: number;
     updateTrackWithLocation(loc: GeoLocation) {
-        TEST_LOG && console.log('updateTrackWithLocation', this.insideFeature?.properties.name, this._playedHistory);
+        const minHorizontalAccuracy = ApplicationSettings.getNumber('minHorizontalAccuracy', 40);
+        TEST_LOG && console.log('updateTrackWithLocation', loc.lat, loc.lon, loc.horizontalAccuracy, this.insideFeature?.properties.name, this._playedHistory);
+        if (loc.horizontalAccuracy > minHorizontalAccuracy) {
+            return;
+        }
         if (this.insideFeature) {
             // we can ignore almost everything while inside a feature(playing story)
             this.mLastPlayedAimingDirectionTime = null;

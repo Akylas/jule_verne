@@ -342,6 +342,15 @@ export default class Settings extends FirmwareUpdateComponent {
                 max: 30000
             },
             {
+                id: 'minHorizontalAccuracy',
+                type: 'slider',
+                valueFormatter: (v) => v + 'm',
+                title: $t('minHorizontalAccuracy'),
+                value: ApplicationSettings.getNumber('minHorizontalAccuracy', 40),
+                min: 1,
+                max: 100
+            },
+            {
                 id: 'sendStoryWriteTimeout',
                 type: 'slider',
                 title: $t('send_story_write_timeout'),
