@@ -478,8 +478,13 @@ export class GeoHandler extends Observable {
             this._insideFeature = value;
 
             const playing = this.bluetoothHandler.isPlayingStory || this.bluetoothHandler.isPlayingMusic || this.bluetoothHandler.isPlayingPastille;
-
-            if (value && !playing) {
+            if (playing) {
+                // We will get a new `inside` event when finished and thus `insideFeature` will be set again
+                this._insideFeature = null;
+                return;
+            }
+            // if (value && !playing) {
+            if (value) {
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
                 DEV_LOG && console.log('insideFeature', name, this._playedHistory);
                 if (name === 'exit' && this._playedHistory.length === 0) {
