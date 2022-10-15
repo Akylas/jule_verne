@@ -8,12 +8,14 @@
             <Image row="1" src="res://grenoble_full" stretch="aspectFill" height="70%" />
             <MDButton row="2" variant="outline" horizontalAlignment="center" width="80%" :text="$tc('still_adventure')" @tap="onTap('still_adventure')" />
             <MDButton row="3" variant="outline" horizontalAlignment="center" width="80%" :text="$tc('jules_verne_adventure')" @tap="onTap('jules_verne_adventure')" />
-            <GridLayout row="4" width="90%" height="80" rows="30,50" columns="*,*,*" marginTop="10">
-                <Image src="res://activelook_logo" margin="2" :tintColor="textColor" />
-                <Image col="1" src="res://activemotion_logo" margin="2 6 2 6" :tintColor="textColor" />
-                <Image col="2" src="res://akylas_logo" margin="8" :tintColor="textColor" />
-                <Image row="1" colSpan="3" horizontalAlignment="left" marginLeft="20%" src="~/assets/images/logos/CEA-Grenoble.png" />
-                <Image row="1" colSpan="3" horizontalAlignment="right" marginRight="20%" src="~/assets/images/logos/logo-hexagone-22.png" />
+            <GridLayout row="4" height="80" marginTop="10">
+                <GridLayout width="90%" rows="30,50" columns="*,*,*">
+                    <Image src="res://activelook_logo" margin="2" :tintColor="textColor" />
+                    <Image col="1" src="res://activemotion_logo" margin="2 6 2 6" :tintColor="textColor" />
+                    <Image col="2" src="res://akylas_logo" margin="8" :tintColor="textColor" />
+                    <Image row="1" colSpan="3" horizontalAlignment="left" marginLeft="20%" src="~/assets/images/logos/CEA-Grenoble.png" />
+                    <Image row="1" colSpan="3" horizontalAlignment="right" marginRight="20%" src="~/assets/images/logos/logo-hexagone-22.png"/>
+                </GridLayout>
             </GridLayout>
         </GridLayout>
     </Page>

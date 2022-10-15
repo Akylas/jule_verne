@@ -1,5 +1,5 @@
 <template>
-    <Page ref="page" @loaded="onLoaded">
+    <Page ref="page" @loaded="onLoaded" actionBarHidden>
         <Drawer
             ref="drawer"
             @loaded="onDrawerLoaded"
@@ -11,8 +11,8 @@
             }"
         >
             <BottomSheet :stepIndex="stepIndex" :steps="[0, 160]" :gestureEnabled="false" ~mainContent>
-                <StackLayout ref="page" actionBarHidden>
-                    <Pager ref="pager" height="0" :items="messages" backgroundColor="#405798" +alias="messageItem">
+                <GridLayout rows="auto,*">
+                    <Pager ref="pager" height="0" :items="messages" +alias="messageItem" backgroundColor="#405798">
                         <v-template>
                             <GridLayout columns="auto,*,auto,auto" rows="auto,*,auto" width="100%" height="100%">
                                 <Label padding="4 4 0 4" colSpan="4" color="white" fontSize="14" lineBreak="end" verticalTextAlignment="center">
@@ -61,10 +61,10 @@
                             </GridLayout>
                         </v-template>
                     </Pager>
-                    <Frame>
+                    <Frame row="1">
                         <MainMenu />
                     </Frame>
-                </StackLayout>
+                </GridLayout>
                 <GridLayout ~bottomSheet height="160">
                     <BarAudioPlayerWidget :verticalAlignment="showingMap ? 'top' : 'bottom'" />
                 </GridLayout>
