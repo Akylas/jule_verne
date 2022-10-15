@@ -93,12 +93,10 @@ export default class StillAdventure extends BgServiceComponent {
                 };
             })
             .filter((s) => !!s);
-        console.log('items', this.items);
     }
 
     @Catch()
     async onItemTap(item: Item) {
-        console.log('onItemTap', item.id, this.bluetoothHandler.isPlaying, this.bluetoothHandler.isPlayingStory, this.bluetoothHandler.isPlayingPastille);
 
         if (!this.bluetoothHandler.isPlaying) {
             await this.bluetoothHandler.loadAndPlayStory({ storyIndex: +item.id, shouldPlayStart: false, shouldPlayMusic: true, shouldPlayRideau: false, canStop: true, markAsPlayedOnMap: false });
