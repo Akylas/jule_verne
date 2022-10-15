@@ -1275,7 +1275,7 @@ export class BluetoothHandler extends Observable {
         if (instruction && !this.isPlayingNavigationInstruction) {
             return;
         }
-        TEST_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this.mPlayer.isAudioPlaying(), this.isPlayingStory, this.isPlayingPastille);
+        TEST_LOG && console.log('stopPlayingLoop', fade, ignoreNext, instruction, this.mPlayer.isAudioPlaying(), this.isPlayingStory, this.isPlayingPastille, !!this.toPlayNext);
         this.isPlaying = false;
         this.isPlayingPaused = false;
         this.isPlayingMusic = false;
@@ -1293,7 +1293,7 @@ export class BluetoothHandler extends Observable {
             // await this.fadeout();
         }
         const onDone = async () => {
-            DEV_LOG && console.log('stopPlayingLoop onDone');
+            DEV_LOG && console.log('stopPlayingLoop onDone', ignoreNext, !!this.toPlayNext);
             this.mPlayer.pause();
             this.mPlayer['_options']?.errorCallback();
             try {
