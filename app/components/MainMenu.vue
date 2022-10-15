@@ -2,29 +2,30 @@
     <Page ref="page" id="history" :navigateUrl="navigateUrl">
         <GridLayout rows="auto,*,auto,auto,auto">
             <CActionBar showMenuIcon>
-                <MDButton variant="text" class="actionBarButton" text="mdi-information-outline" @tap="showPartners" />
+                <Image slot="center" col="1" src="~/assets/images/logos/fabrique.png" margin="10" horizontalAlignment="center" />
+                <MDButton variant="text" class="actionBarButton" text="mdi-alpha-c-circle-outline" @tap="showPartners" />
             </CActionBar>
             <Image row="1" src="res://grenoble_full" stretch="aspectFill" height="70%" />
             <MDButton row="2" variant="outline" horizontalAlignment="center" width="80%" :text="$tc('still_adventure')" @tap="onTap('still_adventure')" />
             <MDButton row="3" variant="outline" horizontalAlignment="center" width="80%" :text="$tc('jules_verne_adventure')" @tap="onTap('jules_verne_adventure')" />
-            <GridLayout row="4" width="80%" height="30" rows="*" columns="*,*,*" marginTop="10">
-                <Image src="res://activelook_logo" margin="4" :tintColor="textColor" />
-                <Image col="1" src="res://activemotion_logo" margin="8" :tintColor="textColor" />
+            <GridLayout row="4" width="90%" height="80" rows="30,50" columns="*,*,*" marginTop="10">
+                <Image src="res://activelook_logo" margin="2" :tintColor="textColor" />
+                <Image col="1" src="res://activemotion_logo" margin="2 6 2 6" :tintColor="textColor" />
                 <Image col="2" src="res://akylas_logo" margin="8" :tintColor="textColor" />
+                <Image row="1" colSpan="3" horizontalAlignment="left" marginLeft="20%" src="~/assets/images/logos/CEA-Grenoble.png" />
+                <Image row="1" colSpan="3" horizontalAlignment="right" marginRight="20%" src="~/assets/images/logos/logo-hexagone-22.png" />
             </GridLayout>
         </GridLayout>
     </Page>
 </template>
 
 <script lang="ts">
-import { knownFolders } from '@akylas/nativescript';
 import { confirm } from '@nativescript-community/ui-material-dialogs';
-import { path } from '@nativescript/core/file-system';
 import { Component } from 'vue-property-decorator';
 import BgServiceComponent, { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
 import { BLEBatteryEventData, BLEConnectionEventData, GlassesBatteryEvent, GlassesConnectedEvent, GlassesDisconnectedEvent } from '~/handlers/BluetoothHandler';
-import { Catch, versionCompare } from '~/utils';
+import { Catch } from '~/utils';
 import { backgroundColor, mdiFontFamily, textColor } from '~/variables';
 import { date } from '~/vue.filters';
 import { ComponentIds } from '~/vue.prototype';
