@@ -113,7 +113,6 @@ export class NotificationHelper {
 
         const NotificationCompat = androidx.core.app.NotificationCompat;
         const builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANEL_ID_MUSIC_CHANNEL);
-        console.log('getMediaNotification', primaryColor, new Color(primaryColor).android);
         builder
             .setContentTitle(description.getTitle())
             .setContentText(description.getSubtitle())

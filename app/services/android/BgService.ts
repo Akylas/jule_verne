@@ -5,7 +5,7 @@ import { BgServiceBinder } from '~/services/android/BgServiceBinder';
 import { ACTION_PAUSE, ACTION_RESUME, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, NotificationHelper } from './NotifcationHelper';
 import { $tc } from '~/helpers/locale';
 import { BluetoothHandler, GlassesConnectedEvent, GlassesDisconnectedEvent, PlayingInfo } from '~/handlers/BluetoothHandler';
-import { MediaSessionCompatCallback } from './MediaSessionCompatCallback';
+// import { MediaSessionCompatCallback } from './MediaSessionCompatCallback';
 import { IMAGE_COLORMATRIX } from '~/vue.views';
 import { createColorMatrix } from '~/utils';
 import { accentColor } from '~/variables';
@@ -242,70 +242,70 @@ export class BgService extends android.app.Service {
             mediaSessionCompat.setMediaButtonReceiver(pendingIntent);
             mediaSessionCompat.setPlaybackState(stateBuilder.build());
 
-            @NativeClass
-            class MediaSessionCompatCallback extends android.support.v4.media.session.MediaSessionCompat.Callback {
-                constructor(private impl) {
-                    super();
-                    return global.__native(this);
-                }
+            // @NativeClass
+            // class MediaSessionCompatCallback extends android.support.v4.media.session.MediaSessionCompat.Callback {
+            //     constructor(private impl) {
+            //         super();
+            //         return global.__native(this);
+            //     }
 
-                onPlay() {
-                    console.log('MediaSessionCompatCallback', 'onPlay');
-                    super.onPlay();
-                }
-                onPause() {
-                    console.log('MediaSessionCompatCallback', 'onPause');
-                    super.onPause();
-                }
+            //     onPlay() {
+            //         console.log('MediaSessionCompatCallback', 'onPlay');
+            //         super.onPlay();
+            //     }
+            //     onPause() {
+            //         console.log('MediaSessionCompatCallback', 'onPause');
+            //         super.onPause();
+            //     }
 
-                onSkipToNext() {
-                    console.log('MediaSessionCompatCallback', 'onSkipToNext');
-                    super.onSkipToNext();
-                }
+            //     onSkipToNext() {
+            //         console.log('MediaSessionCompatCallback', 'onSkipToNext');
+            //         super.onSkipToNext();
+            //     }
 
-                onSkipToPrevious() {
-                    console.log('MediaSessionCompatCallback', 'onSkipToPrevious');
-                    super.onSkipToPrevious();
-                }
-                onPlayFromMediaId(mediaId, extras) {
-                    console.log('MediaSessionCompatCallback', 'onPlayFromMediaId');
-                    super.onPlayFromMediaId(mediaId, extras);
-                }
-                onCommand(command, extras, cb) {
-                    console.log('MediaSessionCompatCallback', 'onCommand');
-                    super.onCommand(command, extras, cb);
-                }
-                onSeekTo(pos) {
-                    console.log('MediaSessionCompatCallback', 'onSeekTo');
-                    super.onSeekTo(pos);
-                }
-                onMediaButtonEvent(mediaButtonIntent) {
-                    const action = mediaButtonIntent.getAction();
-                    console.log('MediaSession', 'Intent Action' + action);
-                    if (android.content.Intent.ACTION_MEDIA_BUTTON === mediaButtonIntent.getAction()) {
-                        const event = mediaButtonIntent.getParcelableExtra(android.content.Intent.EXTRA_KEY_EVENT);
-                        console.log('MediaSession', 'KeyCode' + event.getKeyCode());
-                        return true;
-                    }
-                    return super.onMediaButtonEvent(mediaButtonIntent);
-                }
-            }
-            mediaSessionCompat.setCallback(
-                new MediaSessionCompatCallback({
-                    onPlay: () => {
-                        this.getMediaSessionCompat().setActive(true);
-                        this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
-                        this.showPlayingNotification();
-                    },
-                    onPause: () => {
-                        if (this.playingState === 'play') {
-                            this.bluetoothHandler.pauseStory();
-                            this.setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
-                            this.showPausedNotification();
-                        }
-                    }
-                })
-            );
+            //     onSkipToPrevious() {
+            //         console.log('MediaSessionCompatCallback', 'onSkipToPrevious');
+            //         super.onSkipToPrevious();
+            //     }
+            //     onPlayFromMediaId(mediaId, extras) {
+            //         console.log('MediaSessionCompatCallback', 'onPlayFromMediaId');
+            //         super.onPlayFromMediaId(mediaId, extras);
+            //     }
+            //     onCommand(command, extras, cb) {
+            //         console.log('MediaSessionCompatCallback', 'onCommand');
+            //         super.onCommand(command, extras, cb);
+            //     }
+            //     onSeekTo(pos) {
+            //         console.log('MediaSessionCompatCallback', 'onSeekTo');
+            //         super.onSeekTo(pos);
+            //     }
+            //     onMediaButtonEvent(mediaButtonIntent) {
+            //         const action = mediaButtonIntent.getAction();
+            //         console.log('MediaSession', 'Intent Action' + action);
+            //         if (android.content.Intent.ACTION_MEDIA_BUTTON === mediaButtonIntent.getAction()) {
+            //             const event = mediaButtonIntent.getParcelableExtra(android.content.Intent.EXTRA_KEY_EVENT);
+            //             console.log('MediaSession', 'KeyCode' + event.getKeyCode());
+            //             return true;
+            //         }
+            //         return super.onMediaButtonEvent(mediaButtonIntent);
+            //     }
+            // }
+            // mediaSessionCompat.setCallback(
+            //     new MediaSessionCompatCallback({
+            //         onPlay: () => {
+            //             this.getMediaSessionCompat().setActive(true);
+            //             this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
+            //             this.showPlayingNotification();
+            //         },
+            //         onPause: () => {
+            //             if (this.playingState === 'play') {
+            //                 this.bluetoothHandler.pauseStory();
+            //                 this.setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
+            //                 this.showPausedNotification();
+            //             }
+            //         }
+            //     })
+            // );
         } catch (error) {
             console.error('createMediaSession', error, error.stack);
         }
