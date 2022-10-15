@@ -670,7 +670,7 @@ export class GeoHandler extends Observable {
     mLastAimingDirection: string;
     mLastPlayedAimingDirection: string;
     mLastPlayedAimingDirectionTime: number;
-    updateTrackWithLocation(loc: GeoLocation) {
+    async updateTrackWithLocation(loc: GeoLocation) {
         const minHorizontalAccuracy = ApplicationSettings.getNumber('minHorizontalAccuracy', 40);
         TEST_LOG && console.log('updateTrackWithLocation', loc.lat, loc.lon, loc.horizontalAccuracy, this.insideFeature?.properties.name, this._playedHistory);
         if (loc.horizontalAccuracy > minHorizontalAccuracy) {
@@ -738,6 +738,7 @@ export class GeoHandler extends Observable {
                     if (this._featuresViewed.indexOf(featureId) !== -1) {
                         return;
                     }
+
                     const storyIndex = parseInt(featureId, 10);
                     const g = feature.geometry as Polygon;
                     const dist = distanceToPolygon(currentPosition, g);
@@ -901,7 +902,7 @@ export class GeoHandler extends Observable {
 
             TEST_LOG &&
                 console.log(
-                    'updateTrackWithPosition ',
+                    'updateTrackWithLocation',
                     JSON.stringify({
                         lat: loc.lat,
                         lon: loc.lon,
@@ -960,9 +961,10 @@ export class GeoHandler extends Observable {
                     // this.bluetoothHandler.stopNavigationInstruction();
                 }
 
-                const instructionIntervalDuration = ApplicationSettings.getNumber('instructionIntervalDuration', 5000);
-                const instructionRepeatDuration = ApplicationSettings.getNumber('instructionRepeatDuration', 30000);
-                const deltaTime = this.mLastPlayedAimingDirectionTime ? Date.now() - this.mLastPlayedAimingDirectionTime : Number.MAX_SAFE_INTEGER;
+                const instructionIntervalDuration = ApplicationSettings.getNumber('instructionIntervalDuration', 20000);
+                const instructionRepeatDuration = ApplicationSettings.getNumber('instructionRepeatDuration', 20000);
+                const now = Date.now();
+                const deltaTime = this.mLastPlayedAimingDirectionTime ? now - this.mLastPlayedAimingDirectionTime : Number.MAX_SAFE_INTEGER;
                 TEST_LOG &&
                     console.log(
                         'newAimingDirection',
@@ -992,10 +994,11 @@ export class GeoHandler extends Observable {
                     ) {
                         this.mLastPlayedAimingDirection = newAimingDirection;
                         if (newAimingDirection) {
+                            await this.bluetoothHandler.playNavigationInstruction(newAimingDirection, { audioFolder });
                             this.mLastPlayedAimingDirectionTime = Date.now();
-                            this.bluetoothHandler.playNavigationInstruction(newAimingDirection, { audioFolder });
                         } else {
-                            // this.mLastPlayedAimingDirectionTime = null;
+                            TEST_LOG && console.log('clearing mLastPlayedAimingDirection');
+                            this.mLastPlayedAimingDirectionTime = null;
                         }
                     }
                 }

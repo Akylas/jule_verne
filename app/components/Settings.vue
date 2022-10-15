@@ -326,7 +326,7 @@ export default class Settings extends FirmwareUpdateComponent {
                 id: 'instructionRepeatDuration',
                 type: 'slider',
                 title: $t('instruction_repeat_interval'),
-                value: ApplicationSettings.getNumber('instructionRepeatDuration', 30000),
+                value: ApplicationSettings.getNumber('instructionRepeatDuration', 20000),
                 valueFormatter: (v) => formatDuration(dayjs.duration(v), DURATION_FORMAT.SECONDS),
                 step: 500,
                 min: 1000,
@@ -337,7 +337,7 @@ export default class Settings extends FirmwareUpdateComponent {
                 type: 'slider',
                 valueFormatter: (v) => formatDuration(dayjs.duration(v), DURATION_FORMAT.SECONDS),
                 title: $t('instruction_interval_interval'),
-                value: ApplicationSettings.getNumber('instructionIntervalDuration', 5000),
+                value: ApplicationSettings.getNumber('instructionIntervalDuration', 20000),
                 min: 500,
                 max: 30000
             },
