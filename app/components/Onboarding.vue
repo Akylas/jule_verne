@@ -122,9 +122,7 @@
                             textAlignment="center"
                             verticalTextAlignment="center"
                         />
-                        <MDButton row="2" variant="outline" :text="$tc('wait') + '...'" horizontalAlignment="center"
-                                @longPress="onSkip"
-                         />
+                        <MDButton row="2" variant="outline" :text="$tc('wait') + '...'" horizontalAlignment="center" @longPress="onSkip" />
                     </GridLayout>
                 </PagerItem>
             </Pager>
@@ -208,7 +206,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
     constructor() {
         super();
         this.autoConnect = true;
-        DEV_LOG && console.log(TAG);
     }
     destroyed() {
         super.destroyed();
@@ -217,7 +214,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
         super.mounted();
     }
     onNavigatingFrom() {
-        console.log('onNavigatingFrom', this.watchingLocation);
         if (this.watchingLocation) {
             this.stopWatchLocation();
         }
@@ -263,7 +259,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
     }
 
     get connectingGlassesText() {
-        console.log('connectingGlassesText', this.glassesName);
         return this.$tc('connecting_glasses', this.glassesName);
     }
     get showPage() {
@@ -289,7 +284,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
     @Catch()
     @Watch('selectedPageIndex')
     async onSelectedTabIndex(value, oldValue) {
-        console.log('onSelectedTabIndex', value, oldValue);
         switch (oldValue) {
             case Pages.IMAGE_TEST:
                 this.bluetoothHandler.clearFullScreen();
@@ -309,12 +303,11 @@ export default class Onboarding extends FirmwareUpdateComponent {
                 this.bluetoothHandler.drawImageFromPathWithMire(this.configImagePath);
                 break;
             case Pages.FIND_LOCATION_STORY:
-                DEV_LOG && console.log(TAG, 'FIND_LOCATION_STORY');
                 if (this.lastLocation) {
                     this.$modal.close(this.lastLocation);
                 }
                 this.playingInstructions = true;
-                await this.bluetoothHandler.loadAndPlayStory({ storyIndex: 1000, shouldPlayStart: false, shouldPlayRideau: false, canStop: true, markAsPlayedOnMap:false });
+                await this.bluetoothHandler.loadAndPlayStory({ storyIndex: 1000, shouldPlayStart: false, shouldPlayRideau: false, canStop: true, markAsPlayedOnMap: false });
                 this.playingInstructions = false;
 
                 break;
@@ -333,7 +326,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
     }
 
     setup(handlers: BgServiceMethodParams) {
-        DEV_LOG && console.log(TAG, 'setup');
         if (!handlers.geoHandler) {
             return;
         }
@@ -354,7 +346,6 @@ export default class Onboarding extends FirmwareUpdateComponent {
         this.levelLuminance = handlers.bluetoothHandler.levelLuminance;
     }
     onServiceStarted(handlers: BgServiceMethodParams) {
-        console.log(TAG, 'onServiceStarted');
         super.onServiceStarted(handlers);
         if (this.connectedGlasses) {
             this.selectedPageIndex = 1;
