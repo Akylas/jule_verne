@@ -5,6 +5,7 @@
             <Label :visibility="!!subtitle ? 'visible' : 'collapse'" :textAlignment="textAlignment" class="actionBarSubtitle" :text="subtitle" />
         </StackLayout>
         <Label col="1" v-if="!!showLogo && !title" fontSize="28" color="white" verticalAlignment="center" marginLeft="6" />
+            <slot col="1" name="center" />
         <StackLayout col="0" orientation="horizontal">
             <slot name="left" />
             <MDButton variant="text" :visibility="menuIconVisibility" class="actionBarButton" :text="menuIcon" @tap="onMenuIcon" />
