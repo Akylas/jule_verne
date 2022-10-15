@@ -521,6 +521,9 @@ export class GeoHandler extends Observable {
                             this.markAsViewed(name);
                             this.bluetoothHandler.loadAndPlayStory({ storyIndex: nextStoryIndex, canStop: this.isStoryPlayed(nextStoryIndex) });
                         }
+                    } else {
+                        // ensure we dont "block" with insideFeature set while not playing
+                        this._insideFeature = null;
                     }
                 }
 
