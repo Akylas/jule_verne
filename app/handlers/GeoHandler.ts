@@ -464,6 +464,15 @@ export class GeoHandler extends Observable {
     //     }
     // }
 
+    markAsViewed(featureId: string) {
+        const featuresViewed = this.featuresViewed;
+
+        if (featuresViewed.indexOf(featureId) === -1) {
+            featuresViewed.push(featureId);
+            featuresViewed.push(featureId + '_out');
+        }
+        this.featuresViewed = featuresViewed;
+    }
     set insideFeature(value) {
         if (value !== this._insideFeature) {
             this._insideFeature = value;
@@ -478,12 +487,8 @@ export class GeoHandler extends Observable {
                     return;
                 }
                 if (name.startsWith('pastille_')) {
-                    const featuresViewed = this.featuresViewed;
                     const featureId = (name + '').split('_')[1];
-                    if (featuresViewed.indexOf(name) === -1) {
-                        featuresViewed.push(name);
-                    }
-                    this.featuresViewed = featuresViewed;
+                    this.markAsViewed(name);
                     const nextStoryIndex = parseInt(featureId, 10);
                     (async () => {
                         try {
@@ -508,13 +513,7 @@ export class GeoHandler extends Observable {
                             .map((e) => parseInt(e.name, 10));
                         DEV_LOG && console.log('playableStories', playableStories);
                         if (playableStories.indexOf(nextStoryIndex) !== -1) {
-                            const featuresViewed = this.featuresViewed;
-
-                            if (featuresViewed.indexOf(featureId) === -1) {
-                                featuresViewed.push(featureId);
-                                featuresViewed.push(featureId + '_out');
-                            }
-                            this.featuresViewed = featuresViewed;
+                            this.markAsViewed(name);
                             this.bluetoothHandler.loadAndPlayStory({ storyIndex: nextStoryIndex, canStop: this.isStoryPlayed(nextStoryIndex) });
                         }
                     }
