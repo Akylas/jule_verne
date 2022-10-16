@@ -93,7 +93,9 @@ lane :build_flavor do |params|
   changelog = get_changelog(platform:platform, flavor:flavor)
   if(flavor == "appcenter") 
     upload_appcenter(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
-  elsif (flavor != "fdroid")
+  elsif (flavor == "fdroid")
+    write_changelog(version:params[:versionCode], changelog:params[:changelog]);
+  else
     upload_store(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   end
   add_git_tag(tag: "#{platform}/#{flavor}/#{version}/#{versionCode}")
