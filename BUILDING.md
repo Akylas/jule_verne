@@ -71,3 +71,7 @@ That's it the process auto generate changelogs, tags based on the conventional c
 ### fdroid
 
 Run `fastlane android fdroid` then publish APKs from `platforms/android/app/build/outputs/apk/release` on the fdroid repo. The changelog from fastlane should be picked up by the fdroid repo.
+
+### github
+
+Run `fastlane android github`.
