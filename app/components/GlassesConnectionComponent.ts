@@ -1,4 +1,5 @@
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
+import { EventData } from '@nativescript/core';
 import { GlassesDevice, GlassesVersions } from '~/handlers/bluetooth/GlassesDevice';
 import {
     BLEBatteryEventData,
@@ -8,6 +9,10 @@ import {
     GlassesDisconnectedEvent,
     GlassesReconnectingEvent,
     GlassesReconnectingFailedEvent,
+    HeadSet,
+    HeadSetBatteryEvent,
+    HeadSetConnectedEvent,
+    HeadSetDisconnectedEvent,
     Peripheral,
     SPOTA_SERVICE_UUID,
     StatusChangedEvent
@@ -22,6 +27,7 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
     loading = false;
 
     public connectedGlasses: GlassesDevice = null;
+    public connectedHeadset: HeadSet = null;
     public glassesBattery: number = 0;
     connectingToGlasses = false;
     public glassesSerialNumber = null;
@@ -51,6 +57,11 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
         this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
         this.bluetoothHandlerOn(GlassesBatteryEvent, this.onGlassesBattery);
+
+        this.bluetoothHandlerOn(HeadSetConnectedEvent, this.onHeadsetConnected);
+        this.bluetoothHandlerOn(HeadSetDisconnectedEvent, this.onHeadsetDisconnected);
+        this.bluetoothHandlerOn(HeadSetBatteryEvent, this.onHeadsetBattery);
+
         this.connectingToGlasses = handlers.bluetoothHandler.connectingToGlasses;
         this.glassesName = handlers.bluetoothHandler.savedGlassesName;
         if (handlers.bluetoothHandler.glasses) {
@@ -70,6 +81,12 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
             this.onGlassesConnected({ data: handlers.bluetoothHandler.glasses } as any);
         } else if (this.connectedGlasses) {
             this.onGlassesDisconnected({ data: this.connectedGlasses } as any);
+        }
+
+        if (handlers.bluetoothHandler.connectedHeadset) {
+            this.onHeadsetConnected({ data: handlers.bluetoothHandler.connectedHeadset } as any);
+        } else if (this.connectedHeadset) {
+            this.onHeadsetDisconnected({ data: this.connectedHeadset } as any);
         }
         // DEV_LOG && console.log(TAG, this.constructor.name, 'setup', !!handlers.bluetoothHandler.glasses, this.bluetoothEnabled, this.gpsEnabled, this.autoConnect);
     }
@@ -112,6 +129,15 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
     }
     onGlassesBattery(e: BLEBatteryEventData) {
         this.updateGlassesBattery(e.data);
+    }
+    onHeadsetDisconnected(e: EventData) {
+        this.connectedHeadset = null;
+    }
+    onHeadsetConnected(e: EventData) {
+        this.connectedHeadset = e['data'] as any as HeadSet;
+    }
+    onHeadsetBattery(e: EventData) {
+        this.connectedHeadset = e['data'] as any as HeadSet;
     }
     updateGlassesBattery(value: number) {
         if (value >= 0) {

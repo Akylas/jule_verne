@@ -2,7 +2,7 @@ import { Bluetooth, StartScanningOptions as IStartScanningOptions, Peripheral, R
 import { isSimulator } from '@nativescript-community/extendedinfo';
 import { request } from '@nativescript-community/perms';
 import { showSnack } from '@nativescript-community/ui-material-snackbar';
-import { File } from '@nativescript/core';
+import { File, Utils } from '@nativescript/core';
 import * as appSettings from '@nativescript/core/application-settings';
 import { EventData } from '@nativescript/core/data/observable';
 import { Vibrate } from 'nativescript-vibrate';
@@ -19,6 +19,45 @@ import { Characteristic } from './bluetooth/Characteristic';
 import { GlassesDevice } from './bluetooth/GlassesDevice';
 import { Handler } from './Handler';
 import { PlayImagesOptions } from './StoryHandler';
+
+export const ACTION_BT_HEADSET_STATE_CHANGED = 'android.bluetooth.headset.action.STATE_CHANGED';
+export const ACTION_AUDIO_STATE_CHANGED = '"android.bluetooth.headset.profile.action.AUDIO_STATE_CHANGED';
+const STATE_CONNECTED = 0x00000002;
+const STATE_DISCONNECTED = 0x00000000;
+const EXTRA_STATE = 'android.bluetooth.profile.extra.STATE';
+
+export const HeadSetConnectedEvent = 'headSetConnectedEvent';
+export const HeadSetDisconnectedEvent = 'headSetDisconnectedEvent';
+export const HeadSetBatteryEvent = 'headSetBatteryEvent';
+
+@NativeClass
+class BroadcastReceiver extends android.content.BroadcastReceiver {
+    private _onReceiveCallback: (context: android.content.Context, intent: android.content.Intent) => void;
+
+    constructor(onReceiveCallback: (context: android.content.Context, intent: android.content.Intent) => void) {
+        super();
+        this._onReceiveCallback = onReceiveCallback;
+
+        return global.__native(this);
+    }
+
+    public onReceive(context: android.content.Context, intent: android.content.Intent) {
+        if (this._onReceiveCallback) {
+            this._onReceiveCallback(context, intent);
+        }
+    }
+}
+
+function getBluetoothDeviceBatterLevel(device: android.bluetooth.BluetoothDevice) {
+    try {
+        const method = device.getClass().getMethod('getBatteryLevel', null);
+        const result = (method.invoke(device, null) as java.lang.Integer).intValue();
+        return result;
+    } catch (ex) {
+        console.error('getBluetoothDeviceBatterLevel', ex);
+        return -1;
+    }
+}
 
 export { Peripheral };
 
@@ -80,6 +119,12 @@ export function hexToBytes(hex) {
     const bytes = [];
     for (let c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
     return new Uint8Array(bytes);
+}
+
+export interface HeadSet {
+    name: string;
+    battery: number;
+    address: string;
 }
 
 export type CancelPromise<T = void> = Promise<T> & { cancel() };
@@ -195,14 +240,24 @@ export class BluetoothHandler extends Handler {
         this.cancelConnections();
         this.connectingToSavedGlasses = false;
         await this.disconnectGlasses(true);
+        Utils.ad.getApplicationContext().unregisterReceiver(this.bluetoothHeadsetReceiver);
+        this.mProfileListener = null;
+        this.bluetoothHeadsetReceiver = null;
 
         bluetooth.off(Bluetooth.bluetooth_status_event, this.onBLEStatusChange, this);
         bluetooth.off(Bluetooth.device_connected_event, this.onDeviceConnected, this);
         bluetooth.off(Bluetooth.device_disconnected_event, this.onDeviceDisconnected, this);
-
         // we clear the bluetooth module on stop or it will be in a bad state on restart (not forced kill) on android.
         bluetooth = null;
         DEV_LOG && console.log(TAG, 'stop done');
+    }
+    bluetoothHeadsetReceiver: BroadcastReceiver;
+    mProfileListener: android.bluetooth.BluetoothProfile.ServiceListener;
+    mBluetoothHeadset: android.bluetooth.BluetoothHeadset;
+    mConnectedHeadset: HeadSet;
+
+    get connectedHeadset() {
+        return this.mConnectedHeadset;
     }
     async start() {
         TEST_LOG && console.log(TAG, 'start');
@@ -211,6 +266,72 @@ export class BluetoothHandler extends Handler {
         bluetooth.on(Bluetooth.bluetooth_status_event, this.onBLEStatusChange, this);
         bluetooth.on(Bluetooth.device_connected_event, this.onDeviceConnected, this);
         bluetooth.on(Bluetooth.device_disconnected_event, this.onDeviceDisconnected, this);
+
+        this.mProfileListener = new android.bluetooth.BluetoothProfile.ServiceListener({
+            onServiceConnected: (profile, proxy) => {
+                if (profile === android.bluetooth.BluetoothProfile.HEADSET) {
+                    this.mBluetoothHeadset = proxy as any;
+                    this.updateHeadsetState();
+                }
+            },
+
+            onServiceDisconnected: (profile) => {
+                if (profile === android.bluetooth.BluetoothProfile.HEADSET) {
+                    this.mBluetoothHeadset = null;
+                }
+            }
+        });
+        (bluetooth['adapter'] as android.bluetooth.BluetoothAdapter).getProfileProxy(Utils.ad.getApplicationContext(), this.mProfileListener, android.bluetooth.BluetoothProfile.HEADSET);
+
+        // Register receivers for BluetoothHeadset change notifications.
+        const bluetoothHeadsetFilter = new android.content.IntentFilter('android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED');
+        this.bluetoothHeadsetReceiver = new BroadcastReceiver((context: android.content.Context, intent: android.content.Intent) => {
+            const action = intent.getAction();
+            if (action === null) {
+                return;
+            }
+
+            const extraData = intent.getIntExtra(EXTRA_STATE, STATE_DISCONNECTED);
+            if (extraData === STATE_CONNECTED) {
+                this.updateHeadsetState();
+            } else if (extraData === STATE_DISCONNECTED) {
+                this.updateHeadsetState();
+            }
+        });
+        Utils.ad.getApplicationContext().registerReceiver(this.bluetoothHeadsetReceiver, bluetoothHeadsetFilter);
+    }
+
+    updateHeadsetState() {
+        const result: HeadSet[] = [];
+        if (this.mBluetoothHeadset) {
+            const connectedDevices = this.mBluetoothHeadset.getConnectedDevices().toArray();
+            if (connectedDevices.length > 0) {
+                for (let index = 0; index < connectedDevices.length; index++) {
+                    const device = connectedDevices[index] as android.bluetooth.BluetoothDevice;
+                    result.push({
+                        name: device.getName(),
+                        address: device.getAddress(),
+                        battery: getBluetoothDeviceBatterLevel(device)
+                    });
+                }
+            }
+        }
+        if (result.length > 0) {
+            if (!this.mConnectedHeadset || this.mConnectedHeadset.address !== result[0].address) {
+                this.mConnectedHeadset = result[0];
+                DEV_LOG && console.log(TAG, 'headset connected', this.mConnectedHeadset);
+                this.notify({ eventName: HeadSetConnectedEvent, data: this.mConnectedHeadset });
+            } else if (this.mConnectedHeadset.battery !== result[0].battery) {
+                this.mConnectedHeadset.battery = result[0].battery;
+                DEV_LOG && console.log(TAG, 'headset battery changed', this.mConnectedHeadset);
+                this.notify({ eventName: HeadSetBatteryEvent, data: this.mConnectedHeadset });
+            }
+        } else if (this.mConnectedHeadset) {
+            DEV_LOG && console.log(TAG, 'headset disconnected', this.mConnectedHeadset);
+            this.notify({ eventName: HeadSetDisconnectedEvent, data: this.mConnectedHeadset });
+            this.mConnectedHeadset = null;
+        }
+        return result;
     }
     bluetoothEnabled = false;
     onBLEStatusChange(e: BluetoothEvent) {

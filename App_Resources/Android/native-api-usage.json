@@ -19,7 +19,9 @@
 
         "android.os:LocaleList*",
 
-        "android.support.v4.media*:*", "androidx.media.session*:*", "androidx.media.app*:*"
+        "android.support.v4.media*:*", "androidx.media.session*:*", "androidx.media.app*:*",
+
+        "android.bluetooth:BluetoothProfile*","android.bluetooth.BluetoothProfile:ServiceListener*", "android.bluetooth:BluetoothHeadset*"
     ],
     "blacklist": [
         "org.nativescript.widgets:BottomNavigationBar*", 

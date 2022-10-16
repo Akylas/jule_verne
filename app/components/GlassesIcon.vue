@@ -9,14 +9,24 @@
     </GridLayout> -->
     <GridLayout @tap="$emit('tap', $event)" @longPress="onLongGlassesButton" rows="auto" columns="auto">
         <Image v-show="showImage" src="res://glasses_small" height="40" />
-        <Label :backgroundColor="glassBatteryColor" width="20" height="20" borderRadius="10" horizontalAlignment="right" verticalAlignment="bottom" />
+        <Label
+            :backgroundColor="glassBatteryColor"
+            width="20"
+            height="20"
+            borderRadius="10"
+            horizontalAlignment="right"
+            verticalAlignment="bottom"
+            :borderColor="headsetBatteryColor"
+            borderWidth="2"
+        />
     </GridLayout>
 </template>
 
 <script lang="ts">
 import { GestureEventData } from '@nativescript/core/ui';
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { GlassesDevice } from '~/handlers/bluetooth/GlassesDevice';
+import { HeadSet } from '~/handlers/BluetoothHandler';
 import BaseVueComponent from './BaseVueComponent';
 
 @Component({})
@@ -24,7 +34,9 @@ export default class GlassesIcon extends BaseVueComponent {
     @Prop({ default: 0, type: Number }) battery: number;
 
     @Prop({ default: null }) glasses: GlassesDevice;
+    @Prop({ default: null }) headset: HeadSet;
     @Prop({ default: false, type: Boolean }) showImage: boolean;
+
 
     get glassesBatteryColumns() {
         const value = this.battery;
@@ -41,6 +53,19 @@ export default class GlassesIcon extends BaseVueComponent {
             return '#53da22';
         }
         if (this.battery > 20) {
+            return '#FDB92C';
+        }
+        return '#ed243e';
+    }
+
+    get headsetBatteryColor() {
+        if (!this.headset) {
+            return '#aaa';
+        }
+        if (this.headset.battery > 40) {
+            return '#53da22';
+        }
+        if (this.headset.battery > 20) {
             return '#FDB92C';
         }
         return '#ed243e';

@@ -76,6 +76,7 @@
                         horizontalAlignment="right"
                         verticalAlignment="top"
                         showImage
+                        :headset="connectedHeadset"
                         :glasses="connectedGlasses"
                         :battery="glassesBattery"
                         @longPress="onLongPress('disconnectGlasses', $event)"
