@@ -7,6 +7,11 @@ end
 def truncate(string, length = 20)
   string.size > length+5 ? [string[0,length],string[-5,5]].join("...") : string
 end
+def writeFileIfNotExist(filePath, string)
+  if !File.exist?(filePath) 
+    File.write(filePath, string)
+  end
+end
 
 fastlane_version '2.135.2'
 opt_out_usage
@@ -91,16 +96,30 @@ lane :build_flavor do |params|
   )
 
   changelog = get_changelog(platform:platform, flavor:flavor)
-  if(flavor == "appcenter") 
-    upload_appcenter(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
-  elsif (flavor == "fdroid")
+  if (platform == 'android')
     write_changelog(version:versionCode, changelog:changelog);
+  end
+  if (flavor == "appcenter") 
+    upload_appcenter(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
+  elsif (flavor == "github")
+    set_github_release(
+      repository_name: $repository_name,
+      api_token: ENV["GH_TOKEN"],
+      name: "v#{version} Build #{versionCode}",
+      tag_name: tag,
+      description: changelog,
+      commitish: "master",
+      upload_assets: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk"))
+    )
   else
     upload_store(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   end
-  add_git_tag(tag: "#{platform}/#{flavor}/#{version}/#{versionCode}")
-
-  push_git_tags
+  
+  tag = "#{platform}/#{flavor}/#{version}/#{versionCode}";
+  if !git_tag_exists(tag: tag)
+    add_git_tag(tag: tag, force: true)
+    push_git_tags(force: true)
+  end
 end
 
 
@@ -175,7 +194,6 @@ platform :ios do
 end
 
 platform :android do
-
   desc 'Upload  to Sentry'
   lane :sentry_upload do 
   end
@@ -188,10 +206,11 @@ platform :android do
       changelog = changelog[0..499]
     end
 
-    metadata_dir="metadata/android/fr-FR/changelogs"
+    metadata_dir="metadata/android"
     require 'fileutils'
     system 'mkdir', '-p', metadata_dir
-    File.write("#{metadata_dir}/#{version}.txt", changelog)
+    writeFileIfNotExist("#{metadata_dir}/fr-FR/changelogs/#{version}.txt", changelog)
+    writeFileIfNotExist("#{metadata_dir}/en-US/changelogs/#{version}.txt", changelog)
     # Create a new branch and upload a PR for it.
     sh("git add #{metadata_dir}; git commit -m '#{version} release notes' --allow-empty")
   end
@@ -201,7 +220,6 @@ platform :android do
     if (track == 'beta') 
       track = 'internal'
     end
-    write_changelog(version:params[:versionCode], changelog:params[:changelog]);
     upload_to_play_store(
       track: track,
       track_promote_to: track,
@@ -214,59 +232,26 @@ platform :android do
     sh("rm", "-fr", "platforms/android")
     if (params[:flavor] == 'fdroid')
       sh("npm", "run", "build.android.production.fdroid")
+    elsif (params[:flavor] == 'github')
+      sh("npm", "run", "build.android.production.fdroid")
     elsif (params[:flavor] == 'alpha')
-      sh("npm", "run", "build.android.production", "--", "--env.reportall", "--env.devlog")
+      sh("npm", "run", "build.android.production", "--", "--env.reportall", "--env.testlog")
     else
       sh("npm", "run", "build.android.production")
     end
   end
 
-  desc 'Build the Android application For Github.'
-  lane :build_github do
-    sh("npm", "run", "build.android.production.fdroid")
-  end
-
   desc 'Ship to Github.'
   lane :github do
-    # checkGitStatus
-    platform = "android"
-    tns_install(platform:platform)
-    version = ""
-    versionCode = ""
-    flavor = "github"
-
-    
-    Dir.chdir("..") do
-      version  =  sh("./node_modules/.bin/get-version", platform, "version").gsub(/\n/,'')
-      versionCode  =  sh("./node_modules/.bin/get-version", platform, "code").gsub(/\n/,'')
-    end
-    
-    puts "platform:"  + platform
-    puts "flavor:"  + flavor
-    puts "version:"  + version
-    puts "versionCode:"  + versionCode
-
-    build_github
-
-    changelog = get_changelog(platform:platform, flavor:flavor)
-    write_changelog(version:versionCode, changelog:changelog);
-    tag  = "#{platform}/#{flavor}/#{version}/#{versionCode}";
-    add_git_tag(tag: tag, force: true)
-
-    push_git_tags(force:true)
-    set_github_release(
-      repository_name: $repository_name,
-      api_token: ENV["GH_TOKEN"],
-      name: "v#{version} Build #{versionCode}",
-      tag_name: tag,
-      description: changelog,
-      commitish: "master",
-      upload_assets: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk"))
-    )
+    checkSentryClitatus
+    checkGitStatus
+    build_flavor(platform:'android', flavor:'github')
   end
 
   desc 'build for fdroid.'
   lane :fdroid do
+    checkSentryClitatus
+    checkGitStatus
     build_flavor(platform:'android', flavor:'fdroid')
   end
 

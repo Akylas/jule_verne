@@ -167,14 +167,6 @@ Upload  to Sentry
 
 Build the Android application.
 
-### android build_github
-
-```sh
-[bundle exec] fastlane android build_github
-```
-
-Build the Android application For Github.
-
 ### android github
 
 ```sh
