@@ -110,13 +110,13 @@ export default class Tracks extends BgServiceComponent {
                     });
                 }
                 this.setChecked(item, true);
-                this.geoHandler.currentTrack = item.track;
+                this.storyHandler.currentTrack = item.track;
                 this.currentTrackId = trackId;
             }
         } else {
             if (this.currentTrackId === trackId) {
                 this.setChecked(item, false);
-                this.geoHandler.currentTrack = null;
+                this.storyHandler.currentTrack = null;
                 this.currentTrackId = null;
             }
         }
@@ -266,7 +266,7 @@ export default class Tracks extends BgServiceComponent {
             await Promise.all(
                 result.files.map((f) => {
                     if (f.endsWith('.json')) {
-                        return this.geoHandler.importJSONFile(f);
+                        return this.storyHandler.importJSONFile(f);
                         // } else if (f.endsWith('.gpx')) {
                         // return this.geoHandler.importGPXFile(f);
                     }

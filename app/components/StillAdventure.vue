@@ -84,7 +84,7 @@ export default class StillAdventure extends BgServiceComponent {
                     return;
                 }
 
-                const metadata = this.bluetoothHandler.storyInfo(s.name);
+                const metadata = this.storyHandler.storyInfo(s.name);
                 return {
                     ...metadata,
                     id: s.name,
@@ -97,9 +97,8 @@ export default class StillAdventure extends BgServiceComponent {
 
     @Catch()
     async onItemTap(item: Item) {
-
-        if (!this.bluetoothHandler.isPlaying) {
-            await this.bluetoothHandler.loadAndPlayStory({ storyIndex: +item.id, shouldPlayStart: false, shouldPlayMusic: true, shouldPlayRideau: false, canStop: true, markAsPlayedOnMap: false });
+        if (!this.storyHandler.isPlaying) {
+            await this.storyHandler.loadAndPlayStory({ storyIndex: +item.id, shouldPlayStart: false, shouldPlayMusic: true, shouldPlayRideau: false, canStop: true, markAsPlayedOnMap: false });
         }
     }
 }

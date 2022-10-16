@@ -12,11 +12,8 @@
 </template>
 
 <script lang="ts">
-import { AdvertismentData, Peripheral as IPeripheral } from '@nativescript-community/ble';
-import { ObservableArray } from '@nativescript/core/data/observable-array';
 import { ItemEventData } from '@nativescript/core/ui/list-view';
 import { Component, Prop } from 'vue-property-decorator';
-import { MICROOLED_MANUFACTURER_ID, MICROOLED_MANUFACTURER_NAME, StartScanningOptions } from '~/handlers/BluetoothHandler';
 import BaseVueComponent from './BaseVueComponent';
 
 @Component({})

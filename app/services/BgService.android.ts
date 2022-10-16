@@ -78,11 +78,11 @@ export class BgService extends BgServiceCommon {
             const localservice = bgBinder.getService();
             bgBinder.setService(null);
             this.bgService = new WeakRef(localservice);
-            localservice.onBounded();
+            localservice.onBounded(this);
             this._handlerLoaded();
             await super.start();
         } catch (err) {
-            console.error('BgService start failed', err);
+            console.error('BgService start failed', err, err.stack);
         }
     }
 
@@ -91,5 +91,12 @@ export class BgService extends BgServiceCommon {
     }
     get bluetoothHandler() {
         return this.bgService?.get()?.bluetoothHandler;
+    }
+
+    get dbHandler() {
+        return this.bgService?.get()?.dbHandler;
+    }
+    get storyHandler() {
+        return this.bgService?.get()?.storyHandler;
     }
 }

@@ -1,5 +1,5 @@
 <template>
-    <Page ref="page" :navigateUrl="navigateUrl">
+    <Page ref="page">
         <GridLayout rows="auto,*">
             <CActionBar modal showMenuIcon :title="$tc('create_track')" />
             <AWebView ref="webview" row="1" src="~/assets/leaflet/index.html" @geojson="onGeoJSON" normalizeUrls="false" />
@@ -11,7 +11,6 @@
 import { Component } from 'vue-property-decorator';
 import BaseVueComponent from './BaseVueComponent';
 import { AWebView } from '@nativescript-community/ui-webview';
-import { ComponentIds } from './App';
 @Component({})
 export default class Leaflet extends BaseVueComponent {
     get webView() {

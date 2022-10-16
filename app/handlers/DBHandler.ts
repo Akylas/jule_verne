@@ -1,7 +1,9 @@
 import { GenericGeoLocation } from '@nativescript-community/gps';
+import { request } from '@nativescript-community/perms';
 import { Observable } from '@nativescript/core/data/observable';
 import { knownFolders, path } from '@nativescript/core/file-system';
 import { TrackRepository } from '../models/Track';
+import { Handler } from './Handler';
 import NSQLDatabase from './NSQLDatabase';
 
 const TAG = '[DB]';
@@ -19,12 +21,13 @@ export interface OldStoredSession {
     locs: GenericGeoLocation[];
 }
 
-export class DBHandler extends Observable {
+export class DBHandler extends Handler {
     started = false;
 
     db: NSQLDatabase;
     trackRepository: TrackRepository;
     async start() {
+        await request('storage');
         const filePath = path.join(knownFolders.documents().getFolder('db').path, 'db.sqlite');
         this.db = new NSQLDatabase(filePath, {
             // for now it breaks

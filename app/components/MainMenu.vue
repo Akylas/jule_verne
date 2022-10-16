@@ -14,7 +14,7 @@
                     <Image col="1" src="res://activemotion_logo" margin="2 6 2 6" :tintColor="textColor" />
                     <Image col="2" src="res://akylas_logo" margin="8" :tintColor="textColor" />
                     <Image row="1" colSpan="3" horizontalAlignment="left" marginLeft="20%" src="~/assets/images/logos/CEA-Grenoble.png" />
-                    <Image row="1" colSpan="3" horizontalAlignment="right" marginRight="20%" src="~/assets/images/logos/logo-hexagone-22.png"/>
+                    <Image row="1" colSpan="3" horizontalAlignment="right" marginRight="20%" src="~/assets/images/logos/logo-hexagone-22.png" />
                 </GridLayout>
             </GridLayout>
         </GridLayout>
@@ -64,7 +64,7 @@ export default class MainMenu extends BgServiceComponent {
                 break;
             }
             case 'jules_verne_adventure': {
-                if (!this.geoHandler.currentTrack) {
+                if (!this.storyHandler.currentTrack) {
                     const result = await confirm({
                         message: this.$tc('track_not_selected'),
                         okButtonText: this.$tc('select'),

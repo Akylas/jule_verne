@@ -1,7 +1,7 @@
 import { Screen } from '@nativescript/core';
 import dayjs from 'dayjs';
 import { Component } from 'vue-property-decorator';
-import { PlayingInfo } from '~/handlers/BluetoothHandler';
+import { DrawBitmapEvent, PlaybackEvent, PlaybackStartEvent, PlayingInfo } from '~/handlers/StoryHandler';
 import { IMAGE_COLORMATRIX } from '~/vue.views';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 
@@ -30,16 +30,16 @@ export default class AudioPlayerWidget extends BgServiceComponent {
         return this.playingInfo ? (this.playingInfo.duration || 1) * progress : 0;
     }
     setup(handlers: BgServiceMethodParams) {
-        if (!handlers.geoHandler) {
+        if (!handlers.storyHandler) {
             return;
         }
-        this.bluetoothHandlerOn('drawBitmap', this.onDrawImage);
-        this.bluetoothHandlerOn('playback', this.onPlayerState);
-        this.bluetoothHandlerOn('playbackStart', this.onPlayerStart);
+        this.storyHandlerOn(DrawBitmapEvent, this.onDrawImage);
+        this.storyHandlerOn(PlaybackEvent, this.onPlayerState);
+        this.storyHandlerOn(PlaybackStartEvent, this.onPlayerStart);
 
-        this.playingInfo = handlers.bluetoothHandler.playingInfo;
-        this.onDrawImage({ bitmap: handlers.bluetoothHandler.currentSentImageToDraw });
-        this.onPlayerState({ data: handlers.bluetoothHandler.playerState });
+        this.playingInfo = handlers.storyHandler.playingInfo;
+        this.onDrawImage({ bitmap: handlers.storyHandler.currentSentImageToDraw });
+        this.onPlayerState({ data: handlers.storyHandler.playerState });
     }
     unsetup() {
         this.stopPlayerInterval();
@@ -53,7 +53,7 @@ export default class AudioPlayerWidget extends BgServiceComponent {
     playerStateInterval;
 
     onPlayerProgressInterval() {
-        this.currentTime = this.bluetoothHandler.playerCurrentTime;
+        this.currentTime = this.storyHandler.playerCurrentTime;
     }
     startPlayerInterval() {
         if (!this.playerStateInterval) {
@@ -124,12 +124,12 @@ export default class AudioPlayerWidget extends BgServiceComponent {
 
     togglePlayState() {
         if (this.state === 'pause') {
-            this.bluetoothHandler.resumeStory();
+            this.storyHandler.resumeStory();
         } else {
-            this.bluetoothHandler.pauseStory();
+            this.storyHandler.pauseStory();
         }
     }
     stopPlayback() {
-        this.bluetoothHandler.stopPlayingLoop({ fade: true });
+        this.storyHandler.stopPlayingLoop({ fade: true });
     }
 }

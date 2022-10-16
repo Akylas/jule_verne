@@ -351,6 +351,16 @@ export default class Settings extends FirmwareUpdateComponent {
                 max: 100
             },
             {
+                id: 'minDistanceDetection',
+                type: 'slider',
+                valueFormatter: (v) => v + 'm',
+                title: $t('minDistanceDetection'),
+                subtitle: $t('minDistanceDetection_desc'),
+                value: ApplicationSettings.getNumber('minDistanceDetection', 1),
+                min: 1,
+                max: 100
+            },
+            {
                 id: 'sendStoryWriteTimeout',
                 type: 'slider',
                 title: $t('send_story_write_timeout'),
@@ -496,7 +506,7 @@ export default class Settings extends FirmwareUpdateComponent {
     showTestImage() {
         this.showingTestImage = true;
         const filePath = ApplicationSettings.getString('glasses_config_image', path.join(getGlassesImagesFolder(), 'navigation', 'start', 'VG1.jpg'));
-        this.bluetoothHandler.drawImageFromPathWithMire(filePath);
+        this.storyHandler.drawImageFromPathWithMire(filePath);
     }
 
     async pickConfig() {
@@ -537,7 +547,7 @@ export default class Settings extends FirmwareUpdateComponent {
                         if (!this.memory) {
                             await this.getMemory(true);
                         }
-                        await this.bluetoothHandler.sendConfigToGlasses(
+                        await this.storyHandler.sendConfigToGlasses(
                             config,
                             this.memory
                             // (promise) => {
@@ -738,7 +748,7 @@ export default class Settings extends FirmwareUpdateComponent {
             console.log('r', r);
             for (let index = 0; index < r.length; index++) {
                 const element = r[index];
-                await this.bluetoothHandler.sendConfigToGlasses(element.path, this.memory);
+                await this.storyHandler.sendConfigToGlasses(element.path, this.memory);
             }
             await this.getMemory(true);
             await this.bluetoothHandler.askConfigs();

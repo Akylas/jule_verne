@@ -1,4 +1,4 @@
-import {filesize} from 'filesize';
+import { filesize } from 'filesize';
 import VueStringFilter from 'vue-string-filter';
 import { UNITS, convertTime, formatValueToUnit } from '~/helpers/formatter';
 

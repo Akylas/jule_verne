@@ -65,9 +65,9 @@
                 </PagerItem>
                 <PagerItem>
                     <GridLayout v-show="showPage(3)" padding="10">
-                        <GridLayout verticalAlignment="center" horizontalAlignment="center" rows="auto,auto,auto,auto,*,auto">
-                            <GridLayout row="0" horizontalAlignment="center" rows="auto" columns="auto" backgroundColor="black" borderRadius="20" margin="20">
-                                <Image stretch="aspectFit" :colorMatrix="colorMatrix" :src="configImagePath" height="200" borderRadius="20" margin="20" />
+                        <GridLayout verticalAlignment="center" horizontalAlignment="center" rows="*,auto,auto,auto,auto">
+                            <GridLayout row="0" horizontalAlignment="center" rows="*" columns="auto" backgroundColor="black" borderRadius="20" margin="20">
+                                <Image stretch="aspectFit" :colorMatrix="colorMatrix" :src="configImagePath" borderRadius="20" margin="20" />
                                 <CanvasView @draw="onDraw" />
                             </GridLayout>
 
@@ -84,20 +84,31 @@
                                 icon="mdi-lightbulb-on"
                             />
                             <Label row="3" :text="$tc('adjust_glasses_luminosity')" fontSize="19" textAlignment="center" width="70%" />
-                            <MDButton variant="outline" row="5" :text="$tc('luminance_ok')" @tap="selectedPageIndex += 1" horizontalAlignment="center" />
+                            <MDButton variant="outline" row="4" :text="$tc('luminance_ok')" @tap="selectedPageIndex += 1" horizontalAlignment="center" />
                         </GridLayout>
                     </GridLayout>
                 </PagerItem>
                 <PagerItem>
-                    <GridLayout v-show="showPage(4)" padding="10" rows="auto,auto,auto,auto,auto,auto,*,auto">
+                    <GridLayout v-show="showPage(4)" padding="10" rows="auto,*,auto,auto,auto,auto,auto">
                         <Label :text="$tc('place_audio_headphones')" fontSize="20" fontWeight="bold" textAlignment="center" />
 
-                        <Label row="1" text="mdi-music" class="mdi" fontSize="140" textAlignment="center" marginTop="20" marginBottom="20" />
+                        <Label
+                            row="1"
+                            text="mdi-music"
+                            class="mdi"
+                            fontSize="140"
+                            textAlignment="center"
+                            marginTop="20"
+                            marginBottom="20"
+                            :autoFontSize="true"
+                            maxFontSize="140"
+                            verticalTextAlignment="center"
+                        />
                         <Label row="2" :text="$tc('play_test_desc')" fontSize="20" textAlignment="center" width="70%" />
                         <MDButton variant="outline" row="3" :text="$tc('play_test')" @tap="() => playAudioTest()" horizontalAlignment="center" />
                         <Slider id="volume" row="4" margin="10 20 10 20" :value="volume" @valueChange="onSliderChange('volume', $event)" icon="mdi-volume-high" />
                         <Label row="5" :text="$tc('adjust_volume')" fontSize="16" textAlignment="center" width="70%" />
-                        <MDButton variant="outline" row="7" :text="forMap ? $tc('start_demo') : $tc('next')" @tap="onAudioDone" horizontalAlignment="center" />
+                        <MDButton variant="outline" row="6" :text="forMap ? $tc('start_demo') : $tc('next')" @tap="onAudioDone" horizontalAlignment="center" />
                     </GridLayout>
                 </PagerItem>
                 <PagerItem>
@@ -151,8 +162,9 @@ import { throttle } from 'helpful-decorators';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import { AvailableConfigsEvent, GlassesMemoryChangeEvent } from '~/handlers/BluetoothHandler';
-import { GeoLocation, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
+import { GeoLocation, UserRawLocationEvent } from '~/handlers/GeoHandler';
 import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
+import { UserLocationdEventData } from '~/handlers/StoryHandler';
 import { Catch, getVolumeLevel, setVolumeLevel, versionCompare } from '~/utils';
 import { getGlassesImagesFolder } from '~/utils/utils';
 import { borderColor, mdiFontFamily, subtitleColor, textColor } from '~/variables';
@@ -300,14 +312,14 @@ export default class Onboarding extends FirmwareUpdateComponent {
                 }
                 break;
             case Pages.IMAGE_TEST:
-                this.bluetoothHandler.drawImageFromPathWithMire(this.configImagePath);
+                this.storyHandler.drawImageFromPathWithMire(this.configImagePath);
                 break;
             case Pages.FIND_LOCATION_STORY:
                 if (this.lastLocation) {
                     this.$modal.close(this.lastLocation);
                 }
                 this.playingInstructions = true;
-                await this.bluetoothHandler.loadAndPlayStory({ storyIndex: 1000, shouldPlayStart: false, shouldPlayRideau: false, canStop: true, markAsPlayedOnMap: false });
+                await this.storyHandler.loadAndPlayStory({ storyIndex: 1000, shouldPlayStart: false, shouldPlayRideau: false, canStop: true, markAsPlayedOnMap: false });
                 this.playingInstructions = false;
 
                 break;
@@ -333,10 +345,10 @@ export default class Onboarding extends FirmwareUpdateComponent {
         this.geoHandlerOn(UserRawLocationEvent, this.onNewLocation, this);
         this.onNewLocation({
             error: null,
-            location: handlers.geoHandler.lastLocation,
-            aimingFeature: handlers.geoHandler.aimingFeature,
-            aimingAngle: handlers.geoHandler.aimingAngle,
-            isInTrackBounds: handlers.geoHandler.isInTrackBounds
+            location: handlers.storyHandler.lastLocation,
+            aimingFeature: handlers.storyHandler.aimingFeature,
+            aimingAngle: handlers.storyHandler.aimingAngle,
+            isInTrackBounds: handlers.storyHandler.isInTrackBounds
         } as any);
 
         this.bluetoothHandlerOn(AvailableConfigsEvent, this.onAvailableConfigs, this);
@@ -388,6 +400,7 @@ export default class Onboarding extends FirmwareUpdateComponent {
     }
 
     async onNewLocation(data: UserLocationdEventData) {
+        DEV_LOG && console.log('onNewLocation', data.location, data.error);
         if (data.error) {
             this.showError(data.error);
             return;
@@ -430,7 +443,7 @@ export default class Onboarding extends FirmwareUpdateComponent {
     @Catch()
     async checkAndUpdateFirmware() {
         DEV_LOG && console.log('checkAndUpdateFirmware', this.connectedGlasses?.versions, versionCompare('4.6.0', this.connectedGlasses?.versions?.firmware));
-        if (this.connectedGlasses?.versions && versionCompare('4.6.0', this.connectedGlasses?.versions?.firmware) > 0) {
+        if (this.connectedGlasses?.versions && this.connectedGlasses?.versions?.firmware && versionCompare('4.6.0', this.connectedGlasses?.versions?.firmware) > 0) {
             // we need to update the firmware
             this.showLoading({ title: this.$tc('updating_firmware'), progress: 0 } as any);
             await this.updateFirmware(path.join(knownFolders.currentApp().path, 'assets/data/4.6.0.img'));
@@ -448,7 +461,7 @@ export default class Onboarding extends FirmwareUpdateComponent {
     }
 
     showConfigImage() {
-        this.bluetoothHandler.drawImageFromPathWithMire(this.configImagePath);
+        this.storyHandler.drawImageFromPathWithMire(this.configImagePath);
     }
     @throttle(50)
     updateLuminance(value) {
@@ -477,7 +490,7 @@ export default class Onboarding extends FirmwareUpdateComponent {
     @Catch()
     async playAudioTest() {
         const instFolder = path.join(getGlassesImagesFolder(), 'navigation/uturn', 'pas.mp3');
-        await this.bluetoothHandler.playAudio({ fileName: instFolder });
+        await this.storyHandler.playAudio({ fileName: instFolder });
     }
     async startWatchLocation() {
         if (this.watchingLocation || !this.geoHandler) {

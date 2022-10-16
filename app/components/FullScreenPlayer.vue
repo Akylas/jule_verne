@@ -45,7 +45,7 @@ export default class BarAudioPlayerWidget extends AudioPlayerWidget {
     show() {}
     hide() {}
     stopPlayback() {
-        this.bluetoothHandler.stopPlayingLoop({ fade: true });
+        this.storyHandler.stopPlayingLoop({ fade: true });
         this.$modal.close();
     }
 
@@ -56,7 +56,7 @@ export default class BarAudioPlayerWidget extends AudioPlayerWidget {
         if (Math.floor(value) === Math.floor(this.progress)) {
             return;
         }
-        this.bluetoothHandler.setPlayerTimestamp(actualProgress);
+        this.storyHandler.setPlayerTimestamp(actualProgress);
 
         this.onPlayerProgressInterval();
     }

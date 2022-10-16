@@ -38,7 +38,8 @@ import { ApplicationSettings, ChangedData, Color, Folder, Observable, Observable
 import dayjs from 'dayjs';
 import { BBox } from 'geojson';
 import { Component, Prop, Watch } from 'vue-property-decorator';
-import { GeoLocation, UserLocationdEventData, UserRawLocationEvent } from '~/handlers/GeoHandler';
+import { GeoLocation, UserRawLocationEvent } from '~/handlers/GeoHandler';
+import { UserLocationdEventData } from '~/handlers/StoryHandler';
 import Track from '~/models/Track';
 import { Catch } from '~/utils';
 import { getWorkingDir } from '~/utils/utils';
@@ -150,7 +151,7 @@ export default class MapComponent extends BgServiceComponent {
         }
 
         this.updateTrack(this.tracks);
-        this.updateUserLocation(this.geoHandler.lastLocation);
+        this.updateUserLocation(this.storyHandler.lastLocation);
         this.$emit('mapReady', e);
     }
     createMergeMBtiles({ name, sources, legend }: { name: string; sources: string[]; legend?: string }) {
@@ -407,7 +408,7 @@ export default class MapComponent extends BgServiceComponent {
         }
         this.geoHandlerOn(UserRawLocationEvent, this.onLocation, this);
         // this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
-        const loc = handlers.geoHandler.lastLocation;
+        const loc = handlers.storyHandler.lastLocation;
         if (loc) {
             this.onLocation({ data: loc } as any);
         }

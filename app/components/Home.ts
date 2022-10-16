@@ -4,22 +4,17 @@ import { CartoMap } from '@nativescript-community/ui-carto/ui';
 import { Drawer } from '@nativescript-community/ui-drawer';
 import { alert, prompt } from '@nativescript-community/ui-material-dialogs';
 import { AndroidActivityBackPressedEventData, AndroidApplication, Application, ApplicationSettings, EventData, File, Frame, GestureEventData, knownFolders, path } from '@nativescript/core';
-import {filesize} from 'filesize';
+import { filesize } from 'filesize';
 import { Component } from 'vue-property-decorator';
 import { BaseVueComponentRefs } from '~/components/BaseVueComponent';
 import { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import MapComponent from '~/components/MapComponent.vue';
 import { AvailableConfigsEvent, GlassesMemoryChangeEvent } from '~/handlers/BluetoothHandler';
 import {
-    FeatureViewedEvent,
     GeoLocation,
-    InsideFeatureEvent,
-    PositionStateEvent,
     SessionEventData,
     SessionState,
     SessionStateEvent,
-    TrackSelecteEvent,
-    UserLocationdEventData,
     UserRawLocationEvent
 } from '~/handlers/GeoHandler';
 import { ConfigListData, FreeSpaceData } from '~/handlers/Message';
@@ -35,6 +30,7 @@ import { ComponentIds } from '~/vue.prototype';
 // import AudioPlayerWidget from '~/component/AudioPlayerWidget';
 import GlassesConnectionComponent from '~/components/GlassesConnectionComponent';
 import GlassesIcon from '~/components/GlassesIcon.vue';
+import { FeatureViewedEvent, InsideFeatureEvent, PositionStateEvent, TrackSelecteEvent, UserLocationdEventData } from '~/handlers/StoryHandler';
 
 export interface HomeRefs extends BaseVueComponentRefs {
     [key: string]: any;
@@ -157,7 +153,7 @@ export default class Home extends GlassesConnectionComponent {
         //     this.insideFeature = null;
         // }
         events.forEach((e) => {
-            this.eLog(e.feature.id, e.feature.properties.name, e.state, e.distance,);
+            this.eLog(e.feature.id, e.feature.properties.name, e.state, e.distance);
         });
     }
     onTrackSelected(event: EventData) {
@@ -285,24 +281,24 @@ export default class Home extends GlassesConnectionComponent {
             return;
         }
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
-        this.geoHandlerOn(TrackSelecteEvent, this.onTrackSelected, this);
         this.geoHandlerOn(UserRawLocationEvent, this.onNewLocation, this);
-        this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
-        this.geoHandlerOn(InsideFeatureEvent, this.onInsideFeature, this);
+        this.storyHandlerOn(TrackSelecteEvent, this.onTrackSelected, this);
+        this.storyHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
+        this.storyHandlerOn(InsideFeatureEvent, this.onInsideFeature, this);
+        this.storyHandlerOn(FeatureViewedEvent, this.onFeatureViewed, this);
         this.onNewLocation({
             error: null,
-            location: handlers.geoHandler.lastLocation,
-            aimingFeature: handlers.geoHandler.aimingFeature,
-            aimingAngle: handlers.geoHandler.aimingAngle,
-            isInTrackBounds: handlers.geoHandler.isInTrackBounds
+            location: handlers.storyHandler.lastLocation,
+            aimingFeature: handlers.storyHandler.aimingFeature,
+            aimingAngle: handlers.storyHandler.aimingAngle,
+            isInTrackBounds: handlers.storyHandler.isInTrackBounds
         } as any);
-        this.geoHandlerOn(FeatureViewedEvent, this.onFeatureViewed, this);
 
         this.bluetoothHandlerOn(AvailableConfigsEvent, this.onAvailableConfigs, this);
         this.bluetoothHandlerOn(GlassesMemoryChangeEvent, this.onGlassesMemory);
 
         this.isWatchingLocation = handlers.geoHandler.isWatching();
-        this.onTrackSelected({ track: this.geoHandler.currentTrack } as any);
+        this.onTrackSelected({ track: this.storyHandler.currentTrack } as any);
     }
 
     get currentBearing() {
@@ -363,8 +359,8 @@ export default class Home extends GlassesConnectionComponent {
                 } else {
                     newTrack = await this.dbHandler.trackRepository.updateItem(track);
                 }
-                if (this.geoHandler.currentTrack?.id === newTrack.id) {
-                    this.geoHandler.currentTrack = newTrack;
+                if (this.storyHandler.currentTrack?.id === newTrack.id) {
+                    this.storyHandler.currentTrack = newTrack;
                 }
             }
             ApplicationSettings.setNumber('map.geojson_date', file.lastModified.getTime());
@@ -452,22 +448,22 @@ export default class Home extends GlassesConnectionComponent {
 
                 break;
             case 'playStory':
-                await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                await this.storyHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
                 // await this.bluetoothHandler.playInstruction('starting_story');
-                await this.bluetoothHandler.playRideauAndStory(args[0]);
+                await this.storyHandler.playRideauAndStory(args[0]);
                 break;
             case 'start':
-                await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
-                await this.bluetoothHandler.playInstruction(command);
+                await this.storyHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                await this.storyHandler.playInstruction(command);
                 break;
             case 'exit':
             case 'uturn':
             case 'right':
-                await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
-                await this.bluetoothHandler.playNavigationInstruction(command);
+                await this.storyHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                await this.storyHandler.playNavigationInstruction(command);
                 break;
             case 'stopPlaying':
-                await this.bluetoothHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
+                await this.storyHandler.stopPlayingLoop({ fade: true, ignoreNext: true });
                 break;
             case 'changeDeviceName':
                 const result = await prompt({

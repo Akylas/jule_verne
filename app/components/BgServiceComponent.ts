@@ -6,11 +6,13 @@ import { GeoHandler } from '~/handlers/GeoHandler';
 import { BgServiceLoadedEvent } from '~/services/BgService';
 import { BgServiceStartedEvent } from '~/services/BgService.common';
 import BaseVueComponent from './BaseVueComponent';
+import { StoryHandler } from '~/handlers/StoryHandler';
 
 export interface BgServiceMethodParams {
     bluetoothHandler: BluetoothHandler;
     geoHandler: GeoHandler;
     dbHandler: DBHandler;
+    storyHandler: StoryHandler;
 }
 
 const TAG = '[BgServiceComponent]';
@@ -106,38 +108,51 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     unregisterSetupEvents() {
         const bluetoothHandler = this.$bgService.bluetoothHandler;
         const geoHandler = this.$bgService.geoHandler;
+        const storyHandler = this.$bgService.storyHandler;
         DEV_LOG && console.log(TAG, this.constructor.name, 'unregisterSetupEvents');
         if (bluetoothHandler) {
-            this.bluetoothHandlerSetupListeners.forEach((r) => {
+            this.handlersSetupListeners['bluetooth']?.forEach((r) => {
                 bluetoothHandler.off(r[0], r[1], r[2] || this);
             });
         }
-        this.bluetoothHandlerSetupListeners = [];
+
         if (geoHandler) {
-            this.geoHandlerSetupListeners.forEach((r) => {
+            this.handlersSetupListeners['geo']?.forEach((r) => {
                 geoHandler.off(r[0], r[1], r[2] || this);
             });
         }
 
-        this.geoHandlerSetupListeners = [];
+        if (storyHandler) {
+            this.handlersSetupListeners['story']?.forEach((r) => {
+                storyHandler.off(r[0], r[1], r[2] || this);
+            });
+        }
+
+        this.handlersSetupListeners = {};
     }
     unregisterEvents() {
         const bluetoothHandler = this.$bgService.bluetoothHandler;
         const geoHandler = this.$bgService.geoHandler;
+        const storyHandler = this.$bgService.storyHandler;
         if (bluetoothHandler) {
-            this.bluetoothHandlerListeners.forEach((r) => {
+            this.handlersListeners['bluetooth']?.forEach((r) => {
                 bluetoothHandler.off(r[0], r[1], r[2] || this);
             });
         }
-        this.bluetoothHandlerListeners = [];
+
         if (geoHandler) {
-            this.geoHandlerListeners.forEach((r) => {
-                DEV_LOG && console.log('unregisterEvents', r[0]);
+            this.handlersListeners['geo']?.forEach((r) => {
                 geoHandler.off(r[0], r[1], r[2] || this);
             });
         }
 
-        this.geoHandlerListeners = [];
+        if (storyHandler) {
+            this.handlersListeners['story']?.forEach((r) => {
+                storyHandler.off(r[0], r[1], r[2] || this);
+            });
+        }
+
+        this.handlersListeners = {};
     }
     unloadService() {
         DEV_LOG && console.log('unloadService');
@@ -149,30 +164,39 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     getParams() {
         const geoHandler = this.geoHandler;
         const dbHandler = this.dbHandler;
+        const storyHandler = this.storyHandler;
         const bluetoothHandler = this.bluetoothHandler;
-        return { geoHandler, dbHandler, bluetoothHandler };
+        return { geoHandler, dbHandler, bluetoothHandler, storyHandler };
     }
 
-    private bluetoothHandlerSetupListeners: any[] = [];
-    private bluetoothHandlerListeners: any[] = [];
-    bluetoothHandlerOn(event, listener, context = this) {
+    private handlersSetupListeners: { [k: string]: any[] } = {};
+    private handlersListeners: { [k: string]: any[] } = {};
+
+    addHandlerListener(handler: string, event, listener, context = this) {
         if (this.inSetup) {
-            this.bluetoothHandlerSetupListeners.push([event, listener]);
+            const listeners = this.handlersSetupListeners[handler] || [];
+            listeners.push([event, listener]);
+            this.handlersSetupListeners[handler] = listeners;
         } else {
-            this.bluetoothHandlerListeners.push([event, listener]);
+            const listeners = this.handlersListeners[handler] || [];
+            listeners.push([event, listener]);
+            this.handlersListeners[handler] = listeners;
         }
+    }
+
+    bluetoothHandlerOn(event, listener, context = this) {
+        this.addHandlerListener('bluetooth', event, listener, context);
         this.bluetoothHandler.on(event, listener, context);
         return this;
     }
-    private geoHandlerSetupListeners: any[] = [];
-    private geoHandlerListeners: any[] = [];
     geoHandlerOn(event, listener, context = this) {
-        if (this.inSetup) {
-            this.geoHandlerSetupListeners.push([event, listener]);
-        } else {
-            this.geoHandlerListeners.push([event, listener]);
-        }
+        this.addHandlerListener('geo', event, listener, context);
         this.geoHandler.on(event, listener, context);
+        return this;
+    }
+    storyHandlerOn(event, listener, context = this) {
+        this.addHandlerListener('story', event, listener, context);
+        this.storyHandler.on(event, listener, context);
         return this;
     }
 
@@ -180,10 +204,13 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         return this.$bgService && this.$bgService.geoHandler;
     }
     get dbHandler() {
-        return this.$bgService && this.$bgService.geoHandler && this.$bgService.geoHandler.dbHandler;
+        return this.$bgService && this.$bgService.geoHandler && this.$bgService.dbHandler;
     }
     get bluetoothHandler() {
         return this.$bgService && this.$bgService.bluetoothHandler && this.$bgService.bluetoothHandler;
+    }
+    get storyHandler() {
+        return this.$bgService && this.$bgService.bluetoothHandler && this.$bgService.storyHandler;
     }
     onServiceLoaded(handlers: BgServiceMethodParams) {}
     onServiceStarted(handlers: BgServiceMethodParams) {}

@@ -92,7 +92,7 @@ export default class ImagesView extends BgServiceComponent {
     async onItemTap(item) {
         switch (item.type) {
             case 'image': {
-                this.bluetoothHandler.drawImageFromPathWithMire(item.path);
+                this.storyHandler.drawImageFromPathWithMire(item.path);
                 const component = (await import('~/components/ImagesViewer.vue')).default;
                 const index = this.items.findIndex((i) => i.path === item.path);
                 this.$navigateTo(component, {

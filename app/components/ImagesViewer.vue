@@ -83,7 +83,7 @@ export default class ImagesViewer extends BgServiceComponent {
         const item = this.items.getItem(this.currentIndex);
         this.updateCollectionView(this.lastIndex, this.currentIndex, item);
         this.lastIndex = this.currentIndex;
-        this.bluetoothHandler.drawImageFromPathWithMire(item.path);
+        this.storyHandler.drawImageFromPathWithMire(item.path);
     }
 
     // @throttle(500)

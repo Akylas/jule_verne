@@ -14,12 +14,12 @@ export const stringProperty = (target: Object, key: string | symbol) => {
     target[innerKey] = getString(actualkey);
 
     // property getter
-    const getter = function() {
+    const getter = function () {
         return this[innerKey];
     };
 
     // property setter
-    const setter = function(newVal) {
+    const setter = function (newVal) {
         this[innerKey] = newVal;
         if (newVal === undefined || newVal === null) {
             return remove(actualkey);
@@ -43,12 +43,12 @@ export const objectProperty = (target: Object, key: string | symbol) => {
     target[innerKey] = savedValue !== undefined ? JSON.parse(savedValue) : undefined;
 
     // property getter
-    const getter = function() {
+    const getter = function () {
         return this[innerKey];
     };
 
     // property setter
-    const setter = function(newVal) {
+    const setter = function (newVal) {
         this[innerKey] = newVal;
         if (newVal === undefined) {
             return remove(actualkey);
@@ -64,33 +64,31 @@ export const objectProperty = (target: Object, key: string | symbol) => {
     });
 };
 
-
 interface PropertyDecoratorOptions<T> {
     default?: T;
 }
 function createGetter<T>(actualkey: string, innerKey: string, options: PropertyDecoratorOptions<T>) {
-    return function() {
+    return function () {
         return this[innerKey] as T;
     };
 }
 function createSetter<T>(actualkey: string, innerKey: string, options: PropertyDecoratorOptions<T>, setFunc: Function) {
-    return function(newVal: T) {
+    return function (newVal: T) {
         this[innerKey] = newVal;
         if (newVal === undefined) {
-            return remove(actualkey );
+            return remove(actualkey);
         }
-        return setFunc( actualkey,newVal);
+        return setFunc(actualkey, newVal);
     };
 }
 function nativePropertyGenerator<T>(target: Object, key: any, options: PropertyDecoratorOptions<T>, getFunc: Function, setFunc: Function) {
     const actualkey = key.toString();
     const innerKey = '_' + actualkey;
-    const savedValue = getFunc( actualkey);
+    const savedValue = getFunc(actualkey);
     if ((savedValue === undefined || savedValue === null) && options.hasOwnProperty('default')) {
         target[innerKey] = options.default;
     } else {
         target[innerKey] = savedValue;
-
     }
     Object.defineProperty(target, key, {
         get: createGetter<T>(actualkey, innerKey, options),
@@ -104,7 +102,7 @@ export function booleanProperty(options: PropertyDecoratorOptions<boolean>): (ta
 export function booleanProperty(...args) {
     if (args.length === 1) {
         /// this must be a factory
-        return function(target: any, key?: string, descriptor?: PropertyDescriptor) {
+        return function (target: any, key?: string, descriptor?: PropertyDescriptor) {
             return nativePropertyGenerator<boolean>(target, key, args[0] || {}, getBoolean, setBoolean);
         };
     } else {
@@ -120,12 +118,12 @@ export const numberProperty = (target: Object, key: string | symbol) => {
     target[innerKey] = getNumber(actualkey);
 
     // property getter
-    const getter = function() {
+    const getter = function () {
         return this[innerKey];
     };
 
     // property setter
-    const setter = function(newVal) {
+    const setter = function (newVal) {
         this[innerKey] = newVal;
         if (newVal === undefined) {
             return remove(actualkey);

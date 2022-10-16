@@ -98,6 +98,8 @@
   "map": "carte",
   "memory": "mémoire",
   "menu": "menu",
+  "minDistanceDetection": "distance minimum parcourue pour calculer l'orientation",
+  "minDistanceDetection_desc": "plus la valeur est haute plus on évite des (changements de) directions non voulues. La contrepartie est que la détection d'orientation est plus \"lente\"",
   "minHorizontalAccuracy": "précision GPS minimum",
   "missing": "manquant",
   "music_notification": "notification de musique",

@@ -4,11 +4,14 @@ import { GeoHandler, SessionChronoEventData, SessionEventData, SessionState, Ses
 import { BgServiceBinder } from '~/services/android/BgServiceBinder';
 import { ACTION_PAUSE, ACTION_RESUME, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, NotificationHelper } from './NotifcationHelper';
 import { $tc } from '~/helpers/locale';
-import { BluetoothHandler, GlassesConnectedEvent, GlassesDisconnectedEvent, PlayingInfo } from '~/handlers/BluetoothHandler';
+import { BluetoothHandler, GlassesConnectedEvent, GlassesDisconnectedEvent } from '~/handlers/BluetoothHandler';
 // import { MediaSessionCompatCallback } from './MediaSessionCompatCallback';
 import { IMAGE_COLORMATRIX } from '~/vue.views';
 import { createColorMatrix } from '~/utils';
 import { accentColor } from '~/variables';
+import { DBHandler } from '~/handlers/DBHandler';
+import { DrawBitmapEvent, PlaybackEvent, PlaybackStartEvent, PlayingInfo, StoryHandler } from '~/handlers/StoryHandler';
+import { BgServiceCommon } from '../BgService.common';
 
 const NOTIFICATION_ID = 3426824;
 const PLAYING_NOTIFICATION_ID = 123512;
@@ -46,6 +49,8 @@ export class BgService extends android.app.Service {
     currentNotifText: string;
     geoHandler: GeoHandler;
     bluetoothHandler: BluetoothHandler;
+    dbHandler: DBHandler;
+    storyHandler: StoryHandler;
     bounded: boolean;
     inBackground: any;
     mNotificationBuilder: androidx.core.app.NotificationCompat.Builder;
@@ -107,28 +112,31 @@ export class BgService extends android.app.Service {
         DEV_LOG && console.log(TAG, 'onUnbind');
         this.bounded = false;
         const bluetoothHandler = this.bluetoothHandler;
+        const storyHandler = this.storyHandler;
         this.removeForeground();
         bluetoothHandler.off(GlassesConnectedEvent, this.onGlassesConnected, this);
         bluetoothHandler.off(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
-        bluetoothHandler.off('playback', this.onPlayerState, this);
-        bluetoothHandler.off('playbackStart', this.onPlayerStart, this);
-        bluetoothHandler.off('drawBitmap', this.onDrawImage, this);
+        storyHandler.off(PlaybackEvent, this.onPlayerState, this);
+        storyHandler.off(PlaybackStartEvent, this.onPlayerStart, this);
+        storyHandler.off(DrawBitmapEvent, this.onDrawImage, this);
         return true;
     }
     onRebind(intent: android.content.Intent) {
         // a client is binding to the service with bindService(), after onUnbind() has already been called
     }
 
-    onBounded() {
+    onBounded(commonService: BgServiceCommon) {
         try {
-            this.geoHandler = new GeoHandler();
-            const bluetoothHandler = (this.bluetoothHandler = new BluetoothHandler());
+            this.geoHandler = new GeoHandler(commonService);
+            const bluetoothHandler = (this.bluetoothHandler = new BluetoothHandler(commonService));
+            this.dbHandler = new DBHandler(commonService);
+            this.storyHandler = new StoryHandler(commonService);
             this.showForeground();
             bluetoothHandler.on(GlassesConnectedEvent, this.onGlassesConnected, this);
             bluetoothHandler.on(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
-            bluetoothHandler.on('playback', this.onPlayerState, this);
-            bluetoothHandler.on('playbackStart', this.onPlayerStart, this);
-            bluetoothHandler.on('drawBitmap', this.onDrawImage, this);
+            bluetoothHandler.on(PlaybackEvent, this.onPlayerState, this);
+            bluetoothHandler.on(PlaybackStartEvent, this.onPlayerStart, this);
+            bluetoothHandler.on(DrawBitmapEvent, this.onDrawImage, this);
             this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
         } catch (error) {
             console.error('onBounded', error, error.stack);
@@ -346,7 +354,7 @@ export class BgService extends android.app.Service {
         } else {
             playbackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_PLAY);
         }
-        playbackstateBuilder.setState(state, this.bluetoothHandler.playerCurrentTime, 1);
+        playbackstateBuilder.setState(state, this.storyHandler.playerCurrentTime, 1);
         this.getMediaSessionCompat().setPlaybackState(playbackstateBuilder.build());
     }
     hidePlayingNotification() {
@@ -443,15 +451,15 @@ export class BgService extends android.app.Service {
         switch (event.getKeyCode()) {
             case android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: {
                 if (this.playingState === 'play') {
-                    this.bluetoothHandler.pauseStory();
+                    this.storyHandler.pauseStory();
                 } else {
-                    this.bluetoothHandler.resumeStory();
+                    this.storyHandler.resumeStory();
                 }
                 break;
             }
             case android.view.KeyEvent.KEYCODE_MEDIA_STOP:
                 if (this.playingState !== 'stopped') {
-                    this.bluetoothHandler.stopPlayingLoop({ fade: true });
+                    this.storyHandler.stopPlayingLoop({ fade: true });
                 }
         }
     }

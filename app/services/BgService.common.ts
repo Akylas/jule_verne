@@ -2,6 +2,8 @@ import { GeoHandler } from '~/handlers/GeoHandler';
 import { Observable } from '@nativescript/core/data/observable';
 import { ApplicationEventData, off as applicationOff, on as applicationOn, exitEvent, launchEvent } from '@nativescript/core/application';
 import { BluetoothHandler } from '~/handlers/BluetoothHandler';
+import { DBHandler } from '~/handlers/DBHandler';
+import { StoryHandler } from '~/handlers/StoryHandler';
 
 export const BgServiceLoadedEvent = 'BgServiceLoadedEvent';
 export const BgServiceStartedEvent = 'BgServiceStartedEvent';
@@ -11,6 +13,8 @@ const TAG = '[BgServiceCommon]';
 export abstract class BgServiceCommon extends Observable {
     abstract get geoHandler(): GeoHandler;
     abstract get bluetoothHandler(): BluetoothHandler;
+    abstract get dbHandler(): DBHandler;
+    abstract get storyHandler(): StoryHandler;
     protected _loaded = false;
     protected _started = false;
 
@@ -26,8 +30,6 @@ export abstract class BgServiceCommon extends Observable {
         return this._started;
     }
     protected _handlerLoaded() {
-        this.geoHandler.bluetoothHandler = this.bluetoothHandler;
-        this.bluetoothHandler.geoHandler = this.geoHandler;
         if (!this._loaded) {
             this._loaded = true;
             this.notify({
@@ -42,7 +44,7 @@ export abstract class BgServiceCommon extends Observable {
         }
         DEV_LOG && console.log(TAG, 'stop');
         this._started = false;
-        await Promise.all([this.geoHandler.stop(), this.bluetoothHandler.stop()]);
+        await Promise.all([this.dbHandler.stop(), this.geoHandler.stop(), this.bluetoothHandler.stop(), this.storyHandler.stop()]);
         DEV_LOG && console.log(TAG, 'stopped');
     }
     async start() {
@@ -50,7 +52,8 @@ export abstract class BgServiceCommon extends Observable {
             return;
         }
         DEV_LOG && console.log(TAG, ' start');
-        await Promise.all([this.geoHandler.start(), this.bluetoothHandler.start()]);
+        await this.dbHandler.start();
+        await Promise.all([this.geoHandler.start(), this.bluetoothHandler.start(), this.storyHandler.start()]);
         this._started = true;
         DEV_LOG && console.log(TAG, 'started');
         this.notify({

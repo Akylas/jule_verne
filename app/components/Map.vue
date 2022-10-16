@@ -41,18 +41,8 @@ import dayjs from 'dayjs';
 import { Component } from 'vue-property-decorator';
 import { BgServiceMethodParams } from '~/components/BgServiceComponent';
 import GlassesIcon from '~/components/GlassesIcon.vue';
-import {
-    FeatureViewedEvent,
-    GeoLocation,
-    InsideFeatureEvent,
-    PositionStateEvent,
-    SessionEventData,
-    SessionState,
-    SessionStateEvent,
-    TrackSelecteEvent,
-    UserLocationdEventData,
-    UserRawLocationEvent
-} from '~/handlers/GeoHandler';
+import { GeoLocation, SessionEventData, SessionState, SessionStateEvent, UserRawLocationEvent } from '~/handlers/GeoHandler';
+import { FeatureViewedEvent, TrackSelecteEvent, UserLocationdEventData } from '~/handlers/StoryHandler';
 import Track, { TrackFeature } from '~/models/Track';
 import { Catch } from '~/utils';
 import { backgroundColor } from '~/variables';
@@ -242,10 +232,10 @@ time:                   ${dayjs(this.lastLocation.timestamp).format('LLL')}`
             return;
         }
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
-        this.geoHandlerOn(TrackSelecteEvent, this.onTrackSelected, this);
         this.geoHandlerOn(UserRawLocationEvent, this.onNewLocation, this);
+        this.storyHandlerOn(TrackSelecteEvent, this.onTrackSelected, this);
         // this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
-        this.geoHandlerOn(FeatureViewedEvent, this.onFeatureViewed, this);
+        this.storyHandlerOn(FeatureViewedEvent, this.onFeatureViewed, this);
         // this.geoHandlerOn(InsideFeatureEvent, this.onInsideFeature, this);
 
         this.geoHandlerOn('error', this.onError);
@@ -253,13 +243,13 @@ time:                   ${dayjs(this.lastLocation.timestamp).format('LLL')}`
         this.onSessionStateEvent({ data: { state: handlers.geoHandler.sessionState } } as any);
         this.onNewLocation({
             error: null,
-            location: handlers.geoHandler.lastLocation,
-            aimingFeature: handlers.geoHandler.aimingFeature,
-            aimingAngle: handlers.geoHandler.aimingAngle,
-            isInTrackBounds: handlers.geoHandler.isInTrackBounds
+            location: handlers.storyHandler.lastLocation,
+            aimingFeature: handlers.storyHandler.aimingFeature,
+            aimingAngle: handlers.storyHandler.aimingAngle,
+            isInTrackBounds: handlers.storyHandler.isInTrackBounds
         } as any);
-        this.onTrackSelected({ track: this.geoHandler.currentTrack } as any);
-        this.onFeatureViewed({ data: { featureViewed: this.geoHandler.featuresViewed } } as any);
+        this.onTrackSelected({ track: this.storyHandler.currentTrack } as any);
+        this.onFeatureViewed({ data: { featureViewed: this.storyHandler.featuresViewed } } as any);
         // this.onInsideFeature({ data: { featureViewed: this.geoHandler.featuresViewed } } as any);
         // await this.geoHandler.startSession();
     }

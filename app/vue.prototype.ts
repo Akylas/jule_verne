@@ -85,8 +85,8 @@ const Plugin = {
             if (!id || id === activatedUrl) {
                 return;
             }
-            const oldActiveUrl = activatedUrl;
             activatedUrl = id;
+            //@ts-ignore
             appComponent?.setActivatedUrl?.(activatedUrl);
         }
 

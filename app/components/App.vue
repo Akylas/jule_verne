@@ -135,6 +135,7 @@ import GlassesIcon from '~/components/GlassesIcon.vue';
 import MainMenu from '~/components/MainMenu.vue';
 import { BLEConnectionEventData, GlassesReconnectingEvent, GlassesReconnectingFailedEvent } from '~/handlers/BluetoothHandler';
 import { SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
+import { PlaybackEvent } from '~/handlers/StoryHandler';
 import { DURATION_FORMAT, formatDuration } from '~/helpers/formatter';
 import { $tc } from '~/helpers/locale';
 import { Catch, off as appOff, on as appOn, off, on } from '~/utils';
@@ -403,8 +404,8 @@ export default class App extends GlassesConnectionComponent {
         }
         this.bluetoothHandlerOn(GlassesReconnectingEvent, this.onGlassesReconnecting);
         this.bluetoothHandlerOn(GlassesReconnectingFailedEvent, this.onGlassesReconnectingFailed);
-        this.bluetoothHandlerOn('playback', this.onPlayerState);
-        this.onPlayerState({ data: handlers.bluetoothHandler.playerState });
+        this.storyHandlerOn(PlaybackEvent, this.onPlayerState);
+        this.onPlayerState({ data: handlers.storyHandler.playerState });
     }
     async onServiceStarted(handlers: BgServiceMethodParams) {
         super.onServiceStarted(handlers);
@@ -458,8 +459,8 @@ export default class App extends GlassesConnectionComponent {
                 } else {
                     newTrack = await this.dbHandler.trackRepository.updateItem(track);
                 }
-                if (this.geoHandler.currentTrack?.id === newTrack.id) {
-                    this.geoHandler.currentTrack = newTrack;
+                if (this.storyHandler.currentTrack?.id === newTrack.id) {
+                    this.storyHandler.currentTrack = newTrack;
                 }
             }
             ApplicationSettings.setNumber('map.geojson_date', file.lastModified.getTime());
@@ -576,7 +577,7 @@ export default class App extends GlassesConnectionComponent {
             okButtonText: this.$t('stop'),
             cancelButtonText: this.$t('cancel')
         });
-        this.geoHandler.stopSession(true);
+        this.geoHandler.stopSession();
     }
 
     nbDevModeTap = 0;

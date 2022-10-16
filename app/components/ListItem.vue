@@ -39,7 +39,7 @@ export default class ListItem extends Vue {
     accentColor = accentColor;
     defaultTextColor = textColor;
     ignoreFirst = true;
-    
+
     @Prop({}) title: string;
     @Prop({}) rightTitle: string;
     @Prop({}) icon: string;
