@@ -257,6 +257,12 @@ platform :android do
     # checkGitStatus
     build_flavor(platform:'android', flavor:'github', options: options)
   end
+  desc 'Ship to Github and Fdroid'
+  lane :github_fdroid do |options|
+    # checkSentryClitatus
+    # checkGitStatus
+    build_flavor(platform:'android', flavor:'github_fdroid', options: options)
+  end
 
   desc 'build for fdroid.'
   lane :fdroid do |options|
