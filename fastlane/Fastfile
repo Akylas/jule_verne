@@ -94,7 +94,7 @@ lane :build_flavor do |params|
   if(flavor == "appcenter") 
     upload_appcenter(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   elsif (flavor == "fdroid")
-    write_changelog(version:params[:versionCode], changelog:params[:changelog]);
+    write_changelog(version:version, changelog:changelog);
   else
     upload_store(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   end
