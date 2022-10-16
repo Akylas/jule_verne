@@ -95,13 +95,16 @@ lane :build_flavor do |params|
     sentry_cli_path: sentry_cli_path,
   )
 
+  tag = "#{platform}/#{flavor}/#{version}/#{versionCode}";
   changelog = get_changelog(platform:platform, flavor:flavor)
   if (platform == 'android')
     write_changelog(version:versionCode, changelog:changelog);
   end
-  if (flavor == "appcenter") 
+  case flavor
+  when 'appcenter'
     upload_appcenter(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
-  elsif (flavor == "github")
+  when 'github'
+  when 'github_fdroid'
     set_github_release(
       repository_name: $repository_name,
       api_token: ENV["GH_TOKEN"],
@@ -111,11 +114,11 @@ lane :build_flavor do |params|
       commitish: "master",
       upload_assets: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk"))
     )
-  else
+  when 'alpha'
+  when 'beta'
     upload_store(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   end
   
-  tag = "#{platform}/#{flavor}/#{version}/#{versionCode}";
   if !git_tag_exists(tag: tag)
     add_git_tag(tag: tag, force: true)
     push_git_tags(force: true)
@@ -230,11 +233,12 @@ platform :android do
   desc 'Build the Android application.'
   lane :build do |params|
     sh("rm", "-fr", "platforms/android")
-    if (params[:flavor] == 'fdroid')
+    case params[:flavor]
+    when 'fdroid'
+    when 'github'
+    when 'github_fdroid'
       sh("npm", "run", "build.android.production.fdroid")
-    elsif (params[:flavor] == 'github')
-      sh("npm", "run", "build.android.production.fdroid")
-    elsif (params[:flavor] == 'alpha')
+    when 'alpha'
       sh("npm", "run", "build.android.production", "--", "--env.reportall", "--env.testlog")
     else
       sh("npm", "run", "build.android.production")
