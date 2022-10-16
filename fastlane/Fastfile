@@ -1,3 +1,4 @@
+require 'json'
 class String
   def titlecase
     split(/([[:alpha:]]+)/).map(&:capitalize).join
@@ -82,7 +83,7 @@ lane :build_flavor do |params|
   puts "version:"  + version
   puts "versionCode:"  + versionCode
   puts "sentry_version:"  + sentry_version
-  puts "options:"  + options
+  puts "options:"  + JSON.generate(options.to_json)
 
   sentry_create_release(
     sentry_cli_path: sentry_cli_path,
@@ -105,8 +106,7 @@ lane :build_flavor do |params|
   case flavor
   when 'appcenter'
     upload_appcenter(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
-  when 'github'
-  when 'github_fdroid'
+  when 'github','github_fdroid'
     set_github_release(
       repository_name: $repository_name,
       api_token: ENV["GH_TOKEN"],
@@ -116,8 +116,7 @@ lane :build_flavor do |params|
       commitish: "master",
       upload_assets: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk"))
     )
-  when 'alpha'
-  when 'beta'
+  when 'alpha','beta'
     upload_store(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   end
   
@@ -236,14 +235,14 @@ platform :android do
   lane :build do |params|
     sh("rm", "-fr", "platforms/android")
     options = params[:options]
+    puts "build flavor:"  + params[:flavor]
+    puts "build options:"  + JSON.generate(options.to_json)
     case params[:flavor]
-    when 'fdroid'
-    when 'github'
-    when 'github_fdroid'
+    when 'fdroid','github','github_fdroid'
       if (options[:sentry])
-        sh("npm", "run", "build.android.production.fdroid")
-      else 
         sh("npm", "run", "build.android.production.fdroid.sentry")
+      else 
+        sh("npm", "run", "build.android.production.fdroid")
       end
     when 'alpha'
       sh("npm", "run", "build.android.production", "--", "--env.reportall", "--env.testlog")
@@ -254,15 +253,15 @@ platform :android do
 
   desc 'Ship to Github.'
   lane :github do |options|
-    checkSentryClitatus
-    checkGitStatus
+    # checkSentryClitatus
+    # checkGitStatus
     build_flavor(platform:'android', flavor:'github', options: options)
   end
 
   desc 'build for fdroid.'
   lane :fdroid do |options|
-    checkSentryClitatus
-    checkGitStatus
+    # checkSentryClitatus
+    # checkGitStatus
     build_flavor(platform:'android', flavor:'fdroid', options: options)
   end
 

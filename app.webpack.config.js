@@ -86,6 +86,7 @@ module.exports = (env, params = {}) => {
             env
         );
     }
+    console.log('env', env);
     const nconfig = require('./nativescript.config');
     const {
         appPath = nconfig.appPath,
