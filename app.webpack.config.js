@@ -385,7 +385,7 @@ module.exports = (env, params = {}) => {
                         loader: 'string-replace-loader',
                         options: {
                             search: '^__decorate\\(\\[((\\s|\\t|\\n)*?)profile((\\s|\\t|\\n)*?)\\],.*?,.*?,.*?\\);?',
-                            replace: (match, p1, offset, string) => '',
+                            replace: (match, p1, offset, str) => '',
                             flags: 'gm'
                         }
                     }
@@ -399,7 +399,7 @@ module.exports = (env, params = {}) => {
                         loader: 'string-replace-loader',
                         options: {
                             search: '@profile',
-                            replace: (match, p1, offset, string) => '',
+                            replace: (match, p1, offset, str) => '',
                             flags: ''
                         }
                     }

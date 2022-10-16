@@ -61,6 +61,7 @@ end
 lane :build_flavor do |params| 
   platform = params[:platform]
   flavor = params[:flavor]
+  options = params[:options]
   version = ""
   versionCode = ""
   
@@ -81,12 +82,13 @@ lane :build_flavor do |params|
   puts "version:"  + version
   puts "versionCode:"  + versionCode
   puts "sentry_version:"  + sentry_version
+  puts "options:"  + options
 
   sentry_create_release(
     sentry_cli_path: sentry_cli_path,
     version: sentry_version
   )
-  build(flavor: flavor)
+  build(flavor: flavor, options: options)
   push_to_git_remote
 
   sh("npm", "run", "sentry-set-commits", "#{sentry_version}")
@@ -233,11 +235,16 @@ platform :android do
   desc 'Build the Android application.'
   lane :build do |params|
     sh("rm", "-fr", "platforms/android")
+    options = params[:options]
     case params[:flavor]
     when 'fdroid'
     when 'github'
     when 'github_fdroid'
-      sh("npm", "run", "build.android.production.fdroid")
+      if (options[:sentry])
+        sh("npm", "run", "build.android.production.fdroid")
+      else 
+        sh("npm", "run", "build.android.production.fdroid.sentry")
+      end
     when 'alpha'
       sh("npm", "run", "build.android.production", "--", "--env.reportall", "--env.testlog")
     else
@@ -246,33 +253,33 @@ platform :android do
   end
 
   desc 'Ship to Github.'
-  lane :github do
+  lane :github do |options|
     checkSentryClitatus
     checkGitStatus
-    build_flavor(platform:'android', flavor:'github')
+    build_flavor(platform:'android', flavor:'github', options: options)
   end
 
   desc 'build for fdroid.'
-  lane :fdroid do
+  lane :fdroid do |options|
     checkSentryClitatus
     checkGitStatus
-    build_flavor(platform:'android', flavor:'fdroid')
+    build_flavor(platform:'android', flavor:'fdroid', options: options)
   end
 
   desc 'Ship to Android Playstore Beta.'
-  lane :beta do
+  lane :beta do |options|
     checkSentryClitatus
     checkGitStatus
     tns_install(platform:'android')
-    build_flavor(platform:'android', flavor:'beta')
+    build_flavor(platform:'android', flavor:'beta', options: options)
   end
 
   desc 'Ship to Android Playstore Alpha.'
-  lane :alpha do
+  lane :alpha do |options|
     checkSentryClitatus
     checkGitStatus
     tns_install(platform:'android')
-    build_flavor(platform:'android', flavor:'alpha')
+    build_flavor(platform:'android', flavor:'alpha', options: options)
   end
 end
 
