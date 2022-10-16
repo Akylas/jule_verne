@@ -1,0 +1,18 @@
+*Features*
+- show headset connection state + battery
+
+*Bug fixes*
+- set both wallpapaers
+- if the user does not move for 30s stop giving navigation instructions
+- removed unused ‘start’ instruction
+- onboarding layout fix
+- map play/pause button
+- prevent exit to be picked up right away
+- prevent NaN for history index
+- onboarding fixes
+- text not showing in production
+- onboarding fix
+- user location without altitude
+- show play bar for navigation
+- new user pause detection
+- fixed default for 
