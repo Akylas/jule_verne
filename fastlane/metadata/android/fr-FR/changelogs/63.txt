@@ -1,0 +1,12 @@
+*Bug fixes*
+- settings fix
+- ensure we can play from still adventure
+- production images
+- if inside a feature but already playing then ignore insideFeature change
+- ensure we dont "block" with insideFeature set while not playing
+- minHorizontalAccuracy setting
+- compute delta time for `instructionIntervalDuration` and `instructionRepeatDuration`
+- partners images fix
+- prevent logos to disappear on message bar animation
+- slot center
+- label fix
