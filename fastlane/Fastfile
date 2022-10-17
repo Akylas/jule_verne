@@ -18,7 +18,7 @@ fastlane_version '2.135.2'
 opt_out_usage
 $ios_scheme = File.basename(File.expand_path('..')).gsub(/[^a-zA-Z0-9]/, "")
 app_identifier = CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)
-$repository_name = 'Akylas/jule_verne'
+$repository_name = CredentialsManager::AppfileConfig.try_fetch_value(:repository_name)
 
 desc 'test lane'
 lane :test do
@@ -125,6 +125,7 @@ lane :build_flavor do |params|
     add_git_tag(tag: tag, force: true)
     push_git_tags(force: true)
   end
+  push_to_git_remote
 end
 
 
