@@ -46,7 +46,7 @@ import { getWorkingDir } from '~/utils/utils';
 import BgServiceComponent, { BgServiceMethodParams } from './BgServiceComponent';
 
 const LOCATION_ANIMATION_DURATION = 300;
-const production = TNS_ENV === 'production';
+const TAG = 'MapComponent';
 
 @Component({})
 export default class MapComponent extends BgServiceComponent {
@@ -65,7 +65,7 @@ export default class MapComponent extends BgServiceComponent {
     mAccuracyMarker: Polygon<LatLonKeys>;
     mAimingLine: Line<LatLonKeys>;
     @Prop({ default: true, type: Boolean }) locationEnabled: boolean;
-    isUserFollow: boolean = true;
+    mUserFollow: boolean = true;
     @Prop({ default: null }) tracks: Track[] | ObservableArray<Track>;
     @Prop({ default: null }) viewedFeature: string[];
     @Prop({ default: false, type: Boolean }) readonly licenseRegistered!: boolean;
@@ -73,16 +73,17 @@ export default class MapComponent extends BgServiceComponent {
 
     realTimeShowUnfiltered = true;
     vectorLayer: VectorTileLayer;
+    animatePosition: boolean;
 
     get cartoMap() {
         return this.mCartoMap;
     }
     get userFollow() {
-        return this.isUserFollow;
+        return this.mUserFollow;
     }
     set userFollow(value: boolean) {
-        if (value !== undefined && value !== this.isUserFollow) {
-            this.isUserFollow = value;
+        if (value !== this.mUserFollow) {
+            this.mUserFollow = value;
         }
     }
 
@@ -210,7 +211,7 @@ export default class MapComponent extends BgServiceComponent {
         }
     }
     onMapMove(e) {
-        if (this.locationEnabled) {
+        if (this.locationEnabled && e.data.userAction) {
             this.userFollow = !e.data.userAction;
         }
     }
@@ -287,11 +288,12 @@ export default class MapComponent extends BgServiceComponent {
         return this.mGeoJSONLayer;
     }
     moveToUserLocation() {
-        if (!this.userFollow || !this.mLastUserLocation) {
+        if (!this.mLastUserLocation) {
             return;
         }
-        this.mCartoMap.setZoom(Math.max(this.mCartoMap.zoom, 14), LOCATION_ANIMATION_DURATION);
-        this.mCartoMap.setFocusPos(this.mLastUserLocation, LOCATION_ANIMATION_DURATION);
+        const animationDuration = this.animatePosition ? LOCATION_ANIMATION_DURATION : 0;
+        this.mCartoMap.setZoom(Math.max(this.mCartoMap.zoom, 14), animationDuration);
+        this.mCartoMap.setFocusPos(this.mLastUserLocation, animationDuration);
     }
     updateUserLocation(geoPos: GeoLocation) {
         if (!geoPos || !this.mCartoMap) {
@@ -307,7 +309,9 @@ export default class MapComponent extends BgServiceComponent {
             this.mLastUserLocation.horizontalAccuracy === position.horizontalAccuracy
         ) {
             this.mLastUserLocation = position;
-            this.moveToUserLocation();
+            if (this.userFollow) {
+                this.moveToUserLocation();
+            }
             return;
         }
 
@@ -366,7 +370,9 @@ export default class MapComponent extends BgServiceComponent {
             this.mAccuracyMarker.positions = this.getCirclePoints(position);
         }
         this.mLastUserLocation = position;
-        this.moveToUserLocation();
+        if (this.userFollow) {
+            this.moveToUserLocation();
+        }
     }
     onLocation(data: UserLocationdEventData) {
         this.searchingForUserLocation = false;
@@ -392,14 +398,12 @@ export default class MapComponent extends BgServiceComponent {
                     }
                 });
                 this.localVectorDataSource?.add(this.mAimingLine);
-            } else if (this.mAimingLine) {
+            } else {
                 this.mAimingLine.positions = [loc, { lat: center[1], lon: center[0] }];
                 this.mAimingLine.visible = true;
             }
-        } else {
-            if (this.mAimingLine) {
-                this.mAimingLine.visible = false;
-            }
+        } else if (this.mAimingLine) {
+            this.mAimingLine.visible = false;
         }
     }
     setup(handlers: BgServiceMethodParams) {
@@ -409,9 +413,13 @@ export default class MapComponent extends BgServiceComponent {
         this.geoHandlerOn(UserRawLocationEvent, this.onLocation, this);
         // this.geoHandlerOn(PositionStateEvent, this.onTrackPositionState, this);
         const loc = handlers.storyHandler.lastLocation;
+        DEV_LOG && console.log(TAG, 'setup', loc?.lat, loc?.lon);
         if (loc) {
-            this.onLocation({ data: loc } as any);
+            this.animatePosition = false;
+            this.onLocation({ location: loc } as any);
+            this.animatePosition = true;
         }
+        DEV_LOG && console.log(TAG, 'setup', 'done');
     }
 
     // onTrackPositionState(event: EventData) {
@@ -435,9 +443,11 @@ export default class MapComponent extends BgServiceComponent {
         DEV_LOG && console.log('askUserLocation');
         this.userFollow = true;
         this.moveToUserLocation();
-        await this.geoHandler.enableLocation();
-        this.searchingForUserLocation = true;
-        await this.geoHandler.getLocation();
+        if (!this.geoHandler.isWatching) {
+            await this.geoHandler.enableLocation();
+            this.searchingForUserLocation = true;
+            await this.geoHandler.getLocation();
+        }
     }
 
     onVectorElementClicked(data: VectorElementEventData) {
