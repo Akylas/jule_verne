@@ -281,24 +281,28 @@ export class BluetoothHandler extends Handler {
                 }
             }
         });
-        (bluetooth['adapter'] as android.bluetooth.BluetoothAdapter).getProfileProxy(Utils.ad.getApplicationContext(), this.mProfileListener, android.bluetooth.BluetoothProfile.HEADSET);
+        try {
+            (bluetooth['adapter'] as android.bluetooth.BluetoothAdapter).getProfileProxy(Utils.ad.getApplicationContext(), this.mProfileListener, android.bluetooth.BluetoothProfile.HEADSET);
 
-        // Register receivers for BluetoothHeadset change notifications.
-        const bluetoothHeadsetFilter = new android.content.IntentFilter('android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED');
-        this.bluetoothHeadsetReceiver = new BroadcastReceiver((context: android.content.Context, intent: android.content.Intent) => {
-            const action = intent.getAction();
-            if (action === null) {
-                return;
-            }
+            // Register receivers for BluetoothHeadset change notifications.
+            const bluetoothHeadsetFilter = new android.content.IntentFilter('android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED');
+            this.bluetoothHeadsetReceiver = new BroadcastReceiver((context: android.content.Context, intent: android.content.Intent) => {
+                const action = intent.getAction();
+                if (action === null) {
+                    return;
+                }
 
-            const extraData = intent.getIntExtra(EXTRA_STATE, STATE_DISCONNECTED);
-            if (extraData === STATE_CONNECTED) {
-                this.updateHeadsetState();
-            } else if (extraData === STATE_DISCONNECTED) {
-                this.updateHeadsetState();
-            }
-        });
-        Utils.ad.getApplicationContext().registerReceiver(this.bluetoothHeadsetReceiver, bluetoothHeadsetFilter);
+                const extraData = intent.getIntExtra(EXTRA_STATE, STATE_DISCONNECTED);
+                if (extraData === STATE_CONNECTED) {
+                    this.updateHeadsetState();
+                } else if (extraData === STATE_DISCONNECTED) {
+                    this.updateHeadsetState();
+                }
+            });
+            Utils.ad.getApplicationContext().registerReceiver(this.bluetoothHeadsetReceiver, bluetoothHeadsetFilter);
+        } catch (err) {
+            console.error('error starting headset monitor', err);
+        }
     }
 
     updateHeadsetState() {
