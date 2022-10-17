@@ -426,9 +426,10 @@ export class GeoHandler extends Handler {
     async stopSession(finish = true) {
         TEST_LOG && console.log(TAG, 'stopSession', this.sessionState, finish);
         if (this.sessionState === SessionState.STOPPED) {
-            return;
+            return false;
         }
         this.actualSessionStop(finish);
+        return true;
     }
     async pauseSession() {
         this.setSessionState(SessionState.PAUSED);

@@ -578,7 +578,9 @@ export default class App extends GlassesConnectionComponent {
             okButtonText: this.$t('stop'),
             cancelButtonText: this.$t('cancel')
         });
-        this.geoHandler.stopSession();
+        if (result) {
+            this.storyHandler.stopSession(false);
+        }
     }
 
     nbDevModeTap = 0;
