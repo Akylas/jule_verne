@@ -306,10 +306,10 @@ export default class App extends GlassesConnectionComponent {
 
     sessionsImported = false;
     onLoaded() {
-        DEV_LOG && console.log(TAG, 'onLoaded', this.sessionsImported);
-        if (this.dbHandler && this.dbHandler.started) {
-            this.importDevSessions();
-        }
+        // DEV_LOG && console.log(TAG, 'onLoaded', this.sessionsImported);
+        // if (this.dbHandler && this.dbHandler.started) {
+        //     this.importDevSessions();
+        // }
     }
     onButtonTap(item: MessageItem) {
         item.action?.callback?.();
