@@ -107,7 +107,7 @@ lane :build_flavor do |params|
   case flavor
   when 'appcenter'
     upload_appcenter(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
-  when 'github','github_fdroid'
+  when 'github'
     set_github_release(
       repository_name: $repository_name,
       api_token: ENV["GH_TOKEN"],
@@ -240,7 +240,7 @@ platform :android do
     puts "build flavor:"  + params[:flavor]
     puts "build options:"  + JSON.generate(options.to_json)
     case params[:flavor]
-    when 'fdroid','github','github_fdroid'
+    when 'fdroid','github'
       if (options[:sentry])
         sh("npm", "run", "build.android.production.fdroid.sentry")
       else 
@@ -258,12 +258,6 @@ platform :android do
     # checkSentryClitatus
     # checkGitStatus
     build_flavor(platform:'android', flavor:'github', options: options)
-  end
-  desc 'Ship to Github and Fdroid'
-  lane :github_fdroid do |options|
-    # checkSentryClitatus
-    # checkGitStatus
-    build_flavor(platform:'android', flavor:'github_fdroid', options: options)
   end
 
   desc 'build for fdroid.'
