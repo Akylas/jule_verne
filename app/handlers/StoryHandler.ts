@@ -71,6 +71,7 @@ export interface PlayInstructionOptions extends PlayImagesOptions {
     randomAudio?: boolean;
     loop?: boolean;
     instruction?;
+    canStop?: boolean;
 }
 
 export interface PlayingInfo {
@@ -148,6 +149,7 @@ export class StoryHandler extends Handler {
         } else if (this.isPlaying) {
             return {
                 duration: this.mPlayer?.duration || 0,
+                canStop: !PRODUCTION || this.canStopStoryPlayback,
                 canPause: false,
                 name: this.isPlayingNavigationInstruction
             };
@@ -840,12 +842,13 @@ export class StoryHandler extends Handler {
         }
     }
 
-    async stopSession(fade = true) {
-        DEV_LOG && console.log(TAG, 'stopSession', fade);
-        await this.stopPlayingLoop({ fade, ignoreNext: true });
-        if (fade) {
-            this.playInstruction('end');
+    async stopSession(playEnd = true) {
+        DEV_LOG && console.log(TAG, 'stopSession', playEnd);
+        await this.stopPlayingLoop({ fade: playEnd, ignoreNext: true });
+        if (playEnd) {
+            this.playInstruction('end', { canStop: true });
         }
+        this.geoHandler.stopSession();
     }
     private async onSessionStateEvent(e: SessionEventData) {
         DEV_LOG && console.log(TAG, 'onSessionStateEvent', e.data);
@@ -1362,7 +1365,7 @@ export class StoryHandler extends Handler {
         return this.setData('navigation').imagesMap;
     }
 
-    async playAudio({ fileName, loop = false, notify = false }: { fileName: string; loop?: boolean; notify?: boolean }) {
+    async playAudio({ fileName, loop = false, notify = false, throwErrorUp = false }: { fileName: string; loop?: boolean; notify?: boolean; throwErrorUp?: boolean }) {
         if (!File.exists(fileName)) {
             throw new Error($tc('file_not_found', fileName));
         }
@@ -1386,7 +1389,11 @@ export class StoryHandler extends Handler {
                         if (!resolved) {
                             this.notify({ eventName: PlaybackEvent, data: 'stopped' });
                             resolved = true;
-                            resolve();
+                            if (throwErrorUp) {
+                                reject();
+                            } else {
+                                resolve();
+                            }
                         }
                     }
                 });
@@ -1400,9 +1407,12 @@ export class StoryHandler extends Handler {
     }
 
     async playAudios(audios: string[], loop = false) {
-        for (let index = 0; index < audios.length; index++) {
-            await this.playAudio({ fileName: audios[index], loop });
-        }
+        try {
+            // we use throwErrorUp to ensure the loops stop and we dont play other audios
+            for (let index = 0; index < audios.length; index++) {
+                await this.playAudio({ fileName: audios[index], loop, throwErrorUp: true });
+            }
+        } catch (err) {}
     }
     async playNavigationInstruction(instruction: string, options?: { audioFolder?: string; frameDuration?; randomize?; iterations?; delay?; queue?; force?; noAudio? }) {
         if (instruction === 'exit') {
@@ -1430,53 +1440,60 @@ export class StoryHandler extends Handler {
                 return;
             }
         }
-
-        const instFolder = path.join(getGlassesImagesFolder(), `navigation/${instruction}`);
-        TEST_LOG && console.log('playInstruction', instruction, instFolder);
-        if (!Folder.exists(instFolder)) {
-            return;
-        }
-        if (instruction) {
-            this.isPlayingNavigationInstruction = instruction;
-        }
-        this.isPlaying = true;
-        const files = await Folder.fromPath(instFolder).getEntities();
-
-        const images = files
-            .filter((f) => f.name.endsWith('.png') || f.name.endsWith('.jpg') || f.name.endsWith('.bmp'))
-            .map((f) => f.name)
-            .sort();
-
-        let audios = [];
-        if (options?.noAudio !== true) {
-            if (options?.audioFiles) {
-                audios = options?.audioFiles;
-            } else {
-                const audioFiles = options?.audioFolder ? await Folder.fromPath(options?.audioFolder).getEntities() : files;
-                audios = audioFiles
-                    .filter((f) => f.name.endsWith('.mp3'))
-                    .map((f) => f.path)
-                    .sort();
+        try {
+            const instFolder = path.join(getGlassesImagesFolder(), `navigation/${instruction}`);
+            TEST_LOG && console.log('playInstruction', instruction, instFolder);
+            if (!Folder.exists(instFolder)) {
+                return;
             }
-        }
+            if (instruction) {
+                this.isPlayingNavigationInstruction = instruction;
+            }
+            this.isPlaying = true;
+            if (options.canStop) {
+                this.canStopStoryPlayback = options.canStop;
+            }
+            const files = await Folder.fromPath(instFolder).getEntities();
 
-        const useCrop = this.setUsesCrop('navigation');
-        options.useCrop = useCrop;
-        if (audios?.length) {
-            if (options?.delay) {
-                setTimeout(() => {
+            const images = files
+                .filter((f) => f.name.endsWith('.png') || f.name.endsWith('.jpg') || f.name.endsWith('.bmp'))
+                .map((f) => f.name)
+                .sort();
+
+            let audios = [];
+            if (options?.noAudio !== true) {
+                if (options?.audioFiles) {
+                    audios = options?.audioFiles;
+                } else {
+                    const audioFiles = options?.audioFolder ? await Folder.fromPath(options?.audioFolder).getEntities() : files;
+                    audios = audioFiles
+                        .filter((f) => f.name.endsWith('.mp3'))
+                        .map((f) => f.path)
+                        .sort();
+                }
+            }
+
+            options.useCrop = this.setUsesCrop('navigation');
+            if (audios?.length) {
+                if (options?.delay) {
+                    setTimeout(() => {
+                        this.playOfImages(images, instFolder, options);
+                    }, options?.delay);
+                } else {
                     this.playOfImages(images, instFolder, options);
-                }, options?.delay);
+                }
+                await this.playAudios(options?.randomAudio ? [getRandomFromArray(audios)] : audios, options?.loop);
             } else {
-                this.playOfImages(images, instFolder, options);
+                await this.playOfImages(images, instFolder, options);
             }
-            await this.playAudios(options?.randomAudio ? [getRandomFromArray(audios)] : audios, options?.loop);
-        } else {
-            await this.playOfImages(images, instFolder, options);
-        }
-        await this.stopPlayingLoop({ instruction: options?.instruction });
-        if (instruction) {
-            this.isPlayingNavigationInstruction = null;
+            await this.stopPlayingLoop({ instruction: options?.instruction });
+        } catch (error) {
+            throw error;
+        } finally {
+            if (instruction === this.isPlayingNavigationInstruction) {
+                this.canStopStoryPlayback = false;
+                this.isPlayingNavigationInstruction = null;
+            }
         }
     }
     lyric: Lyric = null;
