@@ -87,11 +87,6 @@ export default class MainMenu extends BgServiceComponent {
                 }
                 break;
             }
-            case 'dev_mode': {
-                const component = (await import('~/components/Home.vue')).default;
-                await this.$navigateTo(component);
-                break;
-            }
         }
     }
     onError(event) {
