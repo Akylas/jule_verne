@@ -9,7 +9,7 @@ import Vue from 'nativescript-vue';
 import { $t, $tc } from '~/helpers/locale';
 import { getWorkingDir, throttle } from '~/utils/utils';
 import * as ProgressNotification from '~/services/android/ProgressNotifications';
-import {filesize} from 'filesize';
+import { filesize } from 'filesize';
 import { Zip } from '@nativescript/zip';
 import { GlassesVersions } from '~/handlers/bluetooth/GlassesDevice';
 
@@ -227,6 +227,7 @@ export class NetworkService extends Observable {
             }
             const storyDirPath = path.join(workingDir, storyId + '');
             DEV_LOG && console.log('checkForStoryUpdate', url, storyId, workingDir, lastSize !== headers['content-length'], Folder.exists(storyDirPath));
+
             if (forceReload || lastSize !== headers['content-length'] || !Folder.exists(storyDirPath)) {
                 const requestTag = Date.now() + '';
 
@@ -235,7 +236,7 @@ export class NetworkService extends Observable {
                     icon: 'mdi-glasses',
                     smallIcon: 'mdi-download',
                     title: $tc('downloading_glasses_update', storyId),
-                    message: filesize(parseInt(headers['content-length'], 10))  as string,
+                    message: filesize(parseInt(headers['content-length'], 10)) as string,
                     ongoing: true,
                     indeterminate: false,
                     progress: 0,
