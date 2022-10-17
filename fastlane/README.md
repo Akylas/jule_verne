@@ -175,14 +175,6 @@ Build the Android application.
 
 Ship to Github.
 
-### android github_fdroid
-
-```sh
-[bundle exec] fastlane android github_fdroid
-```
-
-Ship to Github and Fdroid
-
 ### android fdroid
 
 ```sh
