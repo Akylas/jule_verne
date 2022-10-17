@@ -282,6 +282,7 @@ export class BluetoothHandler extends Handler {
             }
         });
         try {
+            await request('bluetoothConnect');
             (bluetooth['adapter'] as android.bluetooth.BluetoothAdapter).getProfileProxy(Utils.ad.getApplicationContext(), this.mProfileListener, android.bluetooth.BluetoothProfile.HEADSET);
 
             // Register receivers for BluetoothHeadset change notifications.
