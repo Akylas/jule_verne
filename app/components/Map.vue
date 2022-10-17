@@ -15,18 +15,34 @@
                 <Label horizontalAlignment="left" color="blue" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentBearing" padding="10" />
                 <Label horizontalAlignment="center" color="black" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="aimingAngle" padding="10" />
                 <Label horizontalAlignment="right" color="red" verticalAlignment="top" fontSize="40" class="mdi" text="mdi-navigation" :rotate="currentComputedBearing" padding="10" />
-                <Label
+                <CanvasLabel
                     backgroundColor="rgba(0, 0, 0, 0.533)"
+                    v-if="lastLocation"
+                    width="50%"
+                    height="100"
                     borderRadius="10"
                     marginTop="50"
                     padding="4"
                     fontSize="11"
-                    textWrap
                     color="white"
                     horizontalAlignment="center"
                     verticalAlignment="top"
-                    :text="lastLocationDetails"
-                />
+                >
+                    <CSpan text="position:" />
+                    <CSpan :text="`${lastLocation.lat.toFixed(4)},${this.lastLocation.lon.toFixed(4)}`" textAlignment="right" />
+                    <CSpan text="horizontalAccuracy:" paddingTop="13" />
+                    <CSpan :text="`${lastLocation.horizontalAccuracy.toFixed()}m`" textAlignment="right" paddingTop="13" />
+                    <CSpan text="bearing:" paddingTop="26" />
+                    <CSpan :text="`${(lastLocation.bearing !== undefined ? lastLocation.bearing : -1).toFixed()}°`" textAlignment="right" paddingTop="26" />
+                    <CSpan text="computedBearing:" paddingTop="39" />
+                    <CSpan :text="`${(lastLocation.computedBearing !== undefined ? lastLocation.computedBearing : -1).toFixed()}°`" textAlignment="right" paddingTop="39" />
+                    <CSpan text="provider:" paddingTop="52" />
+                    <CSpan :text="lastLocation.provider" textAlignment="right" paddingTop="52" />
+                    <CSpan text="speed:" paddingTop="65" />
+                    <CSpan :text="`${lastLocation.hasOwnProperty('speed') ? lastLocation.speed.toFixed() : '-'}m/s`" textAlignment="right" paddingTop="65" />
+                    <CSpan text="time:" paddingTop="78" />
+                    <CSpan :text="lastLocation.timestamp | date('L LTS')" textAlignment="right" paddingTop="78" />
+                </CanvasLabel>
             </GridLayout>
         </GridLayout>
     </Page>
@@ -107,13 +123,13 @@ export default class Map extends GlassesConnectionComponent {
 
     get lastLocationDetails() {
         return this.lastLocation
-            ? `
-position:               ${this.lastLocation.lat.toFixed(4)},${this.lastLocation.lon.toFixed(4)}
-horizontalAccuracy:     ${this.lastLocation.horizontalAccuracy.toFixed()}m
-provider:               ${this.lastLocation.provider} 
-speed:                  ${this.lastLocation.hasOwnProperty('speed') ? this.lastLocation.speed.toFixed() : '-'}m/s
-altitude:               ${this.lastLocation.hasOwnProperty('altitude') ? this.lastLocation.altitude.toFixed() : '-'}m
-time:                   ${dayjs(this.lastLocation.timestamp).format('LLL')}`
+            ? `position:				${this.lastLocation.lat.toFixed(4)},${this.lastLocation.lon.toFixed(4)}
+horizontalAccuracy:		${this.lastLocation.horizontalAccuracy.toFixed()}m
+bearing:				${(this.lastLocation.bearing ?? -1).toFixed()}°
+computedBearing:		${(this.lastLocation.computedBearing ?? -1).toFixed()}°
+provider:				${this.lastLocation.provider} 
+speed:					${this.lastLocation.hasOwnProperty('speed') ? this.lastLocation.speed.toFixed() : '-'}m/s
+time:					${dayjs(this.lastLocation.timestamp).format('L LTS')}`
             : null;
     }
     mounted() {
