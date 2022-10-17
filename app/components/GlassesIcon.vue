@@ -18,6 +18,7 @@
             verticalAlignment="bottom"
             :borderColor="headsetBatteryColor"
             borderWidth="2"
+            :margin="showImage ? 0 : 10"
         />
     </GridLayout>
 </template>
@@ -36,7 +37,6 @@ export default class GlassesIcon extends BaseVueComponent {
     @Prop({ default: null }) glasses: GlassesDevice;
     @Prop({ default: null }) headset: HeadSet;
     @Prop({ default: false, type: Boolean }) showImage: boolean;
-
 
     get glassesBatteryColumns() {
         const value = this.battery;
