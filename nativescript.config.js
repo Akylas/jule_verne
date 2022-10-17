@@ -5,7 +5,7 @@ module.exports = {
     forceLog: true,
     android: {
         markingMode: 'none',
-        codeCache: true,
+        codeCache: true
     },
     cssParser: 'rework',
     appPath: 'app',
