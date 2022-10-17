@@ -149,7 +149,7 @@ export class StoryHandler extends Handler {
         } else if (this.isPlaying) {
             return {
                 duration: this.mPlayer?.duration || 0,
-                canStop: !PRODUCTION || this.canStopStoryPlayback,
+                canStop: this.canStopStoryPlayback,
                 canPause: false,
                 name: this.isPlayingNavigationInstruction
             };
@@ -468,7 +468,7 @@ export class StoryHandler extends Handler {
     mLastPlayedAimingDirectionTime: number;
     async updateTrackWithLocation(loc: GeoLocation) {
         const minHorizontalAccuracy = ApplicationSettings.getNumber('minHorizontalAccuracy', 40);
-        TEST_LOG && console.log('updateTrackWithLocation', loc.lat, loc.lon, loc.horizontalAccuracy, this.insideFeature?.properties.name, this._playedHistory);
+        TEST_LOG && console.log('updateTrackWithLocation', loc.lat, loc.lon, loc.horizontalAccuracy, loc.bearing, this.insideFeature?.properties.name, this._playedHistory);
         if (loc.horizontalAccuracy > minHorizontalAccuracy) {
             return;
         }
@@ -1452,6 +1452,8 @@ export class StoryHandler extends Handler {
             this.isPlaying = true;
             if (options.canStop) {
                 this.canStopStoryPlayback = options.canStop;
+            } else {
+                this.canStopStoryPlayback = false;
             }
             const files = await Folder.fromPath(instFolder).getEntities();
 
