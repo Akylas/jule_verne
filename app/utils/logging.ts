@@ -61,8 +61,11 @@ const originalConsole = {
 
 function convertArg(arg) {
     const type = typeof arg;
-    if (!arg) {
-        return;
+    if (arg === undefined) {
+        return 'undefined';
+    }
+    if (arg === null) {
+        return 'null';
     }
     if (type === 'function' || typeof arg.getClass === 'function' || typeof arg.class === 'function') {
         return (arg as Function).toString();

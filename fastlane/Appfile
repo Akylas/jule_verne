@@ -2,7 +2,3 @@ app_identifier "com.akylas.juleverne"
 package_name "com.akylas.juleverne"
 apple_id "martin.guillon@akylas.fr"
 team_id "54U8KC82CU"
-repository_name 'Akylas/jule_verne'
-fdroid_sftp_target_url "nas.akylas.fr"
-fdroid_sftp_target_user "admin"
-fdroid_sftp_target_dir "volume1/docker/fdroid/repo"

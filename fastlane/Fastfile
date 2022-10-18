@@ -17,14 +17,33 @@ end
 fastlane_version '2.135.2'
 opt_out_usage
 $ios_scheme = File.basename(File.expand_path('..')).gsub(/[^a-zA-Z0-9]/, "")
+
+packageJSON = JSON.parse(File.read('../package.json'))
+fastlaneOptions = packageJSON['fastlane'] || Hash.new
+puts "packageJSON:"  + JSON.generate(packageJSON)
+puts "fastlaneOptions:"  + JSON.generate(fastlaneOptions)
+
 app_identifier = CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)
-$repository_name = CredentialsManager::AppfileConfig.try_fetch_value(:repository_name)
-$fdroid_sftp_url = CredentialsManager::AppfileConfig.try_fetch_value(:fdroid_sftp_url)
 
 desc 'test lane'
 lane :test do
     Dir.chdir("..") do
         print "TEST SUCCESSFUL!"
+    end
+    if (fastlaneOptions['sftp'])
+      server_url = fastlaneOptions['sftp']['url']
+      server_user = fastlaneOptions['sftp']['user']
+      server_port = fastlaneOptions['sftp']['port']
+      target_dir = fastlaneOptions['sftp']['target_dir']
+      server_key = fastlaneOptions['sftp']['server_key'] || "#{Dir.home}/.ssh/id_rsa"
+      sftp_upload(
+        server_url: server_url,
+        server_port: server_port,
+        server_user: server_user,
+        server_key: server_key,
+        target_dir:  target_dir, 
+        file_paths: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk")),
+      )
     end
 end
 desc 'Check Git Status'
@@ -109,8 +128,9 @@ lane :build_flavor do |params|
   when 'appcenter'
     upload_appcenter(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   when 'github'
+    repository_name = fastlaneOptions['github_repository_name'] || packageJSON['repository'].match(/([^\/]+\/[^\/]+)(\.git)?$/)[1]
     set_github_release(
-      repository_name: $repository_name,
+      repository_name: repository_name,
       api_token: ENV["GH_TOKEN"],
       name: "v#{version} Build #{versionCode}",
       tag_name: tag,
@@ -118,20 +138,22 @@ lane :build_flavor do |params|
       commitish: "master",
       upload_assets: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk"))
     )
-  when 'fdroid'
-    if ($fdroid_sftp_url)
-      server_user = CredentialsManager::AppfileConfig.try_fetch_value(:fdroid_sftp_user)
-      target_dir = CredentialsManager::AppfileConfig.try_fetch_value(:fdroid_sftp_user)
-      server_key = CredentialsManager::AppfileConfig.try_fetch_value(:fdroid_sftp_key)
-      server_key ||= "#{Dir.home}/.ssh/id_rsa"
-      sftp_upload(
-        server_url: $fdroid_sftp_url,
-        server_user: server_user,
-        server_key: server_key,
-        target_dir:  target_dir, 
-        file_paths: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk")),
-      )
-    end
+  # when 'fdroid'
+  #   if (fastlaneOptions['sftp'])
+  #     server_url = fastlaneOptions['sftp']['url']
+  #     server_user = fastlaneOptions['sftp']['user']
+  #     server_port = fastlaneOptions['sftp']['port']
+  #     target_dir = fastlaneOptions['sftp']['target_dir']
+  #     server_key = fastlaneOptions['sftp']['server_key'] || "#{Dir.home}/.ssh/id_rsa"
+  #     sftp_upload(
+  #       server_url: server_url,
+  #       server_port: server_port,
+  #       server_user: server_user,
+  #       server_key: server_key,
+  #       target_dir:  target_dir, 
+  #       file_paths: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk")),
+  #     )
+  #   end
   when 'alpha','beta'
     upload_store(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   end
@@ -147,7 +169,7 @@ end
 lane :get_changelog  do |params| 
   platform = params[:platform]
   flavor = params[:flavor]
-  puts "get_changelog "+  platform
+  puts "get_changelog "+  platform + " "+  flavor
   ignorePlatform = 'ios'
   if(platform == "ios") 
     ignorePlatform = "android"
@@ -270,14 +292,18 @@ platform :android do
 
   desc 'Ship to Github.'
   lane :github do |options|
-    # checkSentryClitatus
-    # checkGitStatus
+    if (options[:sentry])
+      checkSentryClitatus
+    end
+    checkGitStatus
     build_flavor(platform:'android', flavor:'github', options: options)
   end
 
   desc 'build for fdroid.'
   lane :fdroid do |options|
-    # checkSentryClitatus
+    if (options[:sentry])
+      checkSentryClitatus
+    end
     # checkGitStatus
     build_flavor(platform:'android', flavor:'fdroid', options: options)
   end
