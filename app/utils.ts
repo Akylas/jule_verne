@@ -140,7 +140,7 @@ export function setVolumeLevel(audioVol: number) {
         const audioManager = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager;
         const musicVolumeMax = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
         const volumeIndex = Math.round((audioVol * musicVolumeMax) / 100);
-        console.log('setVolumeLevel', musicVolumeMax, audioVol, volumeIndex);
+        // console.log('setVolumeLevel', musicVolumeMax, audioVol, volumeIndex);
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volumeIndex, 0);
     }
     if (__IOS__) {
@@ -164,7 +164,7 @@ export function getVolumeLevel() {
         const audioManager = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager;
         const musicVolumeMax = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
         const musicVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-        console.log('getVolumeLevel', musicVolumeMax, musicVolume);
+        // console.log('getVolumeLevel', musicVolumeMax, musicVolume);
         return (musicVolume / musicVolumeMax) * 100;
     }
     if (__IOS__) {
