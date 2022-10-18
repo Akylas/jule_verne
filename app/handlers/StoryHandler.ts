@@ -316,7 +316,7 @@ export class StoryHandler extends Handler {
                         DEV_LOG && console.log('playableStories', playableStories);
                         if (playableStories.indexOf(nextStoryIndex) !== -1) {
                             this.markAsViewed(name);
-                            this.loadAndPlayStory({ storyIndex: nextStoryIndex, canStop: this.isStoryPlayed(nextStoryIndex) });
+                            this.loadAndPlayStory({ storyIndex: nextStoryIndex, canStop: true });
                         }
                     } else {
                         // ensure we dont "block" with insideFeature set while not playing
