@@ -1,0 +1,10 @@
+*Bug fixes*
+- stopSession fix
+- emulator fix
+- allow to stop end instruction
+- missing permission to get headset
+- fix instructions with stop button
+- map improvements
+- better glasses icon layout
+- should not be necessary anymore
+- *android:* running notification not hiding on stopping session
