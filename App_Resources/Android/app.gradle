@@ -8,7 +8,7 @@ android {
     applicationId "com.akylas.juleverne"
     minSdkVersion 19 
     targetSdkVersion 33
-    versionCode 67
+    versionCode 68
     versionName "1.1.0"
 
     if (project.hasProperty('resConfigs')) {
