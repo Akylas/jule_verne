@@ -445,9 +445,9 @@ export default class App extends GlassesConnectionComponent {
             }
             const importData = file.readTextSync();
             const data = JSON.parse(importData);
-            const existing = (await this.dbHandler.trackRepository.searchItem()).map((t) => t.id);
-            for (let index = 0; index < data.length; index++) {
-                const d = data[index];
+            const existingTracks = await this.dbHandler.trackRepository.searchItem();
+            for (let i = 0; i < data.length; i++) {
+                const d = data[i];
                 const track = { ...d, id: (d.name || Date.now()) + '' };
                 const geojson = bboxify(track.geometry);
                 track.geometry = geojson as any;
@@ -455,7 +455,9 @@ export default class App extends GlassesConnectionComponent {
                 track.bounds = new MapBounds<LatLonKeys>({ lat: geojson.bbox[3], lon: geojson.bbox[2] }, { lat: geojson.bbox[1], lon: geojson.bbox[0] });
 
                 let newTrack;
-                if (existing.indexOf(track.id) === -1) {
+                const index = existingTracks.findIndex((t) => t.id === track.id);
+                if (index === -1) {
+                    existingTracks.splice(index, 1);
                     newTrack = await this.dbHandler.trackRepository.createItem(track);
                 } else {
                     newTrack = await this.dbHandler.trackRepository.updateItem(track);
@@ -465,6 +467,8 @@ export default class App extends GlassesConnectionComponent {
                 }
             }
             ApplicationSettings.setNumber('map.geojson_date', file.lastModified.getTime());
+            // we updated/added all new tracks. Let s remove those not present still
+            await this.dbHandler.trackRepository.removeItems(existingTracks.map((t) => t.id));
         } catch (err) {
             this.showError(err);
         } finally {

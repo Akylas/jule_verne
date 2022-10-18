@@ -122,4 +122,7 @@ export class TrackRepository extends CrudRepository<Track> {
         }
         return result;
     }
+    async removeItems(ids: string[]) {
+        return Promise.all(ids.map((id) => this.delete({ id } as any)));
+    }
 }
