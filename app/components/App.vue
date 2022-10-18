@@ -502,8 +502,11 @@ export default class App extends GlassesConnectionComponent {
         super.onGlassesDisconnected(e);
         DEV_LOG && console.log(TAG, 'onGlassesDisconnected', changed, !!oldGlasses);
         if (changed && oldGlasses) {
-            showSnack({ message: $tc('disconnected_glasses', oldGlasses.localName), view: this.page });
+            this.showSnack($tc('disconnected_glasses', oldGlasses.localName));
         }
+    }
+    showSnack(message: string) {
+        showSnack({ message, view: this.page, anchorView: this.$refs.anchorView.nativeView });
     }
     onGlassesConnected(e: BLEConnectionEventData) {
         const changed = this.connectedGlasses !== e.data;
@@ -512,7 +515,7 @@ export default class App extends GlassesConnectionComponent {
 
         if (changed) {
             // the fake anchor view is here to fix an issue where the snack would appear half "under" the screen
-            showSnack({ message: $tc('connected_glasses', this.connectedGlasses.localName), view: this.page, anchorView: this.$refs.anchorView.nativeView });
+            this.showSnack($tc('connected_glasses', this.connectedGlasses.localName));
         }
     }
 
@@ -607,7 +610,7 @@ export default class App extends GlassesConnectionComponent {
             this.$switchDevMode();
             const devMode = this.$getDevMode();
             this.nbDevModeTap = 0;
-            showSnack({ message: devMode ? $tc('devmode_on') : $tc('devmode_off'), view: this.page });
+            this.showSnack(devMode ? $tc('devmode_on') : $tc('devmode_off'));
             return;
         }
         this.devModeClearTimer = setTimeout(() => {
@@ -630,7 +633,7 @@ export default class App extends GlassesConnectionComponent {
             });
             if (result.result) {
                 this.$crashReportService.captureMessage(result.text);
-                showSnack({ message: this.$t('bug_report_sent'), view: this.page });
+                this.showSnack(this.$t('bug_report_sent'));
             }
         }
     }
