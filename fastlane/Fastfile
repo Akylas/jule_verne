@@ -19,6 +19,7 @@ opt_out_usage
 $ios_scheme = File.basename(File.expand_path('..')).gsub(/[^a-zA-Z0-9]/, "")
 app_identifier = CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)
 $repository_name = CredentialsManager::AppfileConfig.try_fetch_value(:repository_name)
+$fdroid_sftp_url = CredentialsManager::AppfileConfig.try_fetch_value(:fdroid_sftp_url)
 
 desc 'test lane'
 lane :test do
@@ -117,6 +118,19 @@ lane :build_flavor do |params|
       commitish: "master",
       upload_assets: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk"))
     )
+  when 'fdroid'
+    if ($fdroid_sftp_url)
+      server_user = CredentialsManager::AppfileConfig.try_fetch_value(:fdroid_sftp_user)
+      target_dir = CredentialsManager::AppfileConfig.try_fetch_value(:fdroid_sftp_user)
+      server_key = CredentialsManager::AppfileConfig.try_fetch_value(:fdroid_sftp_key)
+      server_key ||= "#{Dir.home}/.ssh/id_rsa"
+      sftp_upload(
+        server_url: $fdroid_sftp_url,
+        server_user: server_user,
+        server_key: server_key,
+        target_dir:  target_dir, 
+        file_paths: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk")),
+      )
   when 'alpha','beta'
     upload_store(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   end
