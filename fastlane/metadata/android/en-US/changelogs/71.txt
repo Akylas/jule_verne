@@ -1,0 +1,6 @@
+*Bug fixes*
+- snack now showing completely
+- all sorts of wrong behaviors
+- layout fix
+- always allow to stopstories
+- ensure foreground service while glasses connected
