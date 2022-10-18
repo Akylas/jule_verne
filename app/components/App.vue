@@ -1,119 +1,122 @@
 <template>
     <Page ref="page" @loaded="onLoaded" actionBarHidden>
-        <Drawer
-            ref="drawer"
-            @loaded="onDrawerLoaded"
-            :gestureEnabled="true"
-            :leftSwipeDistance="20"
-            :gestureHandlerOptions="{
-                failOffsetYStart: -10,
-                failOffsetYEnd: 10
-            }"
-        >
-            <BottomSheet :stepIndex="stepIndex" :steps="[0, 160]" :gestureEnabled="false" ~mainContent>
-                <GridLayout rows="auto,*">
-                    <Pager ref="pager" height="0" :items="messages" +alias="messageItem" backgroundColor="#405798">
+        <GridLayout>
+            <Drawer
+                ref="drawer"
+                @loaded="onDrawerLoaded"
+                :gestureEnabled="true"
+                :leftSwipeDistance="20"
+                :gestureHandlerOptions="{
+                    failOffsetYStart: -10,
+                    failOffsetYEnd: 10
+                }"
+            >
+                <BottomSheet :stepIndex="stepIndex" :steps="[0, 160]" :gestureEnabled="false" ~mainContent>
+                    <GridLayout rows="auto,*">
+                        <Pager ref="pager" height="0" :items="messages" +alias="messageItem" backgroundColor="#405798">
+                            <v-template>
+                                <GridLayout columns="auto,*,auto,auto" rows="auto,*,auto" width="100%" height="100%">
+                                    <Label padding="4 4 0 4" colSpan="4" color="white" fontSize="14" lineBreak="end" verticalTextAlignment="center">
+                                        <Span :visibility="messageItem.smallIcon ? 'visible' : 'hidden'" :text="messageItem.smallIcon + ' '" :fontFamily="mdiFontFamily" />
+                                        <Span :text="messageItem.title" fontWeight="bold" />
+                                    </Label>
+                                    <Label
+                                        marginLeft="4"
+                                        row="1"
+                                        v-show="messageItem.icon"
+                                        fontWeight="bold"
+                                        color="#405798"
+                                        textAlignment="center"
+                                        width="26"
+                                        height="26"
+                                        borderRadius="13"
+                                        verticalTextAlignment="center"
+                                        backgroundColor="white"
+                                        fontSize="20"
+                                        :text="messageItem.icon"
+                                        :fontFamily="mdiFontFamily"
+                                        verticalAlignment="center"
+                                    />
+                                    <Label padding="0 4 0 4" row="1" col="1" :text="messageItem.message" color="white" fontSize="10" verticalTextAlignment="top" />
+                                    <Label rowSpan="2" col="2" color="white" marginRight="4" verticalTextAlignment="center" textAlignment="right">
+                                        <Span :text="messageItem.rightIcon" :visibility="messageItem.rightIcon ? 'visible' : 'hidden'" fontSize="26" :fontFamily="mdiFontFamily" fontWeight="bold" />
+                                        <Span :text="'\n' + messageItem.rightMessage" :visibility="messageItem.rightMessage ? 'visible' : 'hidden'" fontSize="10" />
+                                    </Label>
+                                    <MDButton
+                                        rowSpan="2"
+                                        variant="text"
+                                        class="mdi"
+                                        fontSize="20"
+                                        padding="5"
+                                        width="30"
+                                        height="30"
+                                        verticalAlignment="center"
+                                        :fontFamily="mdiFontFamily"
+                                        v-show="messageItem.action"
+                                        :text="messageItem.action.text"
+                                        color="white"
+                                        @tap="onButtonTap(messageItem)"
+                                        col="3"
+                                    />
+                                    <MDProgress row="2" colSpan="4" v-show="messageItem.progress !== undefined" :value="messageItem.progress" verticalAlignment="bottom" color="white" />
+                                </GridLayout>
+                            </v-template>
+                        </Pager>
+                        <Frame row="1" ref="frame">
+                            <MainMenu />
+                        </Frame>
+                    </GridLayout>
+                    <GridLayout ~bottomSheet height="160">
+                        <BarAudioPlayerWidget :verticalAlignment="showingMap ? 'top' : 'bottom'" />
+                    </GridLayout>
+                </BottomSheet>
+                <GridLayout ~leftDrawer rows="auto,*,auto,auto" height="100%" :backgroundColor="backgroundColor" width="80%">
+                    <GridLayout padding="10" rows="auto" columns="*">
+                        <Image horizontalAlignment="center" src="res://logo" height="100" @touch="handleDevModeTap" @longPress="switchTextMessage" />
+                        <GlassesIcon
+                            horizontalAlignment="right"
+                            verticalAlignment="top"
+                            showImage
+                            :headset="connectedHeadset"
+                            :glasses="connectedGlasses"
+                            :battery="glassesBattery"
+                            @longPress="onLongPress('disconnectGlasses', $event)"
+                            @tap="onTap('connectGlasses')"
+                        />
+                    </GridLayout>
+                    <CollectionView :items="menuItems" row="1" paddingTop="10" rowHeight="50" @tap="noop" +alias="menuItem">
                         <v-template>
-                            <GridLayout columns="auto,*,auto,auto" rows="auto,*,auto" width="100%" height="100%">
-                                <Label padding="4 4 0 4" colSpan="4" color="white" fontSize="14" lineBreak="end" verticalTextAlignment="center">
-                                    <Span :visibility="messageItem.smallIcon ? 'visible' : 'hidden'" :text="messageItem.smallIcon + ' '" :fontFamily="mdiFontFamily" />
-                                    <Span :text="messageItem.title" fontWeight="bold" />
-                                </Label>
-                                <Label
-                                    marginLeft="4"
-                                    row="1"
-                                    v-show="messageItem.icon"
-                                    fontWeight="bold"
-                                    color="#405798"
-                                    textAlignment="center"
-                                    width="26"
-                                    height="26"
-                                    borderRadius="13"
-                                    verticalTextAlignment="center"
-                                    backgroundColor="white"
-                                    fontSize="20"
-                                    :text="messageItem.icon"
-                                    :fontFamily="mdiFontFamily"
-                                    verticalAlignment="center"
-                                />
-                                <Label padding="0 4 0 4" row="1" col="1" :text="messageItem.message" color="white" fontSize="10" verticalTextAlignment="top" />
-                                <Label rowSpan="2" col="2" color="white" marginRight="4" verticalTextAlignment="center" textAlignment="right">
-                                    <Span :text="messageItem.rightIcon" :visibility="messageItem.rightIcon ? 'visible' : 'hidden'" fontSize="26" :fontFamily="mdiFontFamily" fontWeight="bold" />
-                                    <Span :text="'\n' + messageItem.rightMessage" :visibility="messageItem.rightMessage ? 'visible' : 'hidden'" fontSize="10" />
-                                </Label>
-                                <MDButton
-                                    rowSpan="2"
-                                    variant="text"
-                                    class="mdi"
-                                    fontSize="20"
-                                    padding="5"
-                                    width="30"
-                                    height="30"
-                                    verticalAlignment="center"
-                                    :fontFamily="mdiFontFamily"
-                                    v-show="messageItem.action"
-                                    :text="messageItem.action.text"
-                                    color="white"
-                                    @tap="onButtonTap(messageItem)"
-                                    col="3"
-                                />
-                                <MDProgress row="2" colSpan="4" v-show="messageItem.progress !== undefined" :value="messageItem.progress" verticalAlignment="bottom" color="white" />
+                            <GridLayout>
+                                <GridLayout columns="auto, *" class="menu" :active="menuItem.activated" :rippleColor="accentColor" @tap="onNavItemTap(menuItem)">
+                                    <Label col="0" class="menuIcon" :text="menuItem.icon" verticalAlignment="center" />
+                                    <Label col="1" class="menuText" :text="menuItem.title | titlecase" verticalAlignment="center" :active="menuItem.activated" />
+                                </GridLayout>
                             </GridLayout>
                         </v-template>
-                    </Pager>
-                    <Frame row="1">
-                        <MainMenu />
-                    </Frame>
-                </GridLayout>
-                <GridLayout ~bottomSheet height="160">
-                    <BarAudioPlayerWidget :verticalAlignment="showingMap ? 'top' : 'bottom'" />
-                </GridLayout>
-            </BottomSheet>
-            <GridLayout ~leftDrawer rows="auto,*,auto,auto" height="100%" :backgroundColor="backgroundColor" width="80%">
-                <GridLayout padding="10" rows="auto" columns="*">
-                    <Image horizontalAlignment="center" src="res://logo" height="100" @touch="handleDevModeTap" @longPress="switchTextMessage" />
-                    <GlassesIcon
-                        horizontalAlignment="right"
-                        verticalAlignment="top"
-                        showImage
-                        :headset="connectedHeadset"
-                        :glasses="connectedGlasses"
-                        :battery="glassesBattery"
-                        @longPress="onLongPress('disconnectGlasses', $event)"
-                        @tap="onTap('connectGlasses')"
+                    </CollectionView>
+                    <MDButton :text="$tc('stop')" row="2" v-show="sessionRunning" @tap="stopSession" />
+                    <StackLayout row="3" padding="10">
+                        <Label textWrap textAlignment="center" fontSize="15">
+                            <Span :text="'Glasses data version: ' + (glassesDataUpdateDate ? date(glassesDataUpdateDate, 'L LT') : $tc('missing'))" />
+                            <Span :text="'\n' + 'Map data version: ' + (mapDataUpdateDate ? date(mapDataUpdateDate, 'L LT') : $tc('missing'))" />
+                            <Span :text="'\n' + 'GeoJSON version: ' + (geojsonDataUpdateDate ? date(geojsonDataUpdateDate, 'L LT') : $tc('missing'))" />
+                            <Span :text="'\n' + 'App version: ' + (appVersion || '')" />
+                        </Label>
+                    </StackLayout>
+                    <MDButton
+                        row="3"
+                        horizontalAlignment="left"
+                        class="actionBarButton"
+                        variant="text"
+                        v-if="$crashReportService.sentryEnabled"
+                        text="mdi-bug"
+                        @tap="sendBugReport"
+                        verticalAlignment="bottom"
                     />
                 </GridLayout>
-                <CollectionView :items="menuItems" row="1" paddingTop="10" rowHeight="50" @tap="noop" +alias="menuItem">
-                    <v-template>
-                        <GridLayout>
-                            <GridLayout columns="auto, *" class="menu" :active="menuItem.activated" :rippleColor="accentColor" @tap="onNavItemTap(menuItem)">
-                                <Label col="0" class="menuIcon" :text="menuItem.icon" verticalAlignment="center" />
-                                <Label col="1" class="menuText" :text="menuItem.title | titlecase" verticalAlignment="center" :active="menuItem.activated" />
-                            </GridLayout>
-                        </GridLayout>
-                    </v-template>
-                </CollectionView>
-                <MDButton :text="$tc('stop')" row="2" v-show="sessionRunning" @tap="stopSession" />
-                <StackLayout row="3" padding="10">
-                    <Label textWrap textAlignment="center" fontSize="15">
-                        <Span :text="'Glasses data version: ' + (glassesDataUpdateDate ? date(glassesDataUpdateDate, 'L LT') : $tc('missing'))" />
-                        <Span :text="'\n' + 'Map data version: ' + (mapDataUpdateDate ? date(mapDataUpdateDate, 'L LT') : $tc('missing'))" />
-                        <Span :text="'\n' + 'GeoJSON version: ' + (geojsonDataUpdateDate ? date(geojsonDataUpdateDate, 'L LT') : $tc('missing'))" />
-                        <Span :text="'\n' + 'App version: ' + (appVersion || '')" />
-                    </Label>
-                </StackLayout>
-                <MDButton
-                    row="3"
-                    horizontalAlignment="left"
-                    class="actionBarButton"
-                    variant="text"
-                    v-if="$crashReportService.sentryEnabled"
-                    text="mdi-bug"
-                    @tap="sendBugReport"
-                    verticalAlignment="bottom"
-                />
-            </GridLayout>
-        </Drawer>
+            </Drawer>
+            <AbsoluteLayout height="1" verticalAlignment="bottom" ref="anchorView" />
+        </GridLayout>
     </Page>
 </template>
 <script lang="ts">
@@ -508,7 +511,8 @@ export default class App extends GlassesConnectionComponent {
         DEV_LOG && console.log(TAG, 'onGlassesConnected', changed);
 
         if (changed) {
-            showSnack({ message: $tc('connected_glasses', this.connectedGlasses.localName), view: this.page });
+            // the fake anchor view is here to fix an issue where the snack would appear half "under" the screen
+            showSnack({ message: $tc('connected_glasses', this.connectedGlasses.localName), view: this.page, anchorView: this.$refs.anchorView.nativeView });
         }
     }
 
