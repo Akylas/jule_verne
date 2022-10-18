@@ -54,8 +54,8 @@ export class BgService extends android.app.Service {
     bounded: boolean;
     inBackground: any;
     mNotificationBuilder: androidx.core.app.NotificationCompat.Builder;
-    mNotification: globalAndroid.app.Notification;
-    notificationManager: any;
+    mNotification: android.app.Notification;
+    // notificationManager: android.app.NotificationManager;
     recording: boolean;
     playingState: 'play' | 'pause' | 'stopped' = 'stopped';
     playingInfo: PlayingInfo = null;
@@ -86,7 +86,7 @@ export class BgService extends android.app.Service {
         this.recording = false;
         this.inBackground = false;
         this.bounded = false;
-        this.notificationManager = this.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+        // this.notificationManager = this.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
         NotificationHelper.createNotificationChannels(this);
     }
     onDestroy() {
@@ -127,6 +127,7 @@ export class BgService extends android.app.Service {
 
     onBounded(commonService: BgServiceCommon) {
         try {
+            DEV_LOG && console.log(TAG, 'onBounded');
             this.geoHandler = new GeoHandler(commonService);
             const bluetoothHandler = (this.bluetoothHandler = new BluetoothHandler(commonService));
             this.dbHandler = new DBHandler(commonService);
@@ -134,9 +135,9 @@ export class BgService extends android.app.Service {
             this.showForeground();
             bluetoothHandler.on(GlassesConnectedEvent, this.onGlassesConnected, this);
             bluetoothHandler.on(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
-            bluetoothHandler.on(PlaybackEvent, this.onPlayerState, this);
-            bluetoothHandler.on(PlaybackStartEvent, this.onPlayerStart, this);
-            bluetoothHandler.on(DrawBitmapEvent, this.onDrawImage, this);
+            this.storyHandler.on(PlaybackEvent, this.onPlayerState, this);
+            this.storyHandler.on(PlaybackStartEvent, this.onPlayerStart, this);
+            this.storyHandler.on(DrawBitmapEvent, this.onDrawImage, this);
             this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
         } catch (error) {
             console.error('onBounded', error, error.stack);
@@ -144,48 +145,53 @@ export class BgService extends android.app.Service {
     }
 
     displayNotification(sessionRunning) {
+        DEV_LOG && console.log(TAG, 'displayNotification', sessionRunning);
         this.mNotificationBuilder = NotificationHelper.getBuilder(this, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL);
 
         this.mNotification = NotificationHelper.getNotification(this, this.mNotificationBuilder);
-        this.notificationManager.notify(NOTIFICATION_ID, this.mNotification); // todo check if necessary in pre Android O
+        // NotificationHelper.getNotificationManager().notify(NOTIFICATION_ID, this.mNotification); // todo check if necessary in pre Android O
     }
     onSessionStateEvent(e: SessionEventData) {
+        DEV_LOG && console.log(TAG, 'onSessionStateEvent', e.data);
         switch (e.data.state) {
             case SessionState.RUNNING:
                 this.recording = true;
                 this.showForeground();
+                // we dont need to update the notification as it is a fixed notification
+                // this.updateNotification();
                 break;
             case SessionState.STOPPED:
                 this.recording = false;
                 this.removeForeground();
                 break;
         }
-        this.updateNotification();
     }
     updateNotification() {
         try {
+            DEV_LOG && console.log(TAG, 'updateNotification', this.recording, sdkVersion);
             if (!this.mNotificationBuilder) {
                 this.displayNotification(this.recording);
             } else {
                 this.mNotification = NotificationHelper.getUpdatedNotification(this.mNotificationBuilder);
-                this.notificationManager.notify(NOTIFICATION_ID, this.mNotification);
+                NotificationHelper.getNotificationManager().notify(NOTIFICATION_ID, this.mNotification);
             }
         } catch (err) {
             console.error('updateNotification', err);
         }
     }
-    onSessionChronoEvent(e: SessionChronoEventData) {
-        if (this.mNotification) {
-            this.updateNotification();
-        }
-    }
+    // onSessionChronoEvent(e: SessionChronoEventData) {
+    //     if (this.mNotification) {
+    //         this.updateNotification();
+    //     }
+    // }
 
     showForeground() {
         if (!this.bounded) {
             return;
         }
-        if (!!this.bluetoothHandler.glasses && this.recording) {
+        if (this.recording) {
             try {
+                DEV_LOG && console.log(TAG, 'showForeground', this.recording, sdkVersion);
                 if (!this.mNotification) {
                     this.displayNotification(this.recording);
                 }
@@ -206,9 +212,10 @@ export class BgService extends android.app.Service {
 
     removeForeground() {
         try {
-            if (!this.recording || !this.bluetoothHandler.glasses) {
-                this.stopForeground(false);
-                this.notificationManager.cancel(NOTIFICATION_ID);
+            DEV_LOG && console.log(TAG, 'removeForeground', this.recording);
+            if (!this.recording) {
+                // NotificationHelper.getNotificationManager().cancel(NOTIFICATION_ID);
+                this.stopForeground(true);
                 this.mNotification = null;
             }
         } catch (err) {

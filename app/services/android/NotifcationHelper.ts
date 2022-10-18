@@ -37,7 +37,6 @@ export class NotificationHelper {
             .setOngoing(true)
             .setColor(new Color(accentColor).android)
             .setSilent(true)
-            .setOnlyAlertOnce(true)
             .setSound(null)
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MIN)
             .setContentIntent(tapActionPendingIntent)
