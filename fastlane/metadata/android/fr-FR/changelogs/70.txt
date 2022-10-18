@@ -1,0 +1,3 @@
+*Bug fixes*
+- components accessing wrong service
+- remove old tracks on refresh
