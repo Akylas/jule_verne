@@ -200,17 +200,17 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         return this;
     }
 
-    get geoHandler() {
-        return this.$bgService && this.$bgService.geoHandler;
+    get geoHandler(): GeoHandler {
+        return this.$bgService?.geoHandler;
     }
-    get dbHandler() {
-        return this.$bgService && this.$bgService.geoHandler && this.$bgService.dbHandler;
+    get dbHandler(): DBHandler {
+        return this.$bgService?.dbHandler;
     }
-    get bluetoothHandler() {
-        return this.$bgService && this.$bgService.bluetoothHandler && this.$bgService.bluetoothHandler;
+    get bluetoothHandler(): BluetoothHandler {
+        return this.$bgService?.bluetoothHandler;
     }
-    get storyHandler() {
-        return this.$bgService && this.$bgService.bluetoothHandler && this.$bgService.storyHandler;
+    get storyHandler(): StoryHandler {
+        return this.$bgService?.storyHandler;
     }
     onServiceLoaded(handlers: BgServiceMethodParams) {}
     onServiceStarted(handlers: BgServiceMethodParams) {}
