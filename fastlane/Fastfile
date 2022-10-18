@@ -304,7 +304,7 @@ platform :android do
     if (options[:sentry])
       checkSentryClitatus
     end
-    # checkGitStatus
+    checkGitStatus
     build_flavor(platform:'android', flavor:'fdroid', options: options)
   end
 
