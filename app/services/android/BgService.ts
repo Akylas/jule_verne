@@ -189,7 +189,7 @@ export class BgService extends android.app.Service {
         if (!this.bounded) {
             return;
         }
-        if (this.recording) {
+        if (this.recording || this.bluetoothHandler.glasses) {
             try {
                 DEV_LOG && console.log(TAG, 'showForeground', this.recording, sdkVersion, !this.bluetoothHandler.glasses);
                 if (!this.mNotification) {
@@ -213,6 +213,7 @@ export class BgService extends android.app.Service {
     removeForeground() {
         try {
             DEV_LOG && console.log(TAG, 'removeForeground', this.recording, !!this.bluetoothHandler.glasses);
+            if (!this.recording && !this.bluetoothHandler.glasses) {
                 // NotificationHelper.getNotificationManager().cancel(NOTIFICATION_ID);
                 this.stopForeground(true);
                 this.mNotification = null;
