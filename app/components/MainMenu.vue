@@ -8,7 +8,7 @@
             <Image row="1" src="res://grenoble_full" stretch="aspectFill" height="70%" />
             <MDButton row="2" variant="outline" horizontalAlignment="center" width="80%" :text="$tc('still_adventure')" @tap="onTap('still_adventure')" />
             <MDButton row="3" variant="outline" horizontalAlignment="center" width="80%" :text="$tc('jules_verne_adventure')" @tap="onTap('jules_verne_adventure')" />
-            <GridLayout row="4" height="80" marginTop="10">
+            <GridLayout row="4" height="80" margin="10 0 10 0">
                 <GridLayout width="90%" rows="30,50" columns="*,*,*">
                     <Image src="res://activelook_logo" margin="2" :tintColor="textColor" />
                     <Image col="1" src="res://activemotion_logo" margin="2 6 2 6" :tintColor="textColor" />
