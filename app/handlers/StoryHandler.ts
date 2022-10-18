@@ -107,7 +107,7 @@ export class StoryHandler extends Handler {
     isPlayingMusic = false;
     isPlayingPastille = 0;
     isPlayingNavigationInstruction = null;
-    canStopStoryPlayback = false;
+    mCanStopStoryPlayback = false;
     toPlayNext: Function = null;
 
     get playerCurrentTime() {
@@ -1573,6 +1573,16 @@ export class StoryHandler extends Handler {
                 this.lyric?.play(playTime);
             }
         }
+    }
+
+    set canStopStoryPlayback(value) {
+        if (value !== this.mCanStopStoryPlayback) {
+            TEST_LOG && console.log('set canStopStoryPlayback', value, this.isPlayingStory, this.isPlayingPastille, new Error().stack);
+            this.mCanStopStoryPlayback = value;
+        }
+    }
+    get canStopStoryPlayback() {
+        return this.mCanStopStoryPlayback;
     }
     async playStory(index = 1, shouldPlayStop = true, canStopStoryPlayback = false, markAsPlayedOnMap = true) {
         if (!this.canDrawOnGlasses) {
