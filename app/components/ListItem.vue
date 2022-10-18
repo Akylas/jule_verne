@@ -29,9 +29,7 @@ import Vue from 'nativescript-vue';
 import { Component, Prop } from 'vue-property-decorator';
 import { accentColor, backgroundColor, borderColor, mdiFontFamily, textColor } from '~/variables';
 
-@Component({
-    inheritAttrs: false
-})
+@Component({})
 export default class ListItem extends Vue {
     mdiFontFamily = mdiFontFamily;
     borderColor = borderColor;

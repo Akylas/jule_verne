@@ -94,7 +94,6 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
     }
     callOnServiceStarted() {
         const params = this.getParams();
-        DEV_LOG && console.log(TAG, this.constructor.name, 'callOnServiceStarted', this.backgrounded);
         if (this.setup && !this.backgrounded) {
             this.inSetup = true;
             this.setup.call(this, params);
@@ -109,7 +108,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         const bluetoothHandler = this.$bgService.bluetoothHandler;
         const geoHandler = this.$bgService.geoHandler;
         const storyHandler = this.$bgService.storyHandler;
-        DEV_LOG && console.log(TAG, this.constructor.name, 'unregisterSetupEvents');
+        // DEV_LOG && console.log(TAG, this.constructor.name, 'unregisterSetupEvents');
         if (bluetoothHandler) {
             this.handlersSetupListeners['bluetooth']?.forEach((r) => {
                 bluetoothHandler.off(r[0], r[1], r[2] || this);
@@ -155,7 +154,7 @@ export default abstract class BgServiceComponent extends BaseVueComponent {
         this.handlersListeners = {};
     }
     unloadService() {
-        DEV_LOG && console.log('unloadService');
+        // DEV_LOG && console.log('unloadService');
         this.unregisterSetupEvents();
         this.unregisterEvents();
         this.onServiceUnloaded.call(this, this.getParams());

@@ -226,7 +226,7 @@ export class NetworkService extends Observable {
                 workingDir += '/stories';
             }
             const storyDirPath = path.join(workingDir, storyId + '');
-            DEV_LOG && console.log('checkForStoryUpdate', url, storyId, workingDir, lastSize !== headers['content-length'], Folder.exists(storyDirPath));
+            DEV_LOG && console.log('checkForStoryUpdate', url, storyId, workingDir, newContentSize, typeof newContentSize, lastSize !== newContentSize, Folder.exists(storyDirPath));
 
             if (forceReload || lastSize !== headers['content-length'] || !Folder.exists(storyDirPath)) {
                 const requestTag = Date.now() + '';

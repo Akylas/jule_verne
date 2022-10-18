@@ -191,7 +191,7 @@ export class BgService extends android.app.Service {
         }
         if (this.recording) {
             try {
-                DEV_LOG && console.log(TAG, 'showForeground', this.recording, sdkVersion);
+                DEV_LOG && console.log(TAG, 'showForeground', this.recording, sdkVersion, !this.bluetoothHandler.glasses);
                 if (!this.mNotification) {
                     this.displayNotification(this.recording);
                 }
@@ -212,8 +212,7 @@ export class BgService extends android.app.Service {
 
     removeForeground() {
         try {
-            DEV_LOG && console.log(TAG, 'removeForeground', this.recording);
-            if (!this.recording) {
+            DEV_LOG && console.log(TAG, 'removeForeground', this.recording, !!this.bluetoothHandler.glasses);
                 // NotificationHelper.getNotificationManager().cancel(NOTIFICATION_ID);
                 this.stopForeground(true);
                 this.mNotification = null;
@@ -422,7 +421,7 @@ export class BgService extends android.app.Service {
             this.updateMediaSessionMetadata();
             this.getMediaSessionCompat().setActive(true);
             this.setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
-            DEV_LOG && console.log('onPlayerStart', event.data, this.playingState, this.playingInfo);
+            DEV_LOG && console.log('onPlayerStart', JSON.stringify(event.data), this.playingState, JSON.stringify(this.playingInfo));
             this.showPlayingNotification();
         } catch (error) {
             console.error('onPlayerStart', error, error.stack);

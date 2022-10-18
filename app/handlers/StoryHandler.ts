@@ -127,7 +127,7 @@ export class StoryHandler extends Handler {
         return (id: string) => {
             if (!this.storiesInfo[id]) {
                 const filePath = path.join(getGlassesImagesFolder(), 'stories', id, 'metadata.json');
-                DEV_LOG && console.log('storyInfo', id, filePath);
+                // DEV_LOG && console.log('storyInfo', id, filePath);
                 this.storiesInfo[id] = JSON.parse(File.fromPath(filePath).readTextSync());
             }
             return this.storiesInfo[id];
@@ -136,7 +136,7 @@ export class StoryHandler extends Handler {
     get playingInfo(): PlayingInfo {
         if (this.isPlayingStory || this.isPlayingPastille) {
             const storyInfo = this.isPlayingStory && this.storyInfo(this.isPlayingStory + '');
-            DEV_LOG && console.log('playingInfo', storyInfo, this.canStopStoryPlayback);
+            TEST_LOG && console.log('playingInfo', JSON.stringify(storyInfo), this.canStopStoryPlayback);
             return {
                 canPause: true,
                 canStop: !PRODUCTION || this.canStopStoryPlayback,
@@ -275,14 +275,15 @@ export class StoryHandler extends Handler {
 
             const playing = this.isPlayingStory || this.isPlayingMusic || this.isPlayingPastille;
             if (playing) {
+                TEST_LOG && console.log('insideFeature we are playing', this.isPlayingStory, this.isPlayingMusic, this.isPlayingPastille);
                 // We will get a new `inside` event when finished and thus `insideFeature` will be set again
                 this._insideFeature = null;
                 return;
             }
             // if (value && !playing) {
             if (value) {
+                TEST_LOG && console.log('insideFeature', this.isPlayingStory, this.isPlayingMusic, this.isPlayingPastille);
                 const name = ('index' in value.properties ? value.properties.index : value.properties.name) + '';
-                DEV_LOG && console.log('insideFeature', name, this._playedHistory);
                 if (name === 'exit' && this._playedHistory.length === 0) {
                     this._insideFeature = null;
                     return;
@@ -352,12 +353,7 @@ export class StoryHandler extends Handler {
 
     async handleFeatureEvent(events: { index: number; distance?: number; trackId: string; state: 'inside' | 'leaving' | 'entering'; feature: TrackFeature }[]) {
         const insideFeatures = events.filter((e) => e.state !== 'leaving');
-        DEV_LOG &&
-            console.log(
-                'handleFeatureEvent',
-                insideFeatures.length,
-                insideFeatures.map((f) => [f.state, f.feature.properties.name])
-            );
+
         let featureToEnter;
         if (insideFeatures.length > 1) {
             let minIndex = 0;
@@ -375,6 +371,12 @@ export class StoryHandler extends Handler {
         } else {
             this.insideFeature = null;
         }
+        TEST_LOG &&
+            console.log(
+                'handleFeatureEvent',
+                insideFeatures.length,
+                insideFeatures.map((f) => [f.state, f.feature.properties.name], featureToEnter)
+            );
         if (featureToEnter) {
             if (!this._insideFeature) {
                 this.insideFeature = featureToEnter;
@@ -468,7 +470,20 @@ export class StoryHandler extends Handler {
     mLastPlayedAimingDirectionTime: number;
     async updateTrackWithLocation(loc: GeoLocation) {
         const minHorizontalAccuracy = ApplicationSettings.getNumber('minHorizontalAccuracy', 40);
-        TEST_LOG && console.log('updateTrackWithLocation', loc.lat, loc.lon, loc.horizontalAccuracy, loc.bearing, this.insideFeature?.properties.name, this._playedHistory);
+        TEST_LOG &&
+            console.log(
+                'updateTrackWithLocation',
+                JSON.stringify({
+                    lat: loc.lat,
+                    lon: loc.lon,
+                    minHorizontalAccuracy,
+                    horizontalAccuracy: loc.horizontalAccuracy,
+                    bearing: loc.bearing,
+                    computedBearing: loc.computedBearing,
+                    insideFeature: this.insideFeature?.properties.name,
+                    _playedHistory: this._playedHistory
+                })
+            );
         if (loc.horizontalAccuracy > minHorizontalAccuracy) {
             return;
         }
@@ -821,7 +836,7 @@ export class StoryHandler extends Handler {
             const distance = getDistance(this.lastLocation, loc);
             if (distance > minDistanceDetection) {
                 loc.computedBearing = bearing(this.lastLocation, loc);
-                TEST_LOG && console.info('computed bearing', this.lastLocation, loc, distance, loc.computedBearing);
+                TEST_LOG && console.info('computed bearing', distance, loc.computedBearing);
                 this.lastLocation = loc;
             } else if (detectUserStopping && loc.timestamp - this.lastLocation.timestamp > 30000) {
                 // the user stopped moving we reset and wait for him to move
@@ -999,7 +1014,7 @@ export class StoryHandler extends Handler {
             if (shouldPlayMusic && /* name.endsWith('_out') || */ !configurationAlreadyLoaded) {
                 needsToplayMusic = true;
             }
-            DEV_LOG && console.log('nextStoryIndex', this._playedHistory, storyIndex, currentConfigs, configurationAlreadyLoaded, needsToplayMusic, shouldPlayStart);
+            DEV_LOG && console.log('nextStoryIndex', this._playedHistory, storyIndex, JSON.stringify(currentConfigs), configurationAlreadyLoaded, needsToplayMusic, shouldPlayStart);
 
             await this.stopPlayingInstruction();
             if (shouldPlayStart) {
@@ -1563,7 +1578,7 @@ export class StoryHandler extends Handler {
         if (!this.canDrawOnGlasses) {
             return;
         }
-        TEST_LOG && console.log('playStory', index, this.isPlaying, shouldPlayStop);
+        TEST_LOG && console.log('playStory', JSON.stringify({ index, isPlaying: this.isPlaying, shouldPlayStop, canStopStoryPlayback, markAsPlayedOnMap }));
         if (this.isPlaying) {
             return new Promise<void>((resolve) => {
                 this.toPlayNext = async () => {
@@ -1701,11 +1716,11 @@ export class StoryHandler extends Handler {
             this.lyric.play();
             // this.notify({ eventName: PlaybackEvent, data: 'play' });
             await this.playAudio({ fileName: path.join(storyFolder, 'audio.mp3'), notify: true });
-            TEST_LOG && console.log('playStory done ', index, this.isPlaying);
             // mark story as played
 
             this.playedStory(index + '', markAsPlayedOnMap);
             this.notify({ eventName: PlaybackEvent, data: 'stopped' });
+            TEST_LOG && console.log('playStory done ', index, this.isPlaying, shouldPlayStop, this.geoHandler.sessionState);
             if (shouldPlayStop && this.geoHandler.sessionState !== SessionState.STOPPED) {
                 let audioFiles;
                 if (ApplicationSettings.getBoolean('perStoryMessages', true)) {

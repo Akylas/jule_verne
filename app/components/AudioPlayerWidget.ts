@@ -72,7 +72,6 @@ export default class AudioPlayerWidget extends BgServiceComponent {
         this.state = 'play';
         this.playingInfo = event.data;
         this.$refs.imageView.nativeView.src = this.playingInfo.cover;
-        console.log('onPlayerStart', this.playingInfo);
         this.startPlayerInterval();
         this.show();
     }

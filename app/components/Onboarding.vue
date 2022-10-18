@@ -442,7 +442,12 @@ export default class Onboarding extends FirmwareUpdateComponent {
 
     @Catch()
     async checkAndUpdateFirmware() {
-        DEV_LOG && console.log('checkAndUpdateFirmware', this.connectedGlasses?.versions, versionCompare('4.6.0', this.connectedGlasses?.versions?.firmware));
+        DEV_LOG &&
+            console.log(
+                'checkAndUpdateFirmware',
+                this.connectedGlasses?.versions,
+                this.connectedGlasses?.versions && this.connectedGlasses?.versions?.firmware && versionCompare('4.6.0', this.connectedGlasses?.versions?.firmware)
+            );
         if (this.connectedGlasses?.versions && this.connectedGlasses?.versions?.firmware && versionCompare('4.6.0', this.connectedGlasses?.versions?.firmware) > 0) {
             // we need to update the firmware
             this.showLoading({ title: this.$tc('updating_firmware'), progress: 0 } as any);
