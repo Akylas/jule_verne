@@ -170,7 +170,7 @@ const Plugin = {
             bDevMode = value;
             if (bgService) {
                 bgService.bluetoothHandler.devMode = value;
-                bgService.geoHandler.dbHandler.devMode = value;
+                bgService.dbHandler.devMode = value;
             }
             setBoolean('devMode', value);
         });

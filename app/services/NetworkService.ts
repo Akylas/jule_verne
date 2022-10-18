@@ -12,6 +12,7 @@ import * as ProgressNotification from '~/services/android/ProgressNotifications'
 import { filesize } from 'filesize';
 import { Zip } from '@nativescript/zip';
 import { GlassesVersions } from '~/handlers/bluetooth/GlassesDevice';
+import { StoryHandler } from '~/handlers/StoryHandler';
 
 const ACTIVELOOK_UPDATE_URL = 'http://vps468290.ovh.net/v1';
 
@@ -226,9 +227,10 @@ export class NetworkService extends Observable {
                 workingDir += '/stories';
             }
             const storyDirPath = path.join(workingDir, storyId + '');
+            const newContentSize = headers['content-length'];
             DEV_LOG && console.log('checkForStoryUpdate', url, storyId, workingDir, newContentSize, typeof newContentSize, lastSize !== newContentSize, Folder.exists(storyDirPath));
 
-            if (forceReload || lastSize !== headers['content-length'] || !Folder.exists(storyDirPath)) {
+            if (forceReload || lastSize !== newContentSize || !Folder.exists(storyDirPath)) {
                 const requestTag = Date.now() + '';
 
                 const progressNotification = ProgressNotification.show({
@@ -236,7 +238,7 @@ export class NetworkService extends Observable {
                     icon: 'mdi-glasses',
                     smallIcon: 'mdi-download',
                     title: $tc('downloading_glasses_update', storyId),
-                    message: filesize(parseInt(headers['content-length'], 10)) as string,
+                    message: filesize(parseInt(newContentSize, 10)) as string,
                     ongoing: true,
                     indeterminate: false,
                     progress: 0,
@@ -318,7 +320,7 @@ export class NetworkService extends Observable {
         }
         this.updatingStories = true;
         const toUpdate = ['navigation', 'pastilles', '1000'];
-        const track = Vue.prototype.$bgService?.geoHandler?.currentTrack;
+        const track = (Vue.prototype.$bgService?.storyHandler as StoryHandler)?.currentTrack;
         if (track) {
             const storyIds = [...new Set(track.geometry.features.map((f) => parseInt('index' in f.properties ? f.properties.index : f.properties.name, 10)).filter((f) => !isNaN(f)))].sort();
             for (let index = 0; index < storyIds.length; index++) {
@@ -331,7 +333,7 @@ export class NetworkService extends Observable {
         // await Promise.all(toUpdate.map(this.checkForStoryUpdate));
         // await this.checkForStoryUpdate('navigation');
         // await this.checkForStoryUpdate('pastilles');
-        // const track = Vue.prototype.$bgService?.geoHandler?.currentTrack;
+        // const track = (Vue.prototype.$bgService?.storyHandler as StoryHandler)?.currentTrack;
         // if (track) {
         //     const storyIds = [...new Set(track.geometry.features.map((f) => parseInt('index' in f.properties ? f.properties.index : f.properties.name, 10)).filter((f) => !isNaN(f)))].sort();
         //     for (let index = 0; index < storyIds.length; index++) {

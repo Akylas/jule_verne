@@ -275,7 +275,7 @@ time:					${dayjs(this.lastLocation.timestamp).format('L LTS')}`
         } as any);
         this.onTrackSelected({ track: this.storyHandler.currentTrack } as any, false);
         this.onFeatureViewed({ data: { featureViewed: this.storyHandler.featuresViewed } } as any);
-        // this.onInsideFeature({ data: { featureViewed: this.geoHandler.featuresViewed } } as any);
+        // this.onInsideFeature({ data: { featureViewed: this.storyHandler.featuresViewed } } as any);
         // await this.geoHandler.startSession();
     }
 

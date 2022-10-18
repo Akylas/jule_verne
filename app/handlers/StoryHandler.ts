@@ -236,8 +236,8 @@ export class StoryHandler extends Handler {
         DEV_LOG && console.log(TAG, 'stop');
         this.geoHandler.removeOnLocationAugmenter(this.onLocation);
         this.geoHandler.off(SessionStateEvent, this.onSessionStateEvent, this);
-        this.geoHandler.off(GlassesConnectedEvent, this.onGlassesConnected, this);
-        this.geoHandler.off(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
+        this.bluetoothHandler.off(GlassesConnectedEvent, this.onGlassesConnected, this);
+        this.bluetoothHandler.off(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
         DEV_LOG && console.log(TAG, 'stop done');
     }
     async start() {
@@ -245,8 +245,8 @@ export class StoryHandler extends Handler {
             DEV_LOG && console.log(TAG, 'start');
             this.geoHandler.addOnLocationAugmenter(this.onLocation);
             this.geoHandler.on(SessionStateEvent, this.onSessionStateEvent, this);
-            this.geoHandler.on(GlassesConnectedEvent, this.onGlassesConnected, this);
-            this.geoHandler.on(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
+            this.bluetoothHandler.on(GlassesConnectedEvent, this.onGlassesConnected, this);
+            this.bluetoothHandler.on(GlassesDisconnectedEvent, this.onGlassesDisconnected, this);
             const selectedTrackId = ApplicationSettings.getString('selectedTrackId');
             if (selectedTrackId) {
                 const track = await this.dbHandler.getItem(selectedTrackId);
