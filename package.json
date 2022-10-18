@@ -35,7 +35,7 @@
         "@nativescript-community/systemui": "1.1.10",
         "@nativescript-community/text": "1.5.9",
         "@nativescript-community/ui-canvas": "4.4.4",
-        "@nativescript-community/ui-canvaslabel": "1.1.4",
+        "@nativescript-community/ui-canvaslabel": "1.1.5",
         "@nativescript-community/ui-carto": "1.8.14",
         "@nativescript-community/ui-chart": "1.2.19",
         "@nativescript-community/ui-checkbox": "2.0.8",
