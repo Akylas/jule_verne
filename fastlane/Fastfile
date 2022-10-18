@@ -131,6 +131,7 @@ lane :build_flavor do |params|
         target_dir:  target_dir, 
         file_paths: Dir.glob(File.expand_path("../platforms/android/app/build/outputs/apk/release/*.apk")),
       )
+    end
   when 'alpha','beta'
     upload_store(changelog:changelog, version: version, versionCode: versionCode, flavor:flavor)
   end
