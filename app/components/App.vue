@@ -256,7 +256,7 @@ export default class App extends GlassesConnectionComponent {
 
     constructor() {
         super();
-        this.autoConnect = !PRODUCTION;
+        this.autoConnect = true;
     }
     get drawer() {
         return this.getRef<Drawer>('drawer');
