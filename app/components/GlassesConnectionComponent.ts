@@ -96,19 +96,19 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         }
     }
     onBLEStatus(e) {
-        console.log(TAG, 'onBLEStatus', e.data);
+        TEST_LOG && console.log(TAG, 'onBLEStatus', e.data);
         this.bluetoothEnabled = e.data;
-        if (this.autoConnect) {
+        if (this.bluetoothEnabled && this.autoConnect) {
             this.tryToAutoConnect();
         }
     }
 
     onGPSStatus(e) {
-        console.log(TAG, 'onGPSStatus', e.data);
+        TEST_LOG && console.log(TAG, 'onGPSStatus', e.data);
         this.gpsEnabled = e.data;
-        if (this.autoConnect) {
-            this.tryToAutoConnect();
-        }
+        // if (this.bluetoothEnabled && this.autoConnect) {
+        //     this.tryToAutoConnect();
+        // }
     }
     onError(event) {
         this.showError(event.data);
