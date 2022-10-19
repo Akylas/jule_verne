@@ -1,4 +1,4 @@
-apply plugin: 'io.sentry.android.gradle'
+// apply plugin: 'io.sentry.android.gradle'
 
 project.ext.abiCodes = ['armeabi-v7a': 1, 'arm64-v8a': 2, 'x86_64': 3]
 def BUILD_TOOLS_PATH = "$rootDir/build-tools"
@@ -10,7 +10,7 @@ android {
     applicationId "com.akylas.juleverne"
     minSdkVersion 19 
     targetSdkVersion 33
-    versionCode 71
+    versionCode 73
     versionName "1.1.0"
 
     if (project.hasProperty('resConfigs')) {
@@ -139,7 +139,7 @@ android.applicationVariants.all { variant ->
 // }
 
 
-sentry {
-    autoUpload = false
-    uploadNativeSymbols = false
-}
+// sentry {
+//     autoUpload = false
+//     uploadNativeSymbols = false
+// }
