@@ -1,5 +1,5 @@
 <template>
-    <Page :actionBarHidden="true" ref="page" @navigatingFrom="onNavigatingFrom">
+    <Page id="onboarding" :actionBarHidden="true" ref="page" @navigatingFrom="onNavigatingFrom" @closingModally="onNavigatingFrom" :keepScreenAwake="true">
         <GridLayout rows="auto,*,auto">
             <CActionBar :title="$tc('onboarding')" textAlignment="center" modal :goBack="close" />
             <Pager row="1" ref="pager" v-model="selectedPageIndex" disableAnimation disableSwipe @swipe="onPagerSwipeEnd">
