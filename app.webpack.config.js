@@ -257,7 +257,7 @@ module.exports = (env, params = {}) => {
             {
                 loader: 'string-replace-loader',
                 options: {
-                    search: 'mdi-([a-z-]+)',
+                    search: 'mdi-([a-z-_]+)',
                     replace: (match, p1, offset, str) => {
                         if (mdiIcons[p1]) {
                             const unicodeHex = mdiIcons[p1];
