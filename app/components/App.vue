@@ -309,10 +309,10 @@ export default class App extends GlassesConnectionComponent {
 
     sessionsImported = false;
     onLoaded() {
-        // DEV_LOG && console.log(TAG, 'onLoaded', this.sessionsImported);
-        // if (this.dbHandler && this.dbHandler.started) {
-        //     this.importDevSessions();
-        // }
+        DEV_LOG && console.log(TAG, 'onLoaded', this.sessionsImported);
+        if (this.dbHandler && this.dbHandler.started) {
+            this.importTracks();
+        }
     }
     onButtonTap(item: MessageItem) {
         item.action?.callback?.();
@@ -414,7 +414,7 @@ export default class App extends GlassesConnectionComponent {
     async onServiceStarted(handlers: BgServiceMethodParams) {
         super.onServiceStarted(handlers);
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
-        this.importDevSessions();
+        this.importTracks();
 
         if (PRODUCTION || !isSimulator()) {
             this.$networkService.checkForMapDataUpdate();
@@ -423,14 +423,13 @@ export default class App extends GlassesConnectionComponent {
             this.$networkService.checkForGlassesDataUpdate();
         }
     }
-    async importDevSessions(force = false) {
+    async importTracks(force = false) {
         if (!force && this.sessionsImported) {
             return;
         }
         try {
             this.sessionsImported = true;
             let geojsonPath = path.join(getWorkingDir(false), 'map.geojson');
-            DEV_LOG && console.log(TAG, 'importDevSessions', geojsonPath);
             if (PRODUCTION || !isSimulator()) {
                 await this.$networkService.checkForGeoJSONUpdate(geojsonPath);
             }
@@ -446,8 +445,9 @@ export default class App extends GlassesConnectionComponent {
             if (file.lastModified.getTime() <= lastChecked) {
                 return;
             }
-            const importData = file.readTextSync();
+            const importData = await file.readText();
             const data = JSON.parse(importData);
+            TEST_LOG && console.log(TAG, 'importDevSessions', geojsonPath, file.lastModified, JSON.stringify(data.map((d) => d.name)));
             const existingTracks = await this.dbHandler.trackRepository.searchItem();
             for (let i = 0; i < data.length; i++) {
                 const d = data[i];
@@ -460,9 +460,9 @@ export default class App extends GlassesConnectionComponent {
                 let newTrack;
                 const index = existingTracks.findIndex((t) => t.id === track.id);
                 if (index === -1) {
-                    existingTracks.splice(index, 1);
                     newTrack = await this.dbHandler.trackRepository.createItem(track);
                 } else {
+                    existingTracks.splice(index, 1);
                     newTrack = await this.dbHandler.trackRepository.updateItem(track);
                 }
                 if (this.storyHandler.currentTrack?.id === newTrack.id) {
@@ -471,7 +471,13 @@ export default class App extends GlassesConnectionComponent {
             }
             ApplicationSettings.setNumber('map.geojson_date', file.lastModified.getTime());
             // we updated/added all new tracks. Let s remove those not present still
-            await this.dbHandler.trackRepository.removeItems(existingTracks.map((t) => t.id));
+            TEST_LOG &&
+                console.log(
+                    'importDevSessions',
+                    'removing unused sessions',
+                    existingTracks.map((t) => t.id)
+                );
+            // await this.dbHandler.trackRepository.removeItems(existingTracks.map((t) => t.id));
         } catch (err) {
             this.showError(err);
         } finally {
