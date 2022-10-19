@@ -457,7 +457,7 @@ export default class Onboarding extends FirmwareUpdateComponent {
 
     @Catch()
     async enableBluetooth() {
-        await this.bluetoothHandler.enable();
+        this.bluetoothEnabled = await this.bluetoothHandler.enable();
     }
 
     @Catch()

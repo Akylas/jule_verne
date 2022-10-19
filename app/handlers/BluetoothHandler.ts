@@ -464,7 +464,7 @@ export class BluetoothHandler extends Handler {
             // return Promise.resolve();
             throw new MessageError({ message: 'running in simulator' });
         }
-        const enabled = await bluetooth.enable();
+        let enabled = await bluetooth.enable();
         if (!enabled) {
             if (__IOS__) {
                 alert({
@@ -479,6 +479,7 @@ export class BluetoothHandler extends Handler {
                 });
                 if (!result) {
                     await bluetooth.openBluetoothSettings();
+                    enabled = await this.isEnabled();
                 }
             }
         }

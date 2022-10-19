@@ -53,6 +53,8 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
         this.geoHandlerOn(StatusChangedEvent, this.onGPSStatus);
         this.bluetoothHandlerOn('error', this.onError);
         this.bluetoothHandlerOn(StatusChangedEvent, this.onBLEStatus);
+        this.bluetoothEnabled = this.bluetoothHandler.bluetoothEnabled;
+        this.gpsEnabled = this.geoHandler.gpsEnabled;
 
         this.bluetoothHandlerOn(GlassesConnectedEvent, this.onGlassesConnected);
         this.bluetoothHandlerOn(GlassesDisconnectedEvent, this.onGlassesDisconnected);
@@ -75,8 +77,6 @@ export default class GlassesConnectionComponent extends BgServiceComponent {
                 data: handlers.bluetoothHandler.glasses.versions
             } as any);
         }
-        this.bluetoothEnabled = this.bluetoothHandler.bluetoothEnabled;
-        this.gpsEnabled = this.geoHandler.gpsEnabled;
         if (handlers.bluetoothHandler.glasses) {
             this.onGlassesConnected({ data: handlers.bluetoothHandler.glasses } as any);
         } else if (this.connectedGlasses) {
