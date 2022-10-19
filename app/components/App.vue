@@ -1,5 +1,5 @@
 <template>
-    <Page ref="page" @loaded="onLoaded" actionBarHidden>
+    <Page ref="page" id="main" @loaded="onLoaded" actionBarHidden>
         <GridLayout>
             <Drawer
                 ref="drawer"

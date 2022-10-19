@@ -1,5 +1,5 @@
 <template>
-    <Page ref="page" id="history" :navigateUrl="navigateUrl" @navigatingTo="onNavigatingTo">
+    <Page ref="page" id="tracks" :navigateUrl="navigateUrl" @navigatingTo="onNavigatingTo">
         <GridLayout rows="auto,*">
             <CActionBar :title="title" :showMenuIcon="!inSelection" :disableBackButton="inSelection">
                 <StackLayout verticalAlignment="center" orientation="horizontal">

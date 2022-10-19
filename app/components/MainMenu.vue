@@ -1,5 +1,5 @@
 <template>
-    <Page ref="page" id="history" :navigateUrl="navigateUrl">
+    <Page ref="page" id="mainmenu" :navigateUrl="navigateUrl">
         <GridLayout rows="auto,*,auto,auto,auto">
             <CActionBar showMenuIcon>
                 <Image slot="center" col="1" src="~/assets/images/logos/fabrique.png" margin="10" horizontalAlignment="center" />

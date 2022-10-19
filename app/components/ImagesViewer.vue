@@ -1,5 +1,5 @@
 <template>
-    <Page ref="page" id="history" :navigateUrl="navigateUrl" backgroundColor="black">
+    <Page ref="page" id="images" :navigateUrl="navigateUrl" backgroundColor="black">
         <GridLayout rows="auto,*, auto">
             <CActionBar :title="$t('images')" showMenuIcon />
             <Pager row="1" v-model="currentIndex" :items="items" :disableAnimation="true">
