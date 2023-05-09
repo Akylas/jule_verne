@@ -13,10 +13,10 @@ export class BgService extends BgServiceCommon {
     readonly storyHandler: StoryHandler;
     constructor() {
         super();
-        this.geoHandler = new GeoHandler();
-        this.bluetoothHandler = new BluetoothHandler();
-        this.dbHandler = new DBHandler();
-        this.storyHandler = new StoryHandler();
+        this.geoHandler = new GeoHandler(this);
+        this.bluetoothHandler = new BluetoothHandler(this);
+        this.dbHandler = new DBHandler(this);
+        this.storyHandler = new StoryHandler(this);
         this._handlerLoaded();
     }
 }
