@@ -1,8 +1,8 @@
+#!/usr/bin/env ./node_modules/.bin/vite-node --script
 import path from 'path';
 import { buildDataSet, getFolder, storiesFolder } from './common';
 import { program } from '@caporal/core';
 import { readFileSync, writeFileSync } from 'fs';
-const open = require('open');
 
 // function to encode file data to base64 encoded string
 function base64_encode(file) {
@@ -17,8 +17,8 @@ function prepareLottie(storyFolder) {
     const imagesMap = require(path.join(storyFolder, 'image_map.json'));
     const assets = {};
     const assetsToAdd = [];
-    data.w = 228;
-    data.h = 192;
+    data.w = 976;
+    data.h = 824;
     data.assets.forEach((a) => {
         assets[a.id] = a.layers;
         a.layers.forEach((layer) => {
@@ -26,14 +26,14 @@ function prepareLottie(storyFolder) {
             if (imagesMap[cleaned] && !assets[layer.refId]) {
                 const asset = (assets[layer.refId] = {
                     id: layer.refId,
-                    w: 228,
-                    h: 192,
+                    w: 976,
+                    h: 824,
                     // e: 1,
                     // u: '',
                     // p: `data:image/png;base64,${base64_encode(path.join(storyImagesFolder, cleaned + '.png'))}`
                     e: 0,
                     u: 'static/images/',
-                    p: cleaned + '.png'
+                    p: cleaned + '.jpg'
                 });
                 assetsToAdd.push(asset);
             }
@@ -46,14 +46,14 @@ function prepareLottie(storyFolder) {
             if (imagesMap[cleaned]) {
                 const asset = (assets[layer.refId] = {
                     id: layer.refId,
-                    w: 228,
-                    h: 192,
+                    w: 976,
+                    h: 824,
                     // e: 1,
                     // u: '',
                     // p: `data:image/png;base64,${base64_encode(path.join(storyImagesFolder, cleaned + '.png'))}`
                     e: 0,
                     u: 'static/images/',
-                    p: cleaned + '.png'
+                    p: cleaned + '.jpg'
                 });
                 assetsToAdd.push(asset);
             }
@@ -70,7 +70,7 @@ program
         const express = require('express');
         const app = express();
         const cfgId = options.id + '';
-        const myStoriesFolder= storiesFolder + (options.big ? '_big' : '');
+        const myStoriesFolder = storiesFolder + (options.big ? '_big' : '');
         const storyFolder = path.join(myStoriesFolder, cfgId);
         const data = prepareLottie(storyFolder);
         // writeFileSync(path.join(__dirname + '/test.json'), JSON.stringify(data));

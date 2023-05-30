@@ -1,6 +1,6 @@
+#!/usr/bin/env ./node_modules/.bin/vite-node --script
 import noble from '@abandonware/noble';
 import { program } from '@caporal/core';
-import cv2 from '@u4/opencv4nodejs';
 import { EventEmitter } from 'events';
 import fs from 'fs';
 import inquirer from 'inquirer';
@@ -8,9 +8,9 @@ import inquirerFileTreeSelection from 'inquirer-file-tree-selection-prompt';
 import keypress from 'keypress';
 import player from 'node-wav-player';
 import path from 'path';
-import SerialPort from 'serialport';
+import { SerialPort } from 'serialport';
 import Lyric from '../app/handlers/Lyric';
-// import ora from 'ora';
+import ora from 'ora';
 import {
     CONFIG_NAME,
     CONFIG_PASSWORD,
@@ -729,7 +729,8 @@ async function connectSerial() {
     const microoledSerial = result.find((r) => r.vendorId && r.vendorId.toLowerCase() === 'fffe');
     if (microoledSerial) {
         log('microoledSerial', microoledSerial);
-        port = new SerialPort(microoledSerial.path, {
+        port = new SerialPort({
+            path: microoledSerial.path,
             autoOpen: false,
             baudRate: 115200
         });
@@ -848,7 +849,7 @@ function sendLayoutConfigSerial(filePath: string) {
                     return new Promise<void>((resolve, reject) => {
                         // log('sending', s);
                         setTimeout(function () {
-                            port.write(s + '\r\n', (err, bytesWritten) => {
+                            port.write(s + '\r\n', (err) => {
                                 if (err) {
                                     return reject(err);
                                 }
@@ -885,7 +886,7 @@ async function sendRawCommands(commandsToSend: number[][], message?) {
         const datalength = commandsToSend.reduce((accumulator, currentValue) => accumulator + currentValue.length, 0);
         let dataSent = 0;
         // spinner.text = `${message}(0%)`;
-        // ui.updateBottomBar(`${message}(0%)`);
+        ui.updateBottomBar(`${message}(0%)`);
         const startTime = Date.now();
         // bluetoothDevice.rxCharacteristic.writeWithoutResponse = true;
 
@@ -895,7 +896,7 @@ async function sendRawCommands(commandsToSend: number[][], message?) {
             }
             const p = (progress * total + dataSent) / datalength;
             // spinner.text = `${message}(${Math.round(p * 100)}%, ${datalength},  ${Date.now() - startTime} ms)`;
-            // ui.updateBottomBar(`${message}(${Math.round(p * 100)}%, ${datalength},  ${Date.now() - startTime} ms)`);
+            ui.updateBottomBar(`${message}(${Math.round(p * 100)}%, ${datalength},  ${Date.now() - startTime} ms)`);
             if (progress === 1) {
                 dataSent += total;
                 resolve();
@@ -985,7 +986,7 @@ async function handleCommand(promptAnswers: { command: string }) {
                     break;
                 }
                 case 'streamFolder': {
-                    await streamFolder(cmdArguments?.args?.[0] || '/Volumes/data/mguillon/Desktop/aristideadulte1_resized.png');
+                    await streamFolder(cmdArguments?.args?.[0] || path.join(getFolder(configId)), 'images');
                     break;
                 }
                 case 'formatDisk': {

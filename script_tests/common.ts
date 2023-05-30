@@ -3,7 +3,7 @@ import path from 'path';
 import cv2 from '@u4/opencv4nodejs';
 import { CommandType, buildMessageData } from '../app/handlers/Message';
 import { Encoder } from '@fsiot/heatshrink';
-import fileSize from 'filesize';
+import { filesize } from 'filesize';
 import { getAudioDurationInSeconds } from 'get-audio-duration';
 
 function uint16ToByteArray(value) {
@@ -341,7 +341,7 @@ export async function buildDataSet(configId: string, crop = false, compress = fa
     );
     fs.writeFileSync(path.join(folder, 'image_map.json'), JSON.stringify(jsonOrderData));
     // const data = files.reduce((accumulator, currentValue) => accumulator.concat(createBitmapData(currentValue)), [] as number[][]);
-    console.log('data', fileSize(totalImageSize));
+    console.log('data', filesize(totalImageSize));
 
     const fileDataStr = data.reduce(
         (accumulator, currentValue) =>

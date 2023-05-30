@@ -65,18 +65,18 @@ function simplify_path(main_path) {
 }
 
 export function getWorkingDir(allowDev = true) {
-    if (!PRODUCTION && allowDev) {
-        if (__ANDROID__) {
-            const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
-            const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();
-            if (sdcardFolder) {
-                const sdcardPath = path.join(sdcardFolder, '../../../..');
-                if (Folder.exists(sdcardPath)) {
-                    return simplify_path(sdcardPath);
-                }
-            }
-        }
-    }
+    // if (!PRODUCTION && allowDev) {
+    //     if (__ANDROID__) {
+    //         const dirs = (app.android.startActivity as android.app.Activity).getExternalFilesDirs(null);
+    //         const sdcardFolder = dirs[dirs.length - 1]?.getAbsolutePath();
+    //         if (sdcardFolder) {
+    //             const sdcardPath = path.join(sdcardFolder, '../../../..');
+    //             if (Folder.exists(sdcardPath)) {
+    //                 return simplify_path(sdcardPath);
+    //             }
+    //         }
+    //     }
+    // }
     const folder = Folder.fromPath(path.join(knownFolders.documents().path, 'data'));
     return folder.path;
 }
