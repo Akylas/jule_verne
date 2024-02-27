@@ -1,4 +1,4 @@
-#!/usr/bin/env ./node_modules/.bin/vite-node --script
+#!/usr/bin/env -S ./node_modules/.bin/vite-node --script
 import noble from '@abandonware/noble';
 import { program } from '@caporal/core';
 import { EventEmitter } from 'events';

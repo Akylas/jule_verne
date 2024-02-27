@@ -103,6 +103,7 @@ module.exports = (env, params = {}) => {
         noconsole, // --env.noconsole
         reportall, // --env.reportall
         disableupdates,
+        devOffline,
         usecrop, // --env.usecrop
         devlog, // --env.devlog
         testlog, // --env.testlog
@@ -184,6 +185,7 @@ module.exports = (env, params = {}) => {
         SENTRY_PREFIX: `"${!!sentry ? process.env.SENTRY_PREFIX : ''}"`,
         NO_CONSOLE: noconsole,
         DISABLE_UPDATES: disableupdates,
+        FULLY_DEV_OFFLINE: devOffline,
         __FORCE_BUG_REPORT__: !!reportall,
         DEV_LOG: !!devlog,
         TEST_LOG: !!devlog || !!testlog

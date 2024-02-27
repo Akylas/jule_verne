@@ -64,12 +64,13 @@ function setSource(code) {
 }
 
 function changeStyle(style) {
-    const link = document.getElementById('mainstyle');
-    link.setAttribute('href', `highlight/styles/${style}.css`);
+    // const link = document.getElementById('mainstyle');
+    // link.setAttribute('href', `./highlight/styles/${style}.min.css`);
+    
 }
 
 function changeLanguage(lang) {
-    const newLang = hljs.getLanguage(lang);
+    const newLang = hljs.registerLanguage('lang', require('highlight.js/languages/' + lang + '.min.js'));
     if (newLang) {
         language = [lang];
     } else {

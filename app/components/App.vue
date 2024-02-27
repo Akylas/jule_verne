@@ -416,10 +416,10 @@ export default class App extends GlassesConnectionComponent {
         this.geoHandlerOn(SessionStateEvent, this.onSessionStateEvent, this);
         this.importTracks();
 
-        if (PRODUCTION || !isSimulator()) {
+        if (!FULLY_DEV_OFFLINE && (PRODUCTION || !isSimulator())) {
             this.$networkService.checkForMapDataUpdate();
         }
-        if (!DISABLE_UPDATES && (PRODUCTION || !isSimulator())) {
+        if (!FULLY_DEV_OFFLINE && !DISABLE_UPDATES && (PRODUCTION || !isSimulator())) {
             this.$networkService.checkForGlassesDataUpdate();
         }
     }
@@ -429,8 +429,8 @@ export default class App extends GlassesConnectionComponent {
         }
         try {
             this.sessionsImported = true;
-            let geojsonPath = path.join(getWorkingDir(false), 'map.geojson');
-            if (PRODUCTION || !isSimulator()) {
+            let geojsonPath = path.join(getWorkingDir(true), 'map.geojson');
+            if (!FULLY_DEV_OFFLINE && (PRODUCTION || !isSimulator())) {
                 await this.$networkService.checkForGeoJSONUpdate(geojsonPath);
             }
             if (!File.exists(geojsonPath)) {

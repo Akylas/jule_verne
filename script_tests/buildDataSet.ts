@@ -1,4 +1,4 @@
-#!/usr/bin/env ./node_modules/.bin/vite-node --script
+#!/usr/bin/env -S ./node_modules/.bin/vite-node --script
 import { program } from '@caporal/core';
 import { buildDataSet, setImageFolder } from './common';
 

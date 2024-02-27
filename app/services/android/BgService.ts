@@ -2,7 +2,7 @@ import { Device, ImageSource, Utils } from '@nativescript/core';
 import { Canvas, ColorMatrixColorFilter, Paint } from '@nativescript-community/ui-canvas';
 import { GeoHandler, SessionChronoEventData, SessionEventData, SessionState, SessionStateEvent } from '~/handlers/GeoHandler';
 import { BgServiceBinder } from '~/services/android/BgServiceBinder';
-import { ACTION_PAUSE, ACTION_RESUME, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, NotificationHelper } from './NotifcationHelper';
+import { ACTION_PAUSE, ACTION_RESUME, FLAG_IMMUTABLE, NOTIFICATION_CHANEL_ID_RECORDING_CHANNEL, NotificationHelper } from './NotifcationHelper';
 import { $tc } from '~/helpers/locale';
 import { BluetoothHandler, GlassesConnectedEvent, GlassesDisconnectedEvent } from '~/handlers/BluetoothHandler';
 // import { MediaSessionCompatCallback } from './MediaSessionCompatCallback';
@@ -253,7 +253,7 @@ export class BgService extends android.app.Service {
             ));
             const mediaButtonIntent = new android.content.Intent(android.content.Intent.ACTION_MEDIA_BUTTON);
             mediaButtonIntent.setClass(context, com.akylas.juleverne.CustomMediaButtonReceiver.class);
-            const pendingIntent = android.app.PendingIntent.getBroadcast(this, 0, mediaButtonIntent, 0);
+            const pendingIntent = android.app.PendingIntent.getBroadcast(this, 0, mediaButtonIntent, FLAG_IMMUTABLE);
             mediaSessionCompat.setMediaButtonReceiver(pendingIntent);
             mediaSessionCompat.setPlaybackState(stateBuilder.build());
 

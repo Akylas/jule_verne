@@ -1,4 +1,4 @@
-#!/usr/bin/env ./node_modules/.bin/vite-node --script
+#!/usr/bin/env -S ./node_modules/.bin/vite-node --script
 import path from 'path';
 import { buildDataSet, getFolder, storiesFolder } from './common';
 import { program } from '@caporal/core';

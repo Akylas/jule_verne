@@ -56,8 +56,8 @@
   "opencv4nodejs": {
     "autoBuildFlags": "-DBUILD_LIST=core,imgproc,imgcodecs,photo,highgui",
     "disableAutoBuild": 1,
-    "opencvIncludeDir": "/usr/local/include/opencv4",
-    "opencvLibDir": "/usr/local/lib",
-    "opencvBinDir": "/usr/local/bin"
+    "opencvIncludeDir": "/usr/include/opencv4",
+    "opencvLibDir": "/usr/lib/x86_64-linux-gnu",
+    "opencvBinDir": "/usr/bin"
   }
 }

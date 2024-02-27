@@ -1313,32 +1313,32 @@ export class StoryHandler extends Handler {
 
     parseLottieFile(data: any) {
         const assets = {};
+        const framerate = data.fr;
         data.assets.forEach((a) => {
             assets[a.id] = a.layers;
         });
         const timeline = [];
-        let lastOp;
         function addData(data, start = 0, end = 0) {
             // timeline[Math.round(((data.ip + start) * 1000) / 24)] = data.nm;
-            const newStart = Math.round(((data.ip + start) * 1000) / 24);
+            const newStart = Math.round(((data.ip + start) * 1000) / framerate);
             const last = timeline.length > 1 && timeline[timeline.length - 1];
             if (last && (timeline[timeline.length - 1].time >= newStart || newStart - timeline[timeline.length - 1].time <= 18)) {
                 timeline.splice(timeline.length - 1, 1);
             }
             if (!last || last.text !== data.nm) {
                 timeline.push({
-                    time: Math.round(((data.ip + start) * 1000) / 24),
+                    time: Math.round(((data.ip + start) * 1000) / framerate),
                     text: data.nm
                 });
             }
             if (end) {
                 timeline.push({
-                    time: Math.round((Math.min(data.op + start, end) * 1000) / 24),
+                    time: Math.round((Math.min(data.op + start, end) * 1000) / framerate),
                     text: ''
                 });
             } else {
                 timeline.push({
-                    time: Math.round(((data.op + start) * 1000) / 24),
+                    time: Math.round(((data.op + start) * 1000) / framerate),
                     text: ''
                 });
             }
@@ -1577,7 +1577,6 @@ export class StoryHandler extends Handler {
 
     set canStopStoryPlayback(value) {
         if (value !== this.mCanStopStoryPlayback) {
-            TEST_LOG && console.log('set canStopStoryPlayback', value, this.isPlayingStory, this.isPlayingPastille, new Error().stack);
             this.mCanStopStoryPlayback = value;
         }
     }

@@ -8,13 +8,13 @@ import NSQLDatabase from '~/handlers/NSQLDatabase';
 const sql = SqlQuery.createFromTemplateString;
 
 export interface GeometryProperties {
+    name?: string;
     index: string;
     type?: string;
     shape?: string;
     color?: string;
     stroke?: string;
     fill?: string;
-    name?: string;
     radius?: number;
     isStory?: boolean;
 }

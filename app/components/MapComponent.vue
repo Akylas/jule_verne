@@ -102,7 +102,7 @@ export default class MapComponent extends BgServiceComponent {
         super.mounted();
     }
     getDefaultMBTilesDir() {
-        return path.join(getWorkingDir(false), 'tiles');
+        return path.join(getWorkingDir(true), 'tiles');
     }
     async onMapReady(e) {
         DEV_LOG && console.log('MapComponent', 'onMapReady');

@@ -5,6 +5,8 @@ import { knownFolders, path } from '@nativescript/core/file-system';
 import { TrackRepository } from '../models/Track';
 import { Handler } from './Handler';
 import NSQLDatabase from './NSQLDatabase';
+import { ANDROID_30, askForManagePermission, checkManagePermission } from '~/utils/utils.android';
+import { $tc } from '~/helpers/locale';
 
 const TAG = '[DB]';
 
@@ -28,6 +30,14 @@ export class DBHandler extends Handler {
     trackRepository: TrackRepository;
     async start() {
         await request('storage');
+        if (__ANDROID__) {
+            if (ANDROID_30) {
+                await askForManagePermission();
+                if (!checkManagePermission()) {
+                    throw new Error($tc('missing_manage_permission'));
+                }
+            }
+        }
         const filePath = path.join(knownFolders.documents().getFolder('db').path, 'db.sqlite');
         this.db = new NSQLDatabase(filePath, {
             // for now it breaks

@@ -222,7 +222,7 @@ export class NetworkService extends Observable {
             const url = ApplicationSettings.getString('UPDATE_DATA_DEFAULT_URL', UPDATE_DATA_DEFAULT_URL) + `?path=/&files=${storyId}.zip`;
             const headers = await getHEAD(url);
             const lastSize = ApplicationSettings.getString('GLASSES_DATA_SIZE_' + storyId, '');
-            let workingDir = path.join(getWorkingDir(), 'glasses_images');
+            let workingDir = path.join(await getWorkingDir(), 'glasses_images');
             if (storyId !== 'navigation' && storyId !== 'pastilles') {
                 workingDir += '/stories';
             }
@@ -322,7 +322,7 @@ export class NetworkService extends Observable {
         const toUpdate = ['navigation', 'pastilles', '1000'];
         const track = (Vue.prototype.$bgService?.storyHandler as StoryHandler)?.currentTrack;
         if (track) {
-            const storyIds = [...new Set(track.geometry.features.map((f) => parseInt('index' in f.properties ? f.properties.index : f.properties.name, 10)).filter((f) => !isNaN(f)))].sort();
+            const storyIds = [...new Set(track.geometry.features.map((f) => parseInt('index' in f.properties ? f.properties.index : f.properties['name'], 10)).filter((f) => !isNaN(f)))].sort();
             for (let index = 0; index < storyIds.length; index++) {
                 toUpdate.push(storyIds[index] + '');
             }

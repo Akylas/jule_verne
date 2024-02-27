@@ -440,9 +440,11 @@ export default class Settings extends FirmwareUpdateComponent {
     }
 
     async checkForDataUpdates(forceReload = false) {
-        await this.$getAppComponent().importDevSessions(true);
-        await this.$networkService.checkForMapDataUpdate();
-        await this.$networkService.checkForGlassesDataUpdate(forceReload);
+        await this.$getAppComponent().importTracks(true);
+        if (!FULLY_DEV_OFFLINE) {
+            await this.$networkService.checkForMapDataUpdate();
+            await this.$networkService.checkForGlassesDataUpdate(forceReload);
+        }
     }
     // async getConfigs(refresh = true) {
     //     try {

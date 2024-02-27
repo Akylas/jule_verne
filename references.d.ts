@@ -1,4 +1,4 @@
-/// <reference path="./node_modules/@nativescript/types-android/lib/android-29.d.ts" />
+/// <reference path="./node_modules/@nativescript/types-android/lib/android-32.d.ts" />
 ///// <reference path="./node_modules/@nativescript/types-ios/lib/ios.d.ts" />
 /// <reference path="./node_modules/@nativescript/core/global-types.d.ts" />
 /// <reference path="./vue.shim.d.ts" />
@@ -17,6 +17,7 @@ declare const PRODUCTION: boolean;
 declare const NO_CONSOLE: boolean;
 declare const __FORCE_BUG_REPORT__: boolean;
 declare const DISABLE_UPDATES: boolean;
+declare const FULLY_DEV_OFFLINE: boolean;
 declare const SENTRY_ENABLED: boolean;
 declare const SENTRY_DSN: string;
 declare const SENTRY_PREFIX: string;
